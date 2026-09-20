@@ -47,14 +47,15 @@ const AppState = {
 // Storage Keys
 const STORAGE_KEY_MEMBERS = 'MEDICAL_DASHBOARD_MEMBERS_V1';
 const STORAGE_KEY_THAIFAMMED = 'MEDICAL_DASHBOARD_THAIFAMMED_V1';
+const STORAGE_KEY_TF_OVERRIDES = 'MEDICAL_DASHBOARD_TF_OVERRIDES_V1';
 const STORAGE_KEY_GAS_URL = 'MEDICAL_DASHBOARD_GAS_URL';
 const STORAGE_KEY_BRANDING = 'MEDICAL_DASHBOARD_BRANDING_V1';
 const STORAGE_KEY_AUTH_USER = 'MEDICAL_DASHBOARD_AUTH_USER_V1';
 const STORAGE_KEY_CREDENTIALS = 'MEDICAL_DASHBOARD_CREDENTIALS_V1';
 const STORAGE_KEY_DELEGATES = 'MEDICAL_DASHBOARD_DELEGATES_V1';
 
-// Default GAS Endpoint (can be embedded or set via modal)
-const DEFAULT_GAS_URL = '';
+// Default GAS Endpoint (realtime Google Apps Script Web App API for Sheet 1PVM2q...)
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyXB_YHNHcyo-9TvCuCw7bvu3rlWHVf90JSL3IZgufX1RtvEKixKq-xxet8yNWVRv2xew/exec';
 
 function getGasEndpoint() {
   return localStorage.getItem(STORAGE_KEY_GAS_URL) || DEFAULT_GAS_URL || '';
@@ -75,10 +76,15 @@ async function sendToGasApi(payload) {
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
     });
-    const result = await response.json();
-    return result;
+    try {
+      const result = await response.json();
+      return result;
+    } catch (parseErr) {
+      return { status: 'success', message: 'Response received' };
+    }
   } catch (err) {
     console.warn('Sync to Google Apps Script failed:', err);
     return null;
@@ -124,22 +130,45 @@ function initData() {
   AppState.filteredMembers = [...AppState.members];
 
   // Thaifammed Database (3,750 records)
-  const savedTf = localStorage.getItem(STORAGE_KEY_THAIFAMMED);
-  if (savedTf) {
+  AppState.thaifammed = window.INITIAL_DATA ? JSON.parse(JSON.stringify(window.INITIAL_DATA.thaifammed || [])) : [];
+
+  // Apply lightweight overrides if any (takes < 2KB instead of 3MB, preventing QuotaExceededError on mobile)
+  const savedOverrides = localStorage.getItem(STORAGE_KEY_TF_OVERRIDES);
+  if (savedOverrides) {
     try {
-      const parsedTf = JSON.parse(savedTf);
-      if (Array.isArray(parsedTf) && parsedTf.length > 0) {
-        AppState.thaifammed = parsedTf;
-        console.log(`Loaded ${AppState.thaifammed.length} thaifammed records from LocalStorage.`);
-      } else {
-        AppState.thaifammed = window.INITIAL_DATA ? (window.INITIAL_DATA.thaifammed || []) : [];
+      const overrides = JSON.parse(savedOverrides);
+      if (overrides && typeof overrides === 'object') {
+        let appliedCount = 0;
+        AppState.thaifammed.forEach(d => {
+          if (overrides[d.id]) {
+            Object.assign(d, overrides[d.id]);
+            appliedCount++;
+          }
+        });
+        console.log(`Applied ${appliedCount} thaifammed overrides from LocalStorage.`);
       }
     } catch (e) {
-      console.error('Error parsing LocalStorage thaifammed data:', e);
-      AppState.thaifammed = window.INITIAL_DATA ? (window.INITIAL_DATA.thaifammed || []) : [];
+      console.error('Error applying thaifammed overrides:', e);
     }
   } else {
-    AppState.thaifammed = window.INITIAL_DATA ? (window.INITIAL_DATA.thaifammed || []) : [];
+    // Migration: if old 3MB STORAGE_KEY_THAIFAMMED exists from previous sessions, migrate to lightweight overrides
+    const oldSavedTf = localStorage.getItem(STORAGE_KEY_THAIFAMMED);
+    if (oldSavedTf) {
+      try {
+        const parsedTf = JSON.parse(oldSavedTf);
+        if (Array.isArray(parsedTf)) {
+          parsedTf.forEach(d => {
+            if (d.isUpdated) {
+              const target = AppState.thaifammed.find(t => t.id == d.id);
+              if (target) Object.assign(target, d);
+            }
+          });
+          saveThaifammedOverrides();
+        }
+      } catch (e) {
+        localStorage.removeItem(STORAGE_KEY_THAIFAMMED);
+      }
+    }
   }
   AppState.thaifammedStats = window.INITIAL_DATA ? (window.INITIAL_DATA.thaifammedStats || {}) : {};
   AppState.filteredThaifammed = [...AppState.thaifammed];
@@ -266,6 +295,24 @@ function switchView(viewName) {
     }
   });
 
+  // Sync Mobile Bottom Navigation Active Tab
+  const bottomNavItems = ['dashboard', 'map', 'directory', 'thaifammed'];
+  bottomNavItems.forEach(v => {
+    const bEl = document.getElementById(`bnav-${v}`);
+    if (bEl) {
+      if (v === viewName) {
+        bEl.className = 'flex flex-col items-center justify-center flex-1 py-1 transition text-sky-400 font-bold';
+      } else {
+        bEl.className = 'flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white';
+      }
+    }
+  });
+
+  // Auto-close mobile drawer when navigating
+  if (typeof closeMobileSidebar === 'function') {
+    closeMobileSidebar();
+  }
+
   if (viewName === 'map') {
     setTimeout(() => {
       initMap();
@@ -289,9 +336,28 @@ function switchView(viewName) {
 
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
-  sidebar.classList.toggle('-translate-x-full');
-  sidebar.classList.toggle('fixed');
-  sidebar.classList.toggle('inset-y-0');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) return;
+
+  const isClosed = sidebar.classList.contains('-translate-x-full');
+  if (isClosed) {
+    sidebar.classList.remove('-translate-x-full');
+    if (backdrop) backdrop.classList.remove('hidden');
+  } else {
+    sidebar.classList.add('-translate-x-full');
+    if (backdrop) backdrop.classList.add('hidden');
+  }
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar && window.innerWidth < 1024) {
+    sidebar.classList.add('-translate-x-full');
+  }
+  if (backdrop) {
+    backdrop.classList.add('hidden');
+  }
 }
 
 /* ================= DASHBOARD & CHARTS ================= */
@@ -1274,13 +1340,9 @@ function syncDoctorCoordinates(options) {
     }
   }
 
-  // 4. บันทึกลง LocalStorage ทั้งสองฐานข้อมูล
+  // 4. บันทึกลง LocalStorage ทั้งสองฐานข้อมูล (แบบประหยัดพื้นที่ ป้องกัน QuotaExceeded บนมือถือ)
   saveMembersToStorage();
-  try {
-    localStorage.setItem(STORAGE_KEY_THAIFAMMED, JSON.stringify(AppState.thaifammed));
-  } catch (e) {
-    console.error('Failed to save thaifammed to localStorage:', e);
-  }
+  saveThaifammedOverrides();
 
   // 5. สั่งรีเฟรชการแสดงผลทุกเมนูที่เกี่ยวข้อง
   if (typeof handleDirectoryFilter === 'function') handleDirectoryFilter();
@@ -2683,10 +2745,36 @@ function saveMembersToStorage() {
   try {
     localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
     updateStorageStatus();
-    document.getElementById('sidebar-member-badge').innerText = `${AppState.members.length} คน`;
+    const badge = document.getElementById('sidebar-member-badge');
+    if (badge) badge.innerText = `${AppState.members.length} คน`;
   } catch (e) {
     console.error('Storage error:', e);
     showToast('เกิดข้อผิดพลาดในการบันทึก LocalStorage', 'error');
+  }
+}
+
+function saveThaifammedOverrides() {
+  try {
+    const overrides = {};
+    if (AppState.thaifammed && Array.isArray(AppState.thaifammed)) {
+      AppState.thaifammed.forEach(d => {
+        if (d.isUpdated) {
+          overrides[d.id] = {
+            lat: d.lat,
+            lng: d.lng,
+            workplace: d.workplace,
+            province: d.province,
+            healthZone: d.healthZone,
+            isUpdated: true,
+            matchedMemberId: d.matchedMemberId
+          };
+        }
+      });
+    }
+    localStorage.setItem(STORAGE_KEY_TF_OVERRIDES, JSON.stringify(overrides));
+    localStorage.removeItem(STORAGE_KEY_THAIFAMMED); // Clean up legacy 3MB entry
+  } catch (e) {
+    console.warn('Failed to save thaifammed overrides:', e);
   }
 }
 
@@ -2698,6 +2786,8 @@ function confirmResetInitialData() {
 
 function resetToInitialData() {
   localStorage.removeItem(STORAGE_KEY_MEMBERS);
+  localStorage.removeItem(STORAGE_KEY_TF_OVERRIDES);
+  localStorage.removeItem(STORAGE_KEY_THAIFAMMED);
   initData();
   handleDirectoryFilter();
   renderDashboard();

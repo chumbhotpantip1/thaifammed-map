@@ -94,7 +94,8 @@ function getMembersFromSheet() {
   var ss = getActiveSpreadsheet();
   var sheet = ss.getSheetByName('02_สมาชิกอัปเดตแล้ว_Sheet_314') ||
               ss.getSheetByName('01_ทะเบียนแพทย์_Master_3750') ||
-              ss.getSheetByName('การตอบแบบฟอร์ม 1');
+              ss.getSheetByName('การตอบแบบฟอร์ม 1') ||
+              (ss.getSheets().length > 0 ? ss.getSheets()[0] : null);
   if (!sheet) return { status: 'error', message: 'ไม่พบชีตข้อมูลสมาชิก', members: [] };
 
   var values = sheet.getDataRange().getValues();
@@ -192,7 +193,8 @@ function updateDoctorCoordinateInSheet(memberId, lat, lng, workplace, sourceType
   var ss = getActiveSpreadsheet();
   var sheet = ss.getSheetByName('02_สมาชิกอัปเดตแล้ว_Sheet_314') ||
               ss.getSheetByName('01_ทะเบียนแพทย์_Master_3750') ||
-              ss.getSheetByName('การตอบแบบฟอร์ม 1');
+              ss.getSheetByName('การตอบแบบฟอร์ม 1') ||
+              (ss.getSheets().length > 0 ? ss.getSheets()[0] : null);
   if (!sheet) return { success: false, message: 'ไม่พบชีต' };
 
   var id = parseInt(memberId, 10);
@@ -245,7 +247,8 @@ function saveMemberInSheet(member) {
   var ss = getActiveSpreadsheet();
   var sheet = ss.getSheetByName('02_สมาชิกอัปเดตแล้ว_Sheet_314') ||
               ss.getSheetByName('01_ทะเบียนแพทย์_Master_3750') ||
-              ss.getSheetByName('การตอบแบบฟอร์ม 1');
+              ss.getSheetByName('การตอบแบบฟอร์ม 1') ||
+              (ss.getSheets().length > 0 ? ss.getSheets()[0] : null);
   if (!sheet) return { success: false, message: 'ไม่พบชีต' };
 
   var lastRow = sheet.getLastRow();

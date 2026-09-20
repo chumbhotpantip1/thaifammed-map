@@ -49,8 +49,11 @@
   <!-- Global Application Wrapper -->
   <div class="flex-1 flex overflow-hidden">
 
-    <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shrink-0 transition-all duration-300 z-30 shadow-xl no-print">
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div id="sidebar-backdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"></div>
+
+    <!-- Sidebar Navigation (Responsive Drawer on Mobile) -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 lg:static lg:translate-x-0 -translate-x-full w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-xl no-print">
       <div>
         <!-- Brand Header -->
         <div class="p-4 border-b border-slate-800 flex items-center justify-between">
@@ -66,6 +69,10 @@
               <p id="brand-subtitle" class="text-[11px] text-sky-400 truncate">เวชศาสตร์ครอบครัว</p>
             </div>
           </div>
+          <!-- Close button on Mobile Drawer -->
+          <button type="button" onclick="closeMobileSidebar()" class="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition" title="ปิดเมนู">
+            <i class="fa-solid fa-xmark text-base"></i>
+          </button>
         </div>
 
         <!-- Data Sources Indicator -->
@@ -154,36 +161,35 @@
     <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
       
       <!-- Top Application Bar -->
-      <header class="h-16 glass-header px-6 flex items-center justify-between shrink-0 z-20 no-print">
-        <div class="flex items-center space-x-4">
-          <button id="sidebar-toggle" onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition">
+      <header class="h-16 glass-header px-3 sm:px-6 flex items-center justify-between shrink-0 z-20 no-print gap-2">
+        <div class="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
+          <button id="sidebar-toggle" onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition shrink-0" title="เปิด/ปิดเมนู">
             <i class="fa-solid fa-bars text-lg"></i>
           </button>
           
-          <div class="hidden lg:flex flex-col">
+          <div class="hidden lg:flex flex-col shrink-0">
             <span id="brand-header-title" class="text-xs font-bold text-slate-700 leading-tight font-heading">ระบบสารสนเทศสมาชิกแพทย์เวชศาสตร์ครอบครัว</span>
             <span id="brand-header-subtitle" class="text-[10px] text-slate-400">Google Drive Realtime & OpenStreetMap Engine</span>
           </div>
 
-          <div class="relative w-64 md:w-80 lg:w-96">
-            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-            <input type="text" id="global-search" oninput="handleGlobalSearch(this.value)" placeholder="ค้นหาชื่อแพทย์, เลข ว., โรงพยาบาล, จังหวัด..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-sky-500 text-sm placeholder-slate-400 transition">
+          <div class="relative flex-1 max-w-[190px] sm:max-w-xs md:w-80 lg:w-96">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs sm:text-sm"></i>
+            <input type="text" id="global-search" oninput="handleGlobalSearch(this.value)" placeholder="ค้นชื่อแพทย์, เลข ว., รพ., จังหวัด..." class="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-sky-500 text-xs sm:text-sm placeholder-slate-400 transition">
           </div>
         </div>
 
-
         <!-- Header Actions & Auth Status -->
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
           <!-- Auth User Status Container (Dynamically rendered) -->
-          <div id="auth-header-container" class="flex items-center space-x-2"></div>
+          <div id="auth-header-container" class="flex items-center space-x-1.5 sm:space-x-2"></div>
 
           <!-- Cloud Sync Group (Restricted to Admin & Delegated) -->
           <div id="header-cloud-sync-group" class="hidden items-center rounded-xl border border-emerald-300 bg-emerald-50 overflow-hidden shadow-sm">
-            <button onclick="syncLiveSheetData()" id="btn-live-sync-header" class="flex items-center space-x-1.5 px-3 py-2 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition" title="ซิงค์ข้อมูลสด Real-time กับ Google Sheet">
+            <button onclick="syncLiveSheetData()" id="btn-live-sync-header" class="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition" title="ซิงค์ข้อมูลสด Real-time กับ Google Sheet">
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span class="hidden md:inline">ซิงค์ Google Drive</span>
             </button>
-            <button onclick="openGasConfigModal()" class="px-2.5 py-2 hover:bg-emerald-100 text-emerald-700 border-l border-emerald-200 transition" title="ตั้งค่าเชื่อมต่อ Google Sheet Web App URL">
+            <button onclick="openGasConfigModal()" class="px-2 sm:px-2.5 py-1.5 sm:py-2 hover:bg-emerald-100 text-emerald-700 border-l border-emerald-200 transition" title="ตั้งค่าเชื่อมต่อ Google Sheet Web App URL">
               <i class="fa-solid fa-gear text-xs"></i>
             </button>
           </div>
@@ -196,8 +202,8 @@
 
       </header>
 
-      <!-- Scrollable Main View Container -->
-      <div id="content-container" class="flex-1 overflow-y-auto p-6 space-y-6">
+      <!-- Scrollable Main View Container (with bottom padding for mobile navigation bar) -->
+      <div id="content-container" class="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 pb-24 lg:pb-6 space-y-4 sm:space-y-6">
 
         <!-- ================= VIEW 1: DASHBOARD OVERVIEW ================= -->
         <section id="view-dashboard" class="space-y-6 animate-fade-in">
@@ -2171,13 +2177,36 @@
     </div>
   </div>
 
-  <!-- 4. TOAST NOTIFICATION -->
+  <!-- Mobile Bottom Navigation Bar (Visible only on mobile/tablet screens < lg) -->
+  <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-around h-16 px-1 text-slate-400 no-print safe-area-bottom shadow-lg">
+    <button onclick="switchView('dashboard')" id="bnav-dashboard" class="flex flex-col items-center justify-center flex-1 py-1 transition text-sky-400 font-bold active:scale-95">
+      <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">แดชบอร์ด</span>
+    </button>
+    <button onclick="switchView('map')" id="bnav-map" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-map-location-dot text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">แผนที่</span>
+    </button>
+    <button onclick="switchView('directory')" id="bnav-directory" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-address-book text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">สมาชิก</span>
+    </button>
+    <button onclick="switchView('thaifammed')" id="bnav-thaifammed" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-hospital-user text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">แพทย์ไทย</span>
+    </button>
+    <button onclick="toggleSidebar()" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-bars text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">เมนู</span>
+    </button>
+  </nav>
 
-  <div id="toast" class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-medium text-white transition-all duration-300 transform translate-y-20 opacity-0 bg-slate-900 border border-slate-800 pointer-events-none">
-    <div id="toast-icon" class="w-5 h-5 rounded-full flex items-center justify-center text-xs">
+  <!-- 4. TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-medium text-white transition-all duration-300 transform translate-y-20 opacity-0 bg-slate-900 border border-slate-800 pointer-events-none max-w-[90vw]">
+    <div id="toast-icon" class="w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0">
       <i class="fa-solid fa-check"></i>
     </div>
-    <span id="toast-message">บันทึกข้อมูลสำเร็จ</span>
+    <span id="toast-message" class="truncate">บันทึกข้อมูลสำเร็จ</span>
   </div>
 
   <!-- Load Data Bundle and App Logic -->
