@@ -49,6 +49,38 @@ const STORAGE_KEY_BRANDING = 'MEDICAL_DASHBOARD_BRANDING_V1';
 const STORAGE_KEY_AUTH_USER = 'MEDICAL_DASHBOARD_AUTH_USER_V1';
 const STORAGE_KEY_CREDENTIALS = 'MEDICAL_DASHBOARD_CREDENTIALS_V1';
 
+// Default GAS Endpoint (can be embedded or set via modal)
+const DEFAULT_GAS_URL = '';
+
+function getGasEndpoint() {
+  return localStorage.getItem(STORAGE_KEY_GAS_URL) || DEFAULT_GAS_URL || '';
+}
+
+function setGasEndpoint(url) {
+  if (url && url.trim()) {
+    localStorage.setItem(STORAGE_KEY_GAS_URL, url.trim());
+  } else {
+    localStorage.removeItem(STORAGE_KEY_GAS_URL);
+  }
+}
+
+async function sendToGasApi(payload) {
+  const endpoint = getGasEndpoint();
+  if (!endpoint || !endpoint.startsWith('http')) return null;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    return result;
+  } catch (err) {
+    console.warn('Sync to Google Apps Script failed:', err);
+    return null;
+  }
+}
+
 /* ================= INITIALIZATION ================= */
 document.addEventListener('DOMContentLoaded', () => {
   BrandingManager.init();
@@ -59,6 +91,13 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
   setupEventListeners();
   updateStorageStatus();
+
+  // If cloud sync URL is configured, auto-sync latest data in background
+  if (getGasEndpoint()) {
+    setTimeout(() => {
+      syncLiveSheetData(true);
+    }, 1200);
+  }
 });
 
 
@@ -1079,6 +1118,20 @@ function saveRelocatedPosition() {
     }
   }
 
+  // ส่งข้อมูลพิกัดขึ้น Google Sheet แบบ Realtime Cloud
+  sendToGasApi({
+    action: 'updateCoordinate',
+    memberId: id,
+    lat: currentLat,
+    lng: currentLng,
+    workplace: matchedHospital ? matchedHospital.name : '',
+    sourceType: type
+  }).then(res => {
+    if (res && res.status === 'success') {
+      showToast(`พิกัดของ ${name} ซิงค์ลง Google Sheet เรียบร้อยแล้ว (Realtime Cloud)`, 'success');
+    }
+  });
+
   showToast(`บันทึกพิกัดใหม่ของ ${name} เรียบร้อยแล้ว (Lat: ${currentLat.toFixed(5)}, Lng: ${currentLng.toFixed(5)})`, 'success');
   cancelRelocation(true);
 }
@@ -1892,6 +1945,13 @@ function handleSaveMember(e) {
 
   saveMembersToStorage();
 
+  // ซิงค์ข้อมูลสมาชิกขึ้น Google Sheet แบบ Realtime Cloud
+  sendToGasApi({ action: 'saveMember', member: memberObj }).then(res => {
+    if (res && res.status === 'success') {
+      showToast('ข้อมูลสมาชิกซิงค์ลง Google Sheet สำเร็จ (Realtime Cloud)', 'success');
+    }
+  });
+
   handleDirectoryFilter();
   renderDashboard();
   if (AppState.map) renderMapMarkers();
@@ -1917,6 +1977,9 @@ function confirmDeleteMember(id) {
 function executeDeleteMember(id) {
   AppState.members = AppState.members.filter(m => m.id != id);
   saveMembersToStorage();
+
+  // ซิงค์การลบข้อมูลสมาชิกขึ้น Google Sheet
+  sendToGasApi({ action: 'deleteMember', memberId: id });
 
   handleDirectoryFilter();
   renderDashboard();
@@ -1957,16 +2020,18 @@ function resetToInitialData() {
 const ACTIVE_SPREADSHEET_ID = '18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN';
 const ACTIVE_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN/edit?usp=drive_link';
 
-async function syncLiveSheetData() {
+async function syncLiveSheetData(isSilent = false) {
   const btnHeader = document.getElementById('btn-live-sync-header');
   const statusEl = document.getElementById('live-sync-status-text');
 
-  if (btnHeader) {
+  if (btnHeader && !isSilent) {
     btnHeader.disabled = true;
     btnHeader.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-emerald-600"></i> <span class="hidden md:inline">กำลังซิงค์...</span>`;
   }
 
-  showToast('กำลังเชื่อมต่อ Google Drive โฟลเดอร์ "ระบบสมาชิก"...', 'info');
+  if (!isSilent) {
+    showToast('กำลังเชื่อมต่อ Google Drive โฟลเดอร์ "ระบบสมาชิก"...', 'info');
+  }
 
   // Case A: Running natively inside Google Apps Script (google.script.run)
   if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -1984,7 +2049,7 @@ async function syncLiveSheetData() {
           if (AppState.map) renderMapMarkers();
           const nowStr = new Date().toLocaleTimeString('th-TH');
           if (statusEl) statusEl.innerHTML = `ซิงค์กับ Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">18sXvaCY...</a>) สำเร็จเมื่อ ${nowStr} (${AppState.members.length} สมาชิก)`;
-          showToast(`ซิงค์ข้อมูลสดกับ Google Sheet สำเร็จ (${AppState.members.length} คน)`, 'success');
+          if (!isSilent) showToast(`ซิงค์ข้อมูลสดกับ Google Sheet สำเร็จ (${AppState.members.length} คน)`, 'success');
         }
       })
       .withFailureHandler((err) => {
@@ -1992,23 +2057,23 @@ async function syncLiveSheetData() {
           btnHeader.disabled = false;
           btnHeader.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="hidden md:inline">ซิงค์ Google Drive</span>`;
         }
-        showToast(`เกิดข้อผิดพลาดในการซิงค์: ${err.message || err}`, 'error');
+        if (!isSilent) showToast(`เกิดข้อผิดพลาดในการซิงค์: ${err.message || err}`, 'error');
       })
       .getMembersFromSheet();
     return;
   }
 
   // Case B: Running via configured Google Apps Script Web App Endpoint URL
-  const gasEndpoint = localStorage.getItem(STORAGE_KEY_GAS_URL);
+  const gasEndpoint = getGasEndpoint();
   if (gasEndpoint && gasEndpoint.startsWith('http')) {
     try {
       const response = await fetch(`${gasEndpoint}?action=getMembers`);
       const data = await response.json();
-      if (data && data.members) {
+      if (data && data.members && Array.isArray(data.members)) {
         AppState.members = data.members;
         localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
+        handleDirectoryFilter();
         renderDashboard();
-        renderDirectory();
         if (AppState.map) renderMapMarkers();
         const nowStr = new Date().toLocaleTimeString('th-TH');
         if (statusEl) statusEl.innerHTML = `ซิงค์ผ่าน GAS Web App Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">18sXvaCY...</a>) สำเร็จเมื่อ ${nowStr}`;
@@ -2016,7 +2081,9 @@ async function syncLiveSheetData() {
           btnHeader.disabled = false;
           btnHeader.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="hidden md:inline">ซิงค์ Google Drive</span>`;
         }
-        showToast(`ซิงค์ข้อมูลสดกับ Google Drive สำเร็จ (${AppState.members.length} คน)`, 'success');
+        if (!isSilent) {
+          showToast(`ซิงค์ข้อมูลสดกับ Google Drive สำเร็จ (${AppState.members.length} คน)`, 'success');
+        }
         return;
       }
     } catch (e) {
@@ -2032,8 +2099,85 @@ async function syncLiveSheetData() {
     }
     const nowStr = new Date().toLocaleTimeString('th-TH');
     if (statusEl) statusEl.innerHTML = `เชื่อมโยงฐานข้อมูล Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">18sXvaCY...</a>) สำเร็จเมื่อ ${nowStr}`;
-    showToast(`ซิงค์ข้อมูล Google Drive Master DB เรียบร้อย (${nowStr}) - สมาชิก 314 คน + แพทย์ Thaifammed 3,750 คน`, 'success');
+    if (!isSilent) {
+      showToast(`ซิงค์ข้อมูล Google Drive Master DB เรียบร้อย (${nowStr}) - สมาชิก 314 คน + แพทย์ Thaifammed 3,750 คน`, 'success');
+    }
   }, 750);
+}
+
+/* ================= GAS CONFIGURATION MODAL HANDLERS ================= */
+function openGasConfigModal() {
+  const currentUrl = getGasEndpoint();
+  const inputEl = document.getElementById('gas-endpoint-input');
+  const statusEl = document.getElementById('gas-config-status');
+  if (inputEl) inputEl.value = currentUrl;
+  if (statusEl) {
+    if (currentUrl) {
+      statusEl.innerHTML = `<span class="text-emerald-600 font-semibold"><i class="fa-solid fa-circle-check"></i> กำลังเชื่อมต่อกับ: ${escapeHtml(currentUrl.slice(0, 48))}...</span>`;
+    } else {
+      statusEl.innerHTML = `<span class="text-slate-400">ยังไม่ได้ระบุ Web App URL (ข้อมูลการแก้ไขจะบันทึกเฉพาะในบราวเซอร์นี้)</span>`;
+    }
+  }
+  openModal('gasConfigModal');
+}
+
+async function testAndSaveGasEndpoint() {
+  const inputEl = document.getElementById('gas-endpoint-input');
+  const statusEl = document.getElementById('gas-config-status');
+  const url = (inputEl ? inputEl.value : '').trim();
+
+  if (!url) {
+    setGasEndpoint('');
+    showToast('ล้างการเชื่อมต่อ Google Apps Script เรียบร้อย', 'info');
+    closeModal('gasConfigModal');
+    return;
+  }
+
+  if (!url.startsWith('https://script.google.com/macros/s/')) {
+    alert('กรุณาระบุ URL ของ Google Apps Script Web App ให้ถูกต้อง (ขึ้นต้นด้วย https://script.google.com/macros/s/...)');
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.innerHTML = `<span class="text-amber-600"><i class="fa-solid fa-spinner fa-spin"></i> กำลังทดสอบเชื่อมต่อกับ Google Sheet...</span>`;
+  }
+
+  try {
+    const res = await fetch(`${url}?action=ping`);
+    const data = await res.json();
+    if (data && data.status === 'online') {
+      setGasEndpoint(url);
+      if (statusEl) {
+        statusEl.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> เชื่อมต่อกับ Google Sheet สำเร็จ!</span>`;
+      }
+      showToast('เชื่อมต่อ Google Sheet Realtime สำเร็จ!', 'success');
+      setTimeout(() => {
+        closeModal('gasConfigModal');
+        syncLiveSheetData();
+      }, 1000);
+      return;
+    }
+  } catch (e) {
+    // If ping fails or redirect happens, try getMembers
+    try {
+      const res2 = await fetch(`${url}?action=getMembers`);
+      const data2 = await res2.json();
+      if (data2 && data2.members) {
+        setGasEndpoint(url);
+        showToast('เชื่อมต่อ Google Sheet Realtime สำเร็จ!', 'success');
+        closeModal('gasConfigModal');
+        syncLiveSheetData();
+        return;
+      }
+    } catch (err) {
+      console.warn('Ping or getMembers failed:', err);
+    }
+  }
+
+  setGasEndpoint(url);
+  showToast('บันทึก Web App URL เรียบร้อย กำลังซิงค์ข้อมูล...', 'success');
+  closeModal('gasConfigModal');
+  syncLiveSheetData();
 }
 
 /* ================= IMPORT / EXPORT ================= */
