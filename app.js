@@ -605,6 +605,12 @@ function initMap() {
     maxZoom: 19
   });
 
+  // Layer 4: Google Hybrid Satellite (High-res with Roads & Labels)
+  const googleHybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    attribution: 'Tiles &copy; Google Maps',
+    maxZoom: 20
+  });
+
   // Default basemap: OpenStreetMap
   osmLayer.addTo(AppState.map);
 
@@ -612,7 +618,8 @@ function initMap() {
   L.control.layers({
     '🗺️ OpenStreetMap (มาตรฐาน)': osmLayer,
     '🏥 ESRI World Street (ถนน)': esriStreetLayer,
-    '🛰️ ESRI Imagery (ดาวเทียม)': esriSatelliteLayer
+    '🛰️ ESRI Imagery (ดาวเทียม)': esriSatelliteLayer,
+    '🛰️ Google Hybrid (ดาวเทียม+ชื่อสถานที่)': googleHybridLayer
   }, null, { position: 'topright' }).addTo(AppState.map);
 
   // Initialize MarkerCluster
@@ -626,9 +633,14 @@ function initMap() {
 
   // When clicking cluster, open Province Doctors Modal (Requirement 6.2)
   AppState.markerClusterGroup.on('clusterclick', function (a) {
-    const childMarkers = a.layer.getAllChildMarkers();
+    const cluster = a.layer || a.propagatedFrom || a.target;
+    const childMarkers = (cluster && typeof cluster.getAllChildMarkers === 'function') 
+      ? cluster.getAllChildMarkers() 
+      : [];
     const doctors = childMarkers.map(m => m.doctorData).filter(Boolean);
-    AppState.currentClusterBounds = a.layer.getBounds();
+    AppState.currentClusterBounds = (cluster && typeof cluster.getBounds === 'function') 
+      ? cluster.getBounds() 
+      : null;
 
     // Determine primary province name from markers
     const provCounts = {};
@@ -637,7 +649,7 @@ function initMap() {
         provCounts[d.province] = (provCounts[d.province] || 0) + 1;
       }
     });
-    const topProv = Object.keys(provCounts).sort((x, y) => provCounts[y] - provCounts[x])[0] || 'ในกลุ่มนี้';
+    const topProv = Object.keys(provCounts).sort((x, y) => provCounts[y] - provCounts[x])[0] || 'ในพื้นที่นี้';
 
     openProvinceDoctorsModal(topProv, doctors);
   });
@@ -824,6 +836,14 @@ function renderMapMarkers() {
       const icon = getMarkerIcon('sheet', m.certGroup);
       const marker = L.marker([m.lat, m.lng], { icon: icon });
 
+      // แสดงชื่อแพทย์บนหมุดพิกัด (Requirement: แสดงชื่อบนหมุดเพื่อให้ทราบว่าเป็นหมุดพิกัดของใคร)
+      marker.bindTooltip(escapeHtml(m.fullNameTh), {
+        permanent: true,
+        direction: 'bottom',
+        offset: [0, 8],
+        className: 'doctor-marker-label'
+      });
+
       const photoSrc = getDoctorPrimaryImage(m) || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.fullNameTh)}&background=0284c7&color=fff`;
       const driveId = m.photoDriveId || '';
       const encodedName = encodeURIComponent(m.fullNameTh);
@@ -913,6 +933,14 @@ function renderMapMarkers() {
 
       const icon = getMarkerIcon('thaifammed');
       const marker = L.marker([d.lat, d.lng], { icon: icon });
+
+      // แสดงชื่อแพทย์บนหมุดพิกัด (Requirement: แสดงชื่อบนหมุดเพื่อให้ทราบว่าเป็นหมุดพิกัดของใคร)
+      marker.bindTooltip(escapeHtml(d.name), {
+        permanent: true,
+        direction: 'bottom',
+        offset: [0, 8],
+        className: 'doctor-marker-label'
+      });
 
       // Attach doctor data for Modal and Focus (Requirement 6.2 & 6.3)
       marker.doctorData = {
@@ -1154,51 +1182,178 @@ function handleRelocateHospitalSelect(hospitalQuery) {
   }
 }
 
+/* ================= CROSS-MENU COORDINATE SYNCHRONIZATION ENGINE ================= */
+// Requirement: พิกัดเมื่อแก้ไขแล้วให้แก้ไขในทุกเมนูที่มีพิกัดเป็นพิกัดเดียวกันโดยอัตโนมัติ
+function syncDoctorCoordinates(options) {
+  const { sourceType, id, lat, lng, workplaceName, province, amphoe, healthZone, memberObj } = options;
+  if (lat === null || lat === undefined || lng === null || lng === undefined) return null;
+
+  const numLat = parseFloat(Number(lat).toFixed(6));
+  const numLng = parseFloat(Number(lng).toFixed(6));
+
+  let matchedLicenseNo = '';
+  let updatedMember = null;
+  let updatedThaifammed = null;
+
+  // 1. อัปเดตข้อมูลใน AppState.members (สมาชิกทำเนียบ Sheet)
+  if (sourceType === 'sheet') {
+    const idx = AppState.members.findIndex(m => m.id == id);
+    if (idx !== -1) {
+      if (memberObj) {
+        AppState.members[idx] = { ...AppState.members[idx], ...memberObj, lat: numLat, lng: numLng };
+      } else {
+        AppState.members[idx].lat = numLat;
+        AppState.members[idx].lng = numLng;
+        if (workplaceName) {
+          AppState.members[idx].workplace = AppState.members[idx].workplace || {};
+          AppState.members[idx].workplace.name = workplaceName;
+        }
+        if (province) {
+          AppState.members[idx].workplace = AppState.members[idx].workplace || {};
+          AppState.members[idx].workplace.province = province;
+        }
+        if (amphoe) {
+          AppState.members[idx].workplace = AppState.members[idx].workplace || {};
+          AppState.members[idx].workplace.amphoe = amphoe;
+        }
+        if (healthZone) {
+          AppState.members[idx].healthZone = String(healthZone);
+        }
+      }
+      updatedMember = AppState.members[idx];
+      matchedLicenseNo = updatedMember.licenseNo || '';
+    }
+  }
+
+  // 2. ซิงค์พิกัดไปยังฐานข้อมูล Thaifammed (3,750 รายการ) หากมีข้อมูลตรงกัน
+  let tfDoc = null;
+  if (sourceType === 'sheet' && updatedMember) {
+    tfDoc = AppState.thaifammed.find(d => 
+      (d.matchedMemberId && d.matchedMemberId == id) ||
+      (matchedLicenseNo && d.gpNo && String(d.gpNo).trim() === String(matchedLicenseNo).trim())
+    );
+  } else if (sourceType === 'thaifammed') {
+    tfDoc = AppState.thaifammed.find(d => d.id == id);
+  }
+
+  if (tfDoc) {
+    tfDoc.lat = numLat;
+    tfDoc.lng = numLng;
+    tfDoc.isUpdated = true;
+    if (workplaceName) tfDoc.workplace = workplaceName;
+    if (province) tfDoc.province = province;
+    if (healthZone) tfDoc.healthZone = String(healthZone);
+    if (sourceType === 'sheet' && updatedMember) {
+      tfDoc.matchedMemberId = updatedMember.id;
+    }
+    updatedThaifammed = tfDoc;
+    matchedLicenseNo = matchedLicenseNo || tfDoc.gpNo || '';
+  }
+
+  // 3. หากต้นทางเป็น Thaifammed ให้ซิงค์พิกัดกลับไปยังฐานข้อมูล Sheet หากมีสมาชิกตรงกัน
+  if (sourceType === 'thaifammed' && tfDoc) {
+    const matchedSheet = AppState.members.find(m =>
+      (tfDoc.matchedMemberId && m.id == tfDoc.matchedMemberId) ||
+      (matchedLicenseNo && m.licenseNo && String(m.licenseNo).trim() === String(matchedLicenseNo).trim())
+    );
+    if (matchedSheet) {
+      matchedSheet.lat = numLat;
+      matchedSheet.lng = numLng;
+      if (workplaceName) {
+        matchedSheet.workplace = matchedSheet.workplace || {};
+        matchedSheet.workplace.name = workplaceName;
+      }
+      if (province) {
+        matchedSheet.workplace = matchedSheet.workplace || {};
+        matchedSheet.workplace.province = province;
+      }
+      if (healthZone) {
+        matchedSheet.healthZone = String(healthZone);
+      }
+      updatedMember = matchedSheet;
+    }
+  }
+
+  // 4. บันทึกลง LocalStorage ทั้งสองฐานข้อมูล
+  saveMembersToStorage();
+  try {
+    localStorage.setItem(STORAGE_KEY_THAIFAMMED, JSON.stringify(AppState.thaifammed));
+  } catch (e) {
+    console.error('Failed to save thaifammed to localStorage:', e);
+  }
+
+  // 5. สั่งรีเฟรชการแสดงผลทุกเมนูที่เกี่ยวข้อง
+  if (typeof handleDirectoryFilter === 'function') handleDirectoryFilter();
+  if (typeof handleThaifammedFilter === 'function') handleThaifammedFilter();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof renderManagementTable === 'function') renderManagementTable();
+  if (AppState.map && typeof renderMapMarkers === 'function') renderMapMarkers();
+
+  // 6. รีเฟรชหน้าต่างรายละเอียดสมาชิก หากเปิดค้างอยู่
+  const detailModal = document.getElementById('memberDetailModal');
+  if (detailModal && !detailModal.classList.contains('hidden')) {
+    if (updatedMember && AppState.selectedMemberId == updatedMember.id) {
+      openMemberDetailModal(updatedMember.id);
+    }
+  }
+
+  // 7. รีเฟรชรายชื่อใน Modal รายชื่อแพทย์ในจังหวัด หากเปิดค้างอยู่
+  const provModal = document.getElementById('provinceDoctorsModal');
+  if (provModal && !provModal.classList.contains('hidden') && AppState.currentProvinceDoctors) {
+    AppState.currentProvinceDoctors.forEach(d => {
+      if (updatedMember && d.type === 'sheet' && d.id == updatedMember.id) {
+        d.lat = numLat;
+        d.lng = numLng;
+        if (workplaceName) d.workplace = workplaceName;
+      }
+      if (updatedThaifammed && d.type === 'thaifammed' && d.id == updatedThaifammed.id) {
+        d.lat = numLat;
+        d.lng = numLng;
+        if (workplaceName) d.workplace = workplaceName;
+        d.isUpdated = true;
+      }
+    });
+    if (typeof renderProvinceDoctorsList === 'function') {
+      renderProvinceDoctorsList(AppState.currentProvinceDoctors);
+    }
+  }
+
+  // 8. ซิงค์พิกัดขึ้น Google Sheet Cloud แบบ Realtime
+  sendToGasApi({
+    action: 'updateCoordinate',
+    memberId: (updatedMember ? updatedMember.id : id),
+    licenseNo: matchedLicenseNo,
+    lat: numLat,
+    lng: numLng,
+    workplace: workplaceName || (updatedMember ? updatedMember.workplace?.name : tfDoc?.workplace) || '',
+    sourceType: sourceType
+  }).then(res => {
+    if (res && res.status === 'success') {
+      showToast('พิกัดถูกซิงค์ตรงกันทุกเมนูและบันทึกลง Google Sheet สำเร็จ', 'success');
+    }
+  });
+
+  return { updatedMember, updatedThaifammed };
+}
+
 function saveRelocatedPosition() {
   if (!AppState.relocating) return;
   const { type, id, currentLat, currentLng, matchedHospital, name } = AppState.relocating;
 
-  if (type === 'sheet') {
-    const member = AppState.members.find(m => m.id == id);
-    if (member) {
-      member.lat = currentLat;
-      member.lng = currentLng;
-      if (matchedHospital) {
-        member.workplace = member.workplace || {};
-        member.workplace.name = matchedHospital.name;
-        member.workplace.province = matchedHospital.province;
-        member.workplace.amphoe = matchedHospital.amphoe || member.workplace.amphoe;
-        member.healthZone = String(matchedHospital.zone);
-      }
-      localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
-      updateStorageStatus();
-    }
-  } else if (type === 'thaifammed') {
-    const doc = AppState.thaifammed.find(d => d.id == id);
-    if (doc) {
-      doc.lat = currentLat;
-      doc.lng = currentLng;
-      if (matchedHospital) {
-        doc.workplace = matchedHospital.name;
-        doc.province = matchedHospital.province;
-        doc.healthZone = String(matchedHospital.zone);
-      }
-      localStorage.setItem(STORAGE_KEY_THAIFAMMED, JSON.stringify(AppState.thaifammed));
-    }
-  }
+  const wpName = matchedHospital ? matchedHospital.name : '';
+  const provName = matchedHospital ? matchedHospital.province : '';
+  const amphoeName = (matchedHospital && matchedHospital.amphoe) ? matchedHospital.amphoe : '';
+  const zoneStr = matchedHospital ? String(matchedHospital.zone) : '';
 
-  // ส่งข้อมูลพิกัดขึ้น Google Sheet แบบ Realtime Cloud
-  sendToGasApi({
-    action: 'updateCoordinate',
-    memberId: id,
+  syncDoctorCoordinates({
+    sourceType: type,
+    id: id,
     lat: currentLat,
     lng: currentLng,
-    workplace: matchedHospital ? matchedHospital.name : '',
-    sourceType: type
-  }).then(res => {
-    if (res && res.status === 'success') {
-      showToast(`พิกัดของ ${name} ซิงค์ลง Google Sheet เรียบร้อยแล้ว (Realtime Cloud)`, 'success');
-    }
+    workplaceName: wpName,
+    province: provName,
+    amphoe: amphoeName,
+    healthZone: zoneStr
   });
 
   showToast(`บันทึกพิกัดใหม่ของ ${name} เรียบร้อยแล้ว (Lat: ${currentLat.toFixed(5)}, Lng: ${currentLng.toFixed(5)})`, 'success');
@@ -2108,9 +2263,20 @@ function initEditModalMiniMap(initialLat, initialLng) {
       attributionControl: false
     }).setView([lat, lng], hasValidCoord ? 14 : 6);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
-    }).addTo(editMiniMap);
+    // Multi-layer support in Edit Mini-Map (Requirement: เลือกเลเยอร์ต่างๆ เช่นดาวเทียมได้)
+    const osmTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+    const esriSatTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+    const googleHybridTile = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20 });
+    const esriStreetTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+
+    osmTile.addTo(editMiniMap);
+
+    L.control.layers({
+      '🗺️ แผนที่ถนน (OSM)': osmTile,
+      '🛰️ ภาพดาวเทียม (ESRI)': esriSatTile,
+      '🛰️ ดาวเทียม+ถนน (Google)': googleHybridTile,
+      '🏥 แผนที่ถนน (ESRI)': esriStreetTile
+    }, null, { position: 'topright' }).addTo(editMiniMap);
 
     const pinIcon = L.divIcon({
       className: 'custom-pin-marker',
@@ -2151,6 +2317,11 @@ function updateMiniMapCoords(lat, lng) {
   if (fLat) fLat.value = latFixed;
   if (fLng) fLng.value = lngFixed;
   updateMiniMapCoordsDisplay(latFixed, lngFixed);
+
+  const fullCoords = document.getElementById('minimap-fullscreen-coords');
+  if (fullCoords) {
+    fullCoords.textContent = `พิกัดปัจจุบัน: Lat ${latFixed}, Lng ${lngFixed} (ลากหมุดหรือคลิกบนแผนที่เพื่อเปลี่ยน)`;
+  }
 }
 
 function updateMiniMapCoordsDisplay(lat, lng) {
@@ -2185,12 +2356,58 @@ function centerMiniMapOnCurrentPin() {
   const lng = parseFloat(fLng?.value);
   if (!isNaN(lat) && !isNaN(lng) && editMiniMap && editMiniMarker) {
     editMiniMarker.setLatLng([lat, lng]);
-    editMiniMap.setView([lat, lng], 16, { animate: true });
+    editMiniMap.setView([lat, lng], Math.max(editMiniMap.getZoom(), 15), { animate: true });
     updateMiniMapCoordsDisplay(lat.toFixed(6), lng.toFixed(6));
   } else {
     showToast('กรุณาระบุพิกัดหรือคลิกปักหมุดบนแผนที่ก่อน', 'info');
   }
 }
+
+// Requirement: ขยายหน้าจอให้ใหญ่เต็มจอเพื่อการเคลื่อนหมุดทำได้ง่ายขึ้น
+function toggleMiniMapFullscreen() {
+  const wrapper = document.getElementById('edit-minimap-wrapper');
+  if (!wrapper) return;
+
+  const isFull = wrapper.classList.toggle('minimap-fullscreen-active');
+  const btn = document.getElementById('btn-minimap-fullscreen');
+  if (btn) {
+    btn.innerHTML = isFull 
+      ? '<i class="fa-solid fa-compress"></i> ย่อกลับ' 
+      : '<i class="fa-solid fa-expand"></i> ขยายเต็มจอ';
+  }
+
+  const fLat = document.getElementById('form-lat');
+  const fLng = document.getElementById('form-lng');
+  const lat = parseFloat(fLat?.value);
+  const lng = parseFloat(fLng?.value);
+  const fullCoords = document.getElementById('minimap-fullscreen-coords');
+  if (fullCoords && !isNaN(lat) && !isNaN(lng)) {
+    fullCoords.textContent = `พิกัดปัจจุบัน: Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)} (ลากหมุดหรือคลิกบนแผนที่เพื่อเปลี่ยน)`;
+  }
+
+  setTimeout(() => {
+    if (editMiniMap) {
+      editMiniMap.invalidateSize();
+      if (!isNaN(lat) && !isNaN(lng)) {
+        editMiniMap.setView([lat, lng], isFull ? Math.max(editMiniMap.getZoom(), 16) : editMiniMap.getZoom(), { animate: true });
+      }
+    }
+  }, 150);
+
+  if (isFull) {
+    showToast('เข้าสู่โหมดแผนที่เต็มจอ: ลากหมุด หรือกด ESC เพื่อย่อกลับ', 'info');
+  }
+}
+
+// ESC listener to close minimap fullscreen
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const wrapper = document.getElementById('edit-minimap-wrapper');
+    if (wrapper && wrapper.classList.contains('minimap-fullscreen-active')) {
+      toggleMiniMapFullscreen();
+    }
+  }
+});
 
 function handlePhotoPreview(url) {
   const imgEl = document.getElementById('form-photo-preview');
@@ -2393,14 +2610,24 @@ function handleSaveMember(e) {
 
   if (isNew) {
     AppState.members.unshift(memberObj);
+    saveMembersToStorage();
+    handleDirectoryFilter();
+    renderDashboard();
+    if (AppState.map) renderMapMarkers();
   } else {
-    const idx = AppState.members.findIndex(m => m.id === memberId);
-    if (idx !== -1) {
-      AppState.members[idx] = { ...AppState.members[idx], ...memberObj };
-    }
+    // Requirement: พิกัดเมื่อแก้ไขแล้วให้แก้ไขในทุกเมนูที่มีพิกัดเป็นพิกัดเดียวกันโดยอัตโนมัติ
+    syncDoctorCoordinates({
+      sourceType: 'sheet',
+      id: memberId,
+      lat: lat,
+      lng: lng,
+      workplaceName: memberObj.workplace.name,
+      province: memberObj.workplace.province,
+      amphoe: memberObj.workplace.amphoe,
+      healthZone: memberObj.healthZone,
+      memberObj: memberObj
+    });
   }
-
-  saveMembersToStorage();
 
   // ซิงค์ข้อมูลสมาชิกขึ้น Google Sheet แบบ Realtime Cloud
   sendToGasApi({ action: 'saveMember', member: memberObj }).then(res => {
@@ -2409,12 +2636,8 @@ function handleSaveMember(e) {
     }
   });
 
-  handleDirectoryFilter();
-  renderDashboard();
-  if (AppState.map) renderMapMarkers();
-
   closeModal('memberEditModal');
-  showToast(isNew ? 'เพิ่มสมาชิกใหม่เรียบร้อยแล้ว' : 'บันทึกการแก้ไขข้อมูลสำเร็จ', 'success');
+  showToast(isNew ? 'เพิ่มสมาชิกใหม่เรียบร้อยแล้ว' : 'บันทึกการแก้ไขข้อมูลสำเร็จ (ซิงค์พิกัดทุกเมนูเรียบร้อย)', 'success');
 }
 
 function confirmDeleteMember(id) {
