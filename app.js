@@ -38,7 +38,10 @@ const AppState = {
   isSidebarCollapsed: false,
   relocating: null,
   relocateMarker: null,
-  mapRelocateClickHandler: null
+  mapRelocateClickHandler: null,
+  matchingMarkers: [],
+  currentProvinceDoctors: [],
+  currentClusterBounds: null
 };
 
 // Storage Keys
@@ -48,6 +51,7 @@ const STORAGE_KEY_GAS_URL = 'MEDICAL_DASHBOARD_GAS_URL';
 const STORAGE_KEY_BRANDING = 'MEDICAL_DASHBOARD_BRANDING_V1';
 const STORAGE_KEY_AUTH_USER = 'MEDICAL_DASHBOARD_AUTH_USER_V1';
 const STORAGE_KEY_CREDENTIALS = 'MEDICAL_DASHBOARD_CREDENTIALS_V1';
+const STORAGE_KEY_DELEGATES = 'MEDICAL_DASHBOARD_DELEGATES_V1';
 
 // Default GAS Endpoint (can be embedded or set via modal)
 const DEFAULT_GAS_URL = '';
@@ -235,10 +239,16 @@ window.handleImgError = function(imgEl, driveId, encodedName) {
 
 /* ================= VIEW SWITCHING ================= */
 function switchView(viewName) {
-  if (viewName === 'management' && typeof AuthManager !== 'undefined' && !AuthManager.isAdmin()) {
-    showToast('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถเข้าถึงเมนูการจัดการระบบได้', 'warning');
-    AuthManager.openLoginModal();
-    return;
+  if (viewName === 'management') {
+    if (typeof AuthManager !== 'undefined' && !AuthManager.canAccessMasterDb()) {
+      if (AuthManager.isGuest()) {
+        showToast('กรุณาเข้าสู่ระบบก่อน (เฉพาะ Admin หรือผู้ได้รับมอบหมายสิทธิ์เท่านั้น)', 'warning');
+        AuthManager.openLoginModal();
+      } else {
+        showToast('สิทธิ์ไม่เพียงพอ: เฉพาะ Admin และแพทย์ที่ Admin มอบหมายเท่านั้นที่เข้าถึง Master DB ได้', 'error');
+      }
+      return;
+    }
   }
   AppState.currentView = viewName;
 
@@ -610,8 +620,26 @@ function initMap() {
     chunkedLoading: true,
     spiderfyOnMaxZoom: true,
     showCoverageOnHover: false,
-    zoomToBoundsOnClick: true,
+    zoomToBoundsOnClick: false,
     maxClusterRadius: 45
+  });
+
+  // When clicking cluster, open Province Doctors Modal (Requirement 6.2)
+  AppState.markerClusterGroup.on('clusterclick', function (a) {
+    const childMarkers = a.layer.getAllChildMarkers();
+    const doctors = childMarkers.map(m => m.doctorData).filter(Boolean);
+    AppState.currentClusterBounds = a.layer.getBounds();
+
+    // Determine primary province name from markers
+    const provCounts = {};
+    doctors.forEach(d => {
+      if (d.province) {
+        provCounts[d.province] = (provCounts[d.province] || 0) + 1;
+      }
+    });
+    const topProv = Object.keys(provCounts).sort((x, y) => provCounts[y] - provCounts[x])[0] || 'ในกลุ่มนี้';
+
+    openProvinceDoctorsModal(topProv, doctors);
   });
 
   AppState.map.addLayer(AppState.markerClusterGroup);
@@ -760,6 +788,7 @@ function renderMapMarkers() {
 
   AppState.markerClusterGroup.clearLayers();
   AppState.markersList = [];
+  AppState.matchingMarkers = [];
 
   const sourceFilter = document.getElementById('map-filter-source')?.value || 'all';
   const zoneFilter = document.getElementById('map-filter-zone')?.value || 'all';
@@ -798,6 +827,25 @@ function renderMapMarkers() {
       const photoSrc = getDoctorPrimaryImage(m) || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.fullNameTh)}&background=0284c7&color=fff`;
       const driveId = m.photoDriveId || '';
       const encodedName = encodeURIComponent(m.fullNameTh);
+
+      // Attach doctor data for Modal and Focus (Requirement 6.2 & 6.3)
+      marker.doctorData = {
+        id: m.id,
+        type: 'sheet',
+        name: m.fullNameTh,
+        nameEn: m.fullNameEn,
+        licenseNo: m.licenseNo,
+        certGroup: m.certGroup,
+        workplace: (m.workplace && m.workplace.name) || '',
+        province: (m.workplace && m.workplace.province) || '',
+        zone: m.healthZone || '',
+        photoUrl: photoSrc,
+        driveId: driveId,
+        lat: m.lat,
+        lng: m.lng,
+        mobilePhone: m.mobilePhone || '',
+        email: m.email || ''
+      };
 
       const popupHtml = `
         <div class="p-4 space-y-3 font-sans">
@@ -838,6 +886,7 @@ function renderMapMarkers() {
 
       marker.bindPopup(popupHtml);
       AppState.markersList.push(marker);
+      AppState.matchingMarkers.push(marker);
       AppState.markerClusterGroup.addLayer(marker);
     });
   }
@@ -864,6 +913,25 @@ function renderMapMarkers() {
 
       const icon = getMarkerIcon('thaifammed');
       const marker = L.marker([d.lat, d.lng], { icon: icon });
+
+      // Attach doctor data for Modal and Focus (Requirement 6.2 & 6.3)
+      marker.doctorData = {
+        id: d.id,
+        type: 'thaifammed',
+        name: d.name,
+        licenseNo: d.gpNo,
+        fpNo: d.fpNo,
+        certGroup: 'Thaifammed FP',
+        workplace: d.workplace || '',
+        province: d.province || '',
+        zone: d.healthZone || '',
+        photoUrl: '',
+        lat: d.lat,
+        lng: d.lng,
+        matchedMemberId: d.matchedMemberId,
+        isUpdated: d.isUpdated,
+        note: d.note || ''
+      };
 
       const isUpdated = d.isUpdated;
       const canEditTf = typeof AuthManager !== 'undefined' && AuthManager.canEdit('thaifammed', d.id);
@@ -911,6 +979,7 @@ function renderMapMarkers() {
 
       marker.bindPopup(popupHtml);
       AppState.markersList.push(marker);
+      AppState.matchingMarkers.push(marker);
       AppState.markerClusterGroup.addLayer(marker);
     });
   }
@@ -1162,6 +1231,269 @@ function cancelRelocation(isSaved = false) {
 
 function applyMapFilters() {
   renderMapMarkers();
+
+  if (!AppState.map) return;
+
+  const searchQuery = (document.getElementById('map-search')?.value || '').trim().toLowerCase();
+  const provFilter = document.getElementById('map-filter-province')?.value || 'all';
+
+  // Requirement 6.3: เมื่อค้นหาพบแล้ว ให้แผนที่ Focus(Center) ไปที่พิกัดนั้นให้อยู่กลางหน้าจอ
+  if (searchQuery) {
+    if (AppState.matchingMarkers && AppState.matchingMarkers.length === 1) {
+      const singleMarker = AppState.matchingMarkers[0];
+      const pos = singleMarker.getLatLng();
+      AppState.map.setView([pos.lat, pos.lng], 16, { animate: true });
+      setTimeout(() => {
+        if (AppState.markerClusterGroup.hasLayer(singleMarker)) {
+          AppState.markerClusterGroup.zoomToShowLayer(singleMarker, () => {
+            singleMarker.openPopup();
+          });
+        } else {
+          singleMarker.openPopup();
+        }
+      }, 350);
+    } else if (AppState.matchingMarkers && AppState.matchingMarkers.length > 1) {
+      const group = L.featureGroup(AppState.matchingMarkers);
+      AppState.map.fitBounds(group.getBounds().pad(0.1));
+    }
+  } else if (provFilter !== 'all') {
+    focusProvinceOnMap(provFilter);
+  }
+}
+
+// Requirement 6.1: เมื่อเลือกเขตแล้ว ให้กรองเหลือเฉพาะจังหวัดในเขตให้เลือก พร้อมช่องให้กรอกชื่อจังหวัด
+function handleMapZoneChange(zone) {
+  const mapProvSelect = document.getElementById('map-filter-province');
+  const datalist = document.getElementById('map-province-datalist');
+  const searchInput = document.getElementById('map-search-province');
+  if (searchInput) searchInput.value = '';
+
+  let provList = [];
+  if (window.GOV_HEALTH_FACILITIES && window.GOV_HEALTH_FACILITIES.provinceCoordinates) {
+    const allProvs = Object.entries(window.GOV_HEALTH_FACILITIES.provinceCoordinates).map(([name, data]) => ({
+      name,
+      lat: data[0],
+      lng: data[1],
+      zone: String(data[2])
+    }));
+
+    provList = (zone === 'all') ? allProvs : allProvs.filter(p => p.zone === String(zone));
+  } else {
+    provList = (AppState.provinces || []).map(p => ({ name: p, zone: '' }));
+  }
+
+  // Populate province dropdown
+  if (mapProvSelect) {
+    let opts = `<option value="all">ทุกจังหวัด (${zone === 'all' ? 'ทั่วประเทศ' : 'ในเขต ' + zone})</option>`;
+    provList.forEach(p => {
+      opts += `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`;
+    });
+    mapProvSelect.innerHTML = opts;
+    mapProvSelect.value = 'all';
+  }
+
+  // Populate datalist for autocomplete input
+  if (datalist) {
+    let dlOpts = '';
+    provList.forEach(p => {
+      dlOpts += `<option value="${escapeHtml(p.name)}">เขตสุขภาพ ${escapeHtml(p.zone)}</option>`;
+    });
+    datalist.innerHTML = dlOpts;
+  }
+
+  applyMapFilters();
+
+  // If a specific zone is chosen, fit map to all markers in that zone
+  if (zone !== 'all' && AppState.map && AppState.matchingMarkers.length > 0) {
+    const group = L.featureGroup(AppState.matchingMarkers);
+    AppState.map.fitBounds(group.getBounds().pad(0.1));
+  }
+}
+
+function handleMapProvinceSelect(prov) {
+  const searchInput = document.getElementById('map-search-province');
+  if (searchInput) {
+    searchInput.value = (prov === 'all') ? '' : prov;
+  }
+  applyMapFilters();
+}
+
+function handleMapProvinceInput(query) {
+  const q = (query || '').trim().toLowerCase().replace('จังหวัด', '');
+  const mapProvSelect = document.getElementById('map-filter-province');
+  if (!q) {
+    if (mapProvSelect) mapProvSelect.value = 'all';
+    applyMapFilters();
+    return;
+  }
+
+  if (mapProvSelect) {
+    let matchedOption = Array.from(mapProvSelect.options).find(opt =>
+      opt.value !== 'all' && (opt.value.toLowerCase() === q || opt.value.toLowerCase().includes(q))
+    );
+    if (matchedOption) {
+      mapProvSelect.value = matchedOption.value;
+      applyMapFilters();
+      return;
+    }
+  }
+
+  const provCentroid = findGovProvinceCentroid(q);
+  if (provCentroid) {
+    if (mapProvSelect) {
+      for (let i = 0; i < mapProvSelect.options.length; i++) {
+        if (mapProvSelect.options[i].value === provCentroid.province) {
+          mapProvSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+    applyMapFilters();
+  }
+}
+
+function focusProvinceOnMap(provName) {
+  if (!AppState.map || !provName || provName === 'all') return;
+  const pCentroid = findGovProvinceCentroid(provName);
+  if (pCentroid) {
+    AppState.map.setView([pCentroid.lat, pCentroid.lng], 10, { animate: true });
+  } else if (AppState.matchingMarkers.length > 0) {
+    const group = L.featureGroup(AppState.matchingMarkers);
+    AppState.map.fitBounds(group.getBounds().pad(0.1));
+  }
+}
+
+// Requirement 6.2: Modal แสดงรายชื่อแพทย์ทุกคนในจังหวัด / หมุดกลุ่ม
+function openProvinceDoctorsModal(provinceName, doctors) {
+  AppState.currentProvinceDoctors = doctors || [];
+
+  const titleEl = document.getElementById('province-modal-title');
+  const subEl = document.getElementById('province-modal-subtitle');
+  const countEl = document.getElementById('province-doctor-count');
+  const searchInput = document.getElementById('province-doctor-search');
+
+  if (titleEl) titleEl.textContent = `รายชื่อแพทย์ใน จ.${provinceName}`;
+  if (subEl) subEl.textContent = `พบแพทย์ทั้งหมด ${doctors.length} ท่าน ในหมุดกลุ่มพื้นที่นี้`;
+  if (countEl) countEl.textContent = `${doctors.length} คน`;
+  if (searchInput) searchInput.value = '';
+
+  renderProvinceDoctorsList(doctors);
+  openModal('provinceDoctorsModal');
+}
+
+function renderProvinceDoctorsList(doctors) {
+  const container = document.getElementById('province-doctors-list-container');
+  if (!container) return;
+
+  if (!doctors || doctors.length === 0) {
+    container.innerHTML = `
+      <div class="py-8 text-center text-slate-400">
+        <i class="fa-solid fa-user-slash text-2xl mb-2"></i>
+        <p>ไม่พบรายชื่อแพทย์ตามเงื่อนไขค้นหา</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = doctors.map(d => {
+    const isSheet = (d.type === 'sheet');
+    const photo = isSheet ? (d.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name)}&background=0284c7&color=fff`) : null;
+    const driveId = d.driveId || '';
+    const encodedName = encodeURIComponent(d.name);
+
+    return `
+      <div class="py-3 px-2 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-xl transition">
+        <div class="flex items-center space-x-3 min-w-0 flex-1">
+          <div class="w-11 h-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+            ${isSheet ? `
+              <img src="${photo}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
+            ` : `
+              <div class="w-full h-full ${d.isUpdated ? 'bg-sky-100 text-sky-800' : 'bg-teal-100 text-teal-800'} flex items-center justify-center font-bold text-sm">
+                <i class="fa-solid ${d.isUpdated ? 'fa-user-check' : 'fa-user-doctor'}"></i>
+              </div>
+            `}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-slate-900 text-xs truncate">${escapeHtml(d.name)}</span>
+              <span class="px-1.5 py-0.2 rounded text-[9px] font-bold ${isSheet ? 'bg-sky-100 text-sky-800' : (d.isUpdated ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800')}">
+                ${escapeHtml(d.certGroup || 'เวชศาสตร์ครอบครัว')}
+              </span>
+            </div>
+            <div class="text-[11px] text-slate-500 font-mono">
+              ${d.licenseNo ? 'ว. ' + escapeHtml(d.licenseNo) : 'ไม่ระบุเลข ว.'}
+              ${d.fpNo ? ' | FP: ' + escapeHtml(d.fpNo) : ''}
+            </div>
+            <div class="text-[11px] text-slate-600 truncate mt-0.5">
+              <i class="fa-solid fa-hospital text-slate-400 mr-1"></i> ${escapeHtml(d.workplace || 'ไม่ระบุสถานที่ทำงาน')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center space-x-1.5 shrink-0">
+          <button onclick="focusDoctorOnMap(${d.lat}, ${d.lng}, '${escapeHtml(d.name).replace(/'/g, "\\'")}', '${d.type}', ${d.id})" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูตำแหน่งหมุดบนแผนที่">
+            <i class="fa-solid fa-location-dot"></i> ดูหมุด
+          </button>
+          ${isSheet ? `
+            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.id})" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติ">
+              <i class="fa-solid fa-address-card"></i> ประวัติ
+            </button>
+          ` : (d.matchedMemberId ? `
+            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.matchedMemberId})" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติใน Sheet">
+              <i class="fa-solid fa-address-card"></i> ประวัติ
+            </button>
+          ` : '')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterProvinceDoctorsList(query) {
+  const q = (query || '').toLowerCase().trim();
+  const filtered = AppState.currentProvinceDoctors.filter(d => {
+    if (!q) return true;
+    const target = `${d.name} ${d.licenseNo || ''} ${d.fpNo || ''} ${d.workplace || ''} ${d.province || ''}`.toLowerCase();
+    return target.includes(q);
+  });
+
+  const countEl = document.getElementById('province-doctor-count');
+  if (countEl) countEl.textContent = `${filtered.length} คน`;
+  renderProvinceDoctorsList(filtered);
+}
+
+function focusDoctorOnMap(lat, lng, name, type, id) {
+  closeModal('provinceDoctorsModal');
+  if (!AppState.map || !lat || !lng) return;
+
+  AppState.map.setView([lat, lng], 17, { animate: true });
+
+  setTimeout(() => {
+    const targetMarker = AppState.markersList.find(m => {
+      const d = m.doctorData;
+      if (!d) return false;
+      return d.type === type && d.id == id;
+    });
+
+    if (targetMarker) {
+      if (AppState.markerClusterGroup.hasLayer(targetMarker)) {
+        AppState.markerClusterGroup.zoomToShowLayer(targetMarker, () => {
+          targetMarker.openPopup();
+        });
+      } else {
+        targetMarker.openPopup();
+      }
+      showToast(`โฟกัสตำแหน่งหมุดของ ${name} เรียบร้อย`, 'info');
+    }
+  }, 400);
+}
+
+function zoomClusterArea() {
+  if (AppState.currentClusterBounds && AppState.map) {
+    closeModal('provinceDoctorsModal');
+    AppState.map.fitBounds(AppState.currentClusterBounds.pad(0.1));
+  }
 }
 
 function toggleMarkerCluster(isClustered) {
@@ -1186,6 +1518,7 @@ function fitMapBounds() {
 /* ================= MEMBER DIRECTORY ================= */
 function populateFilterDropdowns() {
   const mapProvSelect = document.getElementById('map-filter-province');
+  const mapDatalist = document.getElementById('map-province-datalist');
   const dirProvSelect = document.getElementById('dir-filter-province');
 
   AppState.provinces.forEach(p => {
@@ -1194,6 +1527,11 @@ function populateFilterDropdowns() {
       opt.value = p;
       opt.innerText = p;
       mapProvSelect.appendChild(opt);
+    }
+    if (mapDatalist) {
+      const opt = document.createElement('option');
+      opt.value = p;
+      mapDatalist.appendChild(opt);
     }
     if (dirProvSelect) {
       const opt = document.createElement('option');
@@ -1704,6 +2042,7 @@ function openAddMemberModal() {
   document.getElementById('member-form').reset();
   document.getElementById('form-photo-preview').src = 'https://ui-avatars.com/api/?name=MD&background=0284c7&color=fff';
   openModal('memberEditModal');
+  setTimeout(() => initEditModalMiniMap(null, null), 250);
 }
 
 function openEditMemberModal(id) {
@@ -1748,6 +2087,109 @@ function openEditMemberModal(id) {
   document.getElementById('form-email').value = m.email || '';
 
   openModal('memberEditModal');
+  setTimeout(() => initEditModalMiniMap(m.lat, m.lng), 250);
+}
+
+// Requirement 5: Interactive Mini-Map in Member Edit Modal (Draggable Pin & Click-to-Move)
+let editMiniMap = null;
+let editMiniMarker = null;
+
+function initEditModalMiniMap(initialLat, initialLng) {
+  const container = document.getElementById('edit-modal-minimap');
+  if (!container) return;
+
+  const hasValidCoord = (initialLat !== undefined && initialLat !== null && !isNaN(Number(initialLat)) && Number(initialLat) !== 0);
+  const lat = hasValidCoord ? Number(initialLat) : 13.7563;
+  const lng = hasValidCoord ? Number(initialLng) : 100.5018;
+
+  if (!editMiniMap) {
+    editMiniMap = L.map('edit-modal-minimap', {
+      zoomControl: true,
+      attributionControl: false
+    }).setView([lat, lng], hasValidCoord ? 14 : 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(editMiniMap);
+
+    const pinIcon = L.divIcon({
+      className: 'custom-pin-marker',
+      html: `<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 border-2 border-white shadow-xl flex items-center justify-center text-white text-xs" style="box-shadow: 0 4px 10px rgba(249, 115, 22, 0.5);"><i class="fa-solid fa-location-dot text-sm"></i></div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
+    });
+
+    editMiniMarker = L.marker([lat, lng], {
+      draggable: true,
+      icon: pinIcon
+    }).addTo(editMiniMap);
+
+    editMiniMarker.on('dragend', function(e) {
+      const pos = e.target.getLatLng();
+      updateMiniMapCoords(pos.lat, pos.lng);
+    });
+
+    editMiniMap.on('click', function(e) {
+      const { lat: clickLat, lng: clickLng } = e.latlng;
+      editMiniMarker.setLatLng([clickLat, clickLng]);
+      updateMiniMapCoords(clickLat, clickLng);
+    });
+  } else {
+    editMiniMap.invalidateSize();
+    editMiniMarker.setLatLng([lat, lng]);
+    editMiniMap.setView([lat, lng], hasValidCoord ? 14 : 6);
+  }
+
+  updateMiniMapCoordsDisplay(hasValidCoord ? lat : null, hasValidCoord ? lng : null);
+}
+
+function updateMiniMapCoords(lat, lng) {
+  const fLat = document.getElementById('form-lat');
+  const fLng = document.getElementById('form-lng');
+  const latFixed = Number(lat).toFixed(6);
+  const lngFixed = Number(lng).toFixed(6);
+  if (fLat) fLat.value = latFixed;
+  if (fLng) fLng.value = lngFixed;
+  updateMiniMapCoordsDisplay(latFixed, lngFixed);
+}
+
+function updateMiniMapCoordsDisplay(lat, lng) {
+  const el = document.getElementById('edit-minimap-coords-display');
+  if (el) {
+    if (lat && lng) {
+      el.textContent = `พิกัดปัจจุบัน: ${lat}, ${lng} (ลากหมุดหรือคลิกบนแผนที่เพื่อเปลี่ยน)`;
+      el.className = 'text-[11px] text-amber-700 font-mono bg-amber-50 px-2 py-0.5 rounded border border-amber-200';
+    } else {
+      el.textContent = 'ยังไม่ได้กำหนดพิกัด (คลิกบนแผนที่เพื่อปักหมุด)';
+      el.className = 'text-[11px] text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200';
+    }
+  }
+}
+
+function handleManualCoordInput() {
+  const fLat = document.getElementById('form-lat');
+  const fLng = document.getElementById('form-lng');
+  const lat = parseFloat(fLat?.value);
+  const lng = parseFloat(fLng?.value);
+  if (!isNaN(lat) && !isNaN(lng) && editMiniMap && editMiniMarker) {
+    editMiniMarker.setLatLng([lat, lng]);
+    editMiniMap.setView([lat, lng], 14);
+    updateMiniMapCoordsDisplay(lat.toFixed(6), lng.toFixed(6));
+  }
+}
+
+function centerMiniMapOnCurrentPin() {
+  const fLat = document.getElementById('form-lat');
+  const fLng = document.getElementById('form-lng');
+  const lat = parseFloat(fLat?.value);
+  const lng = parseFloat(fLng?.value);
+  if (!isNaN(lat) && !isNaN(lng) && editMiniMap && editMiniMarker) {
+    editMiniMarker.setLatLng([lat, lng]);
+    editMiniMap.setView([lat, lng], 16, { animate: true });
+    updateMiniMapCoordsDisplay(lat.toFixed(6), lng.toFixed(6));
+  } else {
+    showToast('กรุณาระบุพิกัดหรือคลิกปักหมุดบนแผนที่ก่อน', 'info');
+  }
 }
 
 function handlePhotoPreview(url) {
@@ -1815,6 +2257,11 @@ function autoGeocodeFromHospitalDb() {
     }
     document.getElementById('form-lat').value = hosp.lat;
     document.getElementById('form-lng').value = hosp.lng;
+    if (editMiniMap && editMiniMarker) {
+      editMiniMarker.setLatLng([hosp.lat, hosp.lng]);
+      editMiniMap.setView([hosp.lat, hosp.lng], 15);
+      updateMiniMapCoordsDisplay(hosp.lat, hosp.lng);
+    }
     showToast(`พบข้อมูลสถานบริการรัฐ: ${hosp.name} (เขตสุขภาพที่ ${hosp.zone} จ.${hosp.province}) ดึงพิกัด (${hosp.lat}, ${hosp.lng}) เรียบร้อย`, 'success');
   } else {
     const prov = findGovProvinceCentroid(wpName);
@@ -1822,6 +2269,11 @@ function autoGeocodeFromHospitalDb() {
       document.getElementById('form-workplace-province').value = prov.province;
       document.getElementById('form-lat').value = prov.lat;
       document.getElementById('form-lng').value = prov.lng;
+      if (editMiniMap && editMiniMarker) {
+        editMiniMarker.setLatLng([prov.lat, prov.lng]);
+        editMiniMap.setView([prov.lat, prov.lng], 12);
+        updateMiniMapCoordsDisplay(prov.lat, prov.lng);
+      }
       showToast(`ไม่พบชื่อ รพ. เจาะจง แต่ดึงพิกัดศูนย์กลางจังหวัด: จ.${prov.province} เรียบร้อย`, 'info');
     } else {
       showToast(`ไม่พบข้อมูล "${wpName}" ในฐานข้อมูลสถานบริการรัฐหลัก ลองพิมพ์ชื่อย่อ เช่น รพ.ศิริราช, รพ.ขอนแก่น`, 'warning');
@@ -1853,6 +2305,11 @@ function autoGeocodeFormAddress() {
   if (match && match.lat && match.lng) {
     document.getElementById('form-lat').value = match.lat;
     document.getElementById('form-lng').value = match.lng;
+    if (editMiniMap && editMiniMarker) {
+      editMiniMarker.setLatLng([match.lat, match.lng]);
+      editMiniMap.setView([match.lat, match.lng], 13);
+      updateMiniMapCoordsDisplay(match.lat, match.lng);
+    }
     showToast(`ดึงพิกัดจาก Geo สำเร็จ (${match.fullText})`, 'success');
   }
 }
@@ -2307,7 +2764,17 @@ function showToast(msg, type = 'success') {
 }
 
 function setupEventListeners() {
-  ['memberDetailModal', 'memberEditModal', 'deleteConfirmModal'].forEach(id => {
+  const allModalIds = [
+    'memberDetailModal',
+    'memberEditModal',
+    'deleteConfirmModal',
+    'loginModal',
+    'changePasswordModal',
+    'gasConfigModal',
+    'provinceDoctorsModal'
+  ];
+
+  allModalIds.forEach(id => {
     const modal = document.getElementById(id);
     if (modal) {
       modal.addEventListener('click', (e) => {
@@ -2318,7 +2785,7 @@ function setupEventListeners() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      ['memberDetailModal', 'memberEditModal', 'deleteConfirmModal'].forEach(id => closeModal(id));
+      allModalIds.forEach(id => closeModal(id));
     }
   });
 }
@@ -2559,6 +3026,8 @@ const DEFAULT_BRANDING = {
   logoIcon: 'fa-user-doctor',
   logoGradient: 'from-sky-500 to-teal-400',
   logoImageUrl: '',
+  logo2Type: 'icon', // 'icon' | 'upload' | 'url'
+  logo2ImageUrl: '',
   title: 'ราชวิทยาลัยฯ',
   subtitle: 'เวชศาสตร์ครอบครัว',
   sourceBadge: 'Sheet + Thaifammed',
@@ -2569,7 +3038,7 @@ const DEFAULT_BRANDING = {
   dashDesc: 'ประมวลผลครอบคลุมทั้ง 5 แท็บของ Google Sheet พร้อมฐานข้อมูลแพทย์ 3,750 รายจาก Thaifammed และแผนที่ OpenStreetMap (ไม่มี API)',
   mapTitle: 'แผนที่พิกัดแพทย์เวชศาสตร์ครอบครัว',
   mapDesc: 'สำรวจการกระจายตัวของแพทย์ทั่วประเทศ สามารถลากย้ายหมุดหรือดึงพิกัดสถานบริการรัฐอัตโนมัติ',
-  dirTitle: 'ทำเนียบสมาชิกแพทย์เวชศาสตร์ครอบครัว (Google Sheet)',
+  dirTitle: 'รายชื่อสมาชิกที่ Update ข้อมูล',
   footerText: '© 2026 ราชวิทยาลัยแพทย์เวชศาสตร์ครอบครัวแห่งประเทศไทย & สมาคมแพทย์เวชศาสตร์ครอบครัว',
   footerContact: 'ระบบสารสนเทศภูมิศาสตร์และทะเบียนสมาชิกแพทย์ | ติดต่อประสานงาน: thaifammed.org'
 };
@@ -2601,7 +3070,7 @@ const BrandingManager = {
   apply(cfg) {
     if (!cfg) cfg = this.currentConfig;
 
-    // 1. Sidebar Brand
+    // 1. Sidebar Brand - Logo 1
     const brandLogoContainer = document.getElementById('brand-logo-container');
     if (brandLogoContainer) {
       if ((cfg.logoType === 'upload' || cfg.logoType === 'url') && cfg.logoImageUrl) {
@@ -2610,6 +3079,18 @@ const BrandingManager = {
       } else {
         brandLogoContainer.className = `w-10 h-10 rounded-xl bg-gradient-to-tr ${cfg.logoGradient || 'from-sky-500 to-teal-400'} flex items-center justify-center text-white shadow-lg shrink-0 overflow-hidden`;
         brandLogoContainer.innerHTML = `<i class="fa-solid ${cfg.logoIcon || 'fa-user-doctor'} text-lg"></i>`;
+      }
+    }
+
+    // Sidebar Brand - Logo 2 (Requirement 1)
+    const brandLogo2Container = document.getElementById('brand-logo2-container');
+    if (brandLogo2Container) {
+      if ((cfg.logo2Type === 'upload' || cfg.logo2Type === 'url') && cfg.logo2ImageUrl) {
+        brandLogo2Container.className = 'w-9 h-9 rounded-xl flex items-center justify-center shadow-lg overflow-hidden shrink-0 bg-white border border-slate-700/50';
+        brandLogo2Container.innerHTML = `<img src="${cfg.logo2ImageUrl}" alt="Logo 2" class="brand-logo2-img">`;
+      } else {
+        brandLogo2Container.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 overflow-hidden shrink-0';
+        brandLogo2Container.innerHTML = `<i class="fa-solid fa-hospital text-sm"></i>`;
       }
     }
 
@@ -2678,6 +3159,7 @@ const BrandingManager = {
     setVal('cfg-brand-footer-text', cfg.footerText);
     setVal('cfg-brand-footer-contact', cfg.footerContact);
     setVal('input-brand-logo-url', cfg.logoType === 'url' ? cfg.logoImageUrl : '');
+    setVal('input-brand-logo2-url', cfg.logo2Type === 'url' ? cfg.logo2ImageUrl : '');
 
     this.setLogoMode(cfg.logoType || 'icon', false);
     this.highlightActiveIcon(cfg.logoIcon);
@@ -2768,6 +3250,54 @@ const BrandingManager = {
     }
   },
 
+  handleLogo2Upload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('ไฟล์ภาพ Logo 2 มีขนาดใหญ่เกินไป (ไม่เกิน 2MB)', 'warning');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.currentConfig.logo2ImageUrl = e.target.result;
+      this.currentConfig.logo2Type = 'upload';
+      this.updateLivePreview();
+      this.apply(this.currentConfig);
+      showToast('อัปโหลดไฟล์รูปภาพ Logo 2 เรียบร้อยแล้ว (กดปุ่มบันทึกเพื่อใช้งาน)', 'success');
+    };
+    reader.readAsDataURL(file);
+  },
+
+  handleLogo2UrlInput(val) {
+    this.currentConfig.logo2ImageUrl = (val || '').trim();
+    if (this.currentConfig.logo2ImageUrl) {
+      this.currentConfig.logo2Type = 'url';
+    }
+    this.updateLivePreview();
+    this.apply(this.currentConfig);
+  },
+
+  applyLogo2Url() {
+    const input = document.getElementById('input-brand-logo2-url');
+    if (input && input.value) {
+      this.currentConfig.logo2ImageUrl = input.value.trim();
+      this.currentConfig.logo2Type = 'url';
+      this.updateLivePreview();
+      this.apply(this.currentConfig);
+      showToast('ทดสอบเชื่อมโยง URL Logo 2 เรียบร้อยแล้ว', 'info');
+    }
+  },
+
+  removeLogo2() {
+    this.currentConfig.logo2ImageUrl = '';
+    this.currentConfig.logo2Type = 'icon';
+    const input = document.getElementById('input-brand-logo2-url');
+    if (input) input.value = '';
+    this.updateLivePreview();
+    this.apply(this.currentConfig);
+    showToast('รีเซ็ต Logo 2 เป็นไอคอนเริ่มต้นเรียบร้อยแล้ว', 'info');
+  },
+
   collectFormData() {
     const getVal = (id, fallback) => {
       const el = document.getElementById(id);
@@ -2779,6 +3309,8 @@ const BrandingManager = {
       logoIcon: this.currentConfig.logoIcon || DEFAULT_BRANDING.logoIcon,
       logoGradient: this.currentConfig.logoGradient || DEFAULT_BRANDING.logoGradient,
       logoImageUrl: this.currentConfig.logoImageUrl || '',
+      logo2Type: this.currentConfig.logo2Type || 'icon',
+      logo2ImageUrl: this.currentConfig.logo2ImageUrl || '',
       title: getVal('cfg-brand-title', DEFAULT_BRANDING.title),
       subtitle: getVal('cfg-brand-subtitle', DEFAULT_BRANDING.subtitle),
       sourceBadge: getVal('cfg-brand-source-badge', DEFAULT_BRANDING.sourceBadge),
@@ -2838,6 +3370,18 @@ const BrandingManager = {
 
     const pContact = document.getElementById('preview-footer-contact');
     if (pContact) pContact.textContent = cfg.footerContact;
+
+    // Update Logo 2 Preview (Requirement 1)
+    const pLogo2Box = document.getElementById('brand-logo2-preview');
+    if (pLogo2Box) {
+      if ((cfg.logo2Type === 'upload' || cfg.logo2Type === 'url') && cfg.logo2ImageUrl) {
+        pLogo2Box.className = 'w-8 h-8 rounded-xl flex items-center justify-center shadow-sm overflow-hidden shrink-0 bg-white border border-slate-200';
+        pLogo2Box.innerHTML = `<img src="${cfg.logo2ImageUrl}" alt="Logo 2" class="w-full h-full object-contain p-0.5">`;
+      } else {
+        pLogo2Box.className = 'w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-sm overflow-hidden shrink-0';
+        pLogo2Box.innerHTML = `<i class="fa-solid fa-hospital text-sm"></i>`;
+      }
+    }
   },
 
   save() {
@@ -2934,6 +3478,145 @@ const AuthManager = {
 
   isDoctor() {
     return !!(this.currentUser && this.currentUser.role === 'doctor');
+  },
+
+  // Requirement 2: Master DB Access Control & Delegation
+  getDelegates() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY_DELEGATES);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  saveDelegates(list) {
+    localStorage.setItem(STORAGE_KEY_DELEGATES, JSON.stringify(list));
+    this.updateDelegatesUI();
+  },
+
+  isMasterDbDelegate() {
+    if (this.isAdmin()) return true;
+    if (!this.isDoctor()) return false;
+    const delegates = this.getDelegates();
+    const lic = String(this.currentUser.licenseNo || '').trim();
+    const name = String(this.currentUser.name || '').trim();
+    return delegates.some(d => {
+      if (lic && d.licenseNo && String(d.licenseNo).trim() === lic) return true;
+      if (name && d.name && (d.name.includes(name) || name.includes(d.name))) return true;
+      return false;
+    });
+  },
+
+  canAccessMasterDb() {
+    return this.isAdmin() || this.isMasterDbDelegate();
+  },
+
+  addDelegateFromInput() {
+    if (!this.isAdmin()) {
+      showToast('เฉพาะ Admin เท่านั้นที่สามารถมอบหมายสิทธิ์ได้', 'error');
+      return;
+    }
+    const input = document.getElementById('input-new-delegate');
+    const val = (input?.value || '').trim();
+    if (!val) {
+      showToast('กรุณาระบุเลข ว. หรือค้นหาชื่อแพทย์ที่ต้องการมอบหมายสิทธิ์', 'warning');
+      return;
+    }
+
+    const cleanId = val.toLowerCase().replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|ว\.)\s*/, '').trim();
+    const numDigits = val.replace(/\D/g, '');
+
+    let found = AppState.members.find(m => {
+      if (m.licenseNo && String(m.licenseNo).trim() === cleanId) return true;
+      if (numDigits && m.licenseNo && String(m.licenseNo).trim() === numDigits) return true;
+      if (m.fullNameTh && m.fullNameTh.includes(cleanId)) return true;
+      return false;
+    });
+
+    if (!found) {
+      found = AppState.thaifammed.find(d => {
+        if (d.gpNo && String(d.gpNo).trim() === cleanId) return true;
+        if (numDigits && d.gpNo && String(d.gpNo).trim() === numDigits) return true;
+        if (d.name && d.name.includes(cleanId)) return true;
+        return false;
+      });
+    }
+
+    const docName = found ? (found.fullNameTh || found.name) : val;
+    const licenseNo = found ? (found.licenseNo || found.gpNo || '') : numDigits;
+
+    const delegates = this.getDelegates();
+    if (delegates.some(d => (licenseNo && d.licenseNo === licenseNo) || d.name === docName)) {
+      showToast(`${docName} ได้รับสิทธิ์เข้าถึง Master DB อยู่แล้ว`, 'info');
+      if (input) input.value = '';
+      return;
+    }
+
+    delegates.push({
+      name: docName,
+      licenseNo: licenseNo,
+      assignedAt: new Date().toLocaleDateString('th-TH')
+    });
+
+    this.saveDelegates(delegates);
+    if (input) input.value = '';
+    showToast(`มอบหมายสิทธิ์เข้าถึง Master DB ให้กับ ${docName} เรียบร้อยแล้ว`, 'success');
+  },
+
+  removeDelegate(licenseOrName) {
+    if (!this.isAdmin()) {
+      showToast('เฉพาะ Admin เท่านั้นที่สามารถเพิกถอนสิทธิ์ได้', 'error');
+      return;
+    }
+    let delegates = this.getDelegates();
+    delegates = delegates.filter(d => d.licenseNo !== licenseOrName && d.name !== licenseOrName);
+    this.saveDelegates(delegates);
+    showToast('เพิกถอนสิทธิ์เรียบร้อยแล้ว', 'info');
+  },
+
+  updateDelegatesUI() {
+    const listContainer = document.getElementById('delegates-list-container');
+    const badge = document.getElementById('delegate-count-badge');
+    const delegates = this.getDelegates();
+
+    if (badge) {
+      badge.textContent = `${delegates.length} คนที่ได้รับมอบหมาย`;
+    }
+
+    if (listContainer) {
+      if (delegates.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-[11px] text-slate-400 py-3 text-center italic">
+            ยังไม่มีแพทย์ที่ได้รับมอบหมายสิทธิ์ (เฉพาะ Admin เข้าถึงได้)
+          </div>
+        `;
+      } else {
+        listContainer.innerHTML = delegates.map(d => `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 shadow-xs">
+            <div class="min-w-0 flex-1 pr-2">
+              <div class="font-bold text-slate-800 text-[11px] truncate">${escapeHtml(d.name)}</div>
+              <div class="text-[10px] text-slate-400 font-mono">${d.licenseNo ? 'ว. ' + escapeHtml(d.licenseNo) : 'แพทย์สมาชิก'} • สิทธิ์: Master DB</div>
+            </div>
+            ${this.isAdmin() ? `
+              <button onclick="AuthManager.removeDelegate('${escapeHtml(d.licenseNo || d.name)}')" class="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition" title="เพิกถอนสิทธิ์">
+                <i class="fa-solid fa-trash-can text-xs"></i>
+              </button>
+            ` : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    // Populate datalist for doctor search in delegation panel
+    const dl = document.getElementById('all-doctors-datalist');
+    if (dl && (!dl.children || dl.children.length === 0) && AppState.members && AppState.members.length > 0) {
+      let opts = '';
+      AppState.members.forEach(m => {
+        opts += `<option value="${escapeHtml(m.licenseNo ? m.licenseNo : m.fullNameTh)}">${escapeHtml(m.fullNameTh)} (ว. ${escapeHtml(m.licenseNo || '-')})</option>`;
+      });
+      dl.innerHTML = opts;
+    }
   },
 
   isMyRecord(type, id) {
@@ -3300,6 +3983,17 @@ const AuthManager = {
     const sidebarContainer = document.getElementById('auth-sidebar-container');
     const headerContainer = document.getElementById('auth-header-container');
 
+    // Requirement 2: Toggle lock icon on Master DB menu
+    const lockIcon = document.getElementById('sidebar-management-lock');
+    if (lockIcon) {
+      if (this.canAccessMasterDb()) {
+        lockIcon.classList.add('hidden');
+      } else {
+        lockIcon.classList.remove('hidden');
+      }
+    }
+    this.updateDelegatesUI();
+
     // 1. Render Sidebar Container
     if (sidebarContainer) {
       if (this.isGuest()) {
@@ -3317,17 +4011,20 @@ const AuthManager = {
         `;
       } else if (this.isDoctor()) {
         const avatar = this.currentUser.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(this.currentUser.name)}&background=0284c7&color=fff`;
+        const isDelegate = this.isMasterDbDelegate();
         sidebarContainer.innerHTML = `
-          <div class="bg-slate-800/90 rounded-2xl p-3 border border-sky-500/30 text-xs text-white space-y-2.5">
+          <div class="bg-slate-800/90 rounded-2xl p-3 border ${isDelegate ? 'border-rose-500/50 bg-slate-900/90' : 'border-sky-500/30'} text-xs text-white space-y-2.5">
             <div class="flex items-center space-x-2.5">
-              <div class="w-10 h-10 rounded-xl overflow-hidden bg-sky-900 border border-sky-500 shrink-0">
+              <div class="w-10 h-10 rounded-xl overflow-hidden bg-sky-900 border ${isDelegate ? 'border-rose-400' : 'border-sky-500'} shrink-0">
                 <img src="${avatar}" referrerpolicy="no-referrer" class="w-full h-full object-cover">
               </div>
               <div class="min-w-0 flex-1">
                 <div class="font-bold truncate text-slate-100">${escapeHtml(this.currentUser.name)}</div>
                 <div class="text-[10px] text-sky-300 font-mono">${this.currentUser.licenseNo ? 'ว. ' + escapeHtml(this.currentUser.licenseNo) : 'แพทย์สมาชิก'}</div>
               </div>
-              <span class="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/40 text-[10px] font-semibold">แพทย์</span>
+              <span class="px-2 py-0.5 rounded-full ${isDelegate ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'} text-[10px] font-semibold">
+                ${isDelegate ? 'Master DB' : 'แพทย์'}
+              </span>
             </div>
             <div class="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-700/60">
               <button onclick="AuthManager.openMyProfile()" class="py-1.5 px-2 bg-sky-600/30 hover:bg-sky-600/50 text-sky-200 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1" title="ดูหรือแก้ไขข้อมูลของฉัน">
@@ -3337,6 +4034,11 @@ const AuthManager = {
                 <i class="fa-solid fa-location-dot"></i> ย้ายพิกัด
               </button>
             </div>
+            ${isDelegate ? `
+              <button onclick="switchView('management')" class="w-full py-1.5 px-2 bg-rose-600/30 hover:bg-rose-600/50 text-rose-200 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-shield-halved text-rose-400"></i> เข้าจัดการ Master DB
+              </button>
+            ` : ''}
             <button onclick="AuthManager.logout()" class="w-full py-1 text-slate-400 hover:text-rose-300 text-[10px] transition flex items-center justify-center gap-1">
               <i class="fa-solid fa-arrow-right-from-bracket"></i> ออกจากระบบ
             </button>
@@ -3373,6 +4075,7 @@ const AuthManager = {
         `;
       } else if (this.isDoctor()) {
         const avatar = this.currentUser.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(this.currentUser.name)}&background=0284c7&color=fff`;
+        const isDelegate = this.isMasterDbDelegate();
         headerContainer.innerHTML = `
           <div class="relative">
             <button onclick="AuthManager.toggleUserDropdown(event)" class="flex items-center space-x-2 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition border border-slate-200">
@@ -3389,7 +4092,9 @@ const AuthManager = {
               <div class="px-3.5 py-2 border-b border-slate-100">
                 <p class="text-[10px] text-slate-400 font-semibold uppercase">เข้าสู่ระบบในชื่อ</p>
                 <p class="font-bold text-slate-900 truncate">${escapeHtml(this.currentUser.name)}</p>
-                <span class="inline-block mt-0.5 px-2 py-0.2 rounded-full bg-sky-100 text-sky-800 text-[10px] font-semibold">แพทย์สมาชิก (แก้ไขเฉพาะตนเอง)</span>
+                <span class="inline-block mt-0.5 px-2 py-0.2 rounded-full ${isDelegate ? 'bg-rose-100 text-rose-800' : 'bg-sky-100 text-sky-800'} text-[10px] font-semibold">
+                  ${isDelegate ? 'แพทย์สมาชิก (มีสิทธิ์ Master DB)' : 'แพทย์สมาชิก (แก้ไขเฉพาะตนเอง)'}
+                </span>
               </div>
               <button onclick="AuthManager.openMyProfile()" class="w-full px-3.5 py-2 text-left hover:bg-sky-50 hover:text-sky-700 transition flex items-center gap-2">
                 <i class="fa-solid fa-user-pen text-sky-600 w-4"></i> ข้อมูลประวัติของฉัน
@@ -3397,6 +4102,11 @@ const AuthManager = {
               <button onclick="AuthManager.relocateMyPin()" class="w-full px-3.5 py-2 text-left hover:bg-amber-50 hover:text-amber-700 transition flex items-center gap-2">
                 <i class="fa-solid fa-location-crosshairs text-amber-600 w-4"></i> ย้ายพิกัดหมุดของฉัน
               </button>
+              ${isDelegate ? `
+                <button onclick="switchView('management')" class="w-full px-3.5 py-2 text-left hover:bg-rose-50 text-rose-700 transition flex items-center gap-2 font-semibold">
+                  <i class="fa-solid fa-shield-halved text-rose-600 w-4"></i> จัดการฐานข้อมูล Master DB
+                </button>
+              ` : ''}
               <button onclick="AuthManager.openChangePasswordModal()" class="w-full px-3.5 py-2 text-left hover:bg-slate-50 transition flex items-center gap-2">
                 <i class="fa-solid fa-key text-slate-400 w-4"></i> เปลี่ยนรหัสผ่าน
               </button>

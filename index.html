@@ -53,14 +53,17 @@
     <aside id="sidebar" class="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shrink-0 transition-all duration-300 z-30 shadow-xl no-print">
       <div>
         <!-- Brand Header -->
-        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-          <div class="flex items-center space-x-3 overflow-hidden">
-            <div id="brand-logo-container" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-sky-500/30 overflow-hidden shrink-0">
-              <i class="fa-solid fa-user-doctor text-lg"></i>
+        <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center space-x-2 overflow-hidden">
+            <div id="brand-logo-container" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-sky-500/30 overflow-hidden shrink-0" title="โลโก้ที่ 1">
+              <i class="fa-solid fa-user-doctor text-base"></i>
+            </div>
+            <div id="brand-logo2-container" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 overflow-hidden shrink-0" title="โลโก้ที่ 2">
+              <i class="fa-solid fa-hospital text-base"></i>
             </div>
             <div class="overflow-hidden">
-              <h1 id="brand-title" class="font-semibold text-white text-base leading-tight font-heading truncate">ราชวิทยาลัยฯ</h1>
-              <p id="brand-subtitle" class="text-xs text-sky-400 truncate">เวชศาสตร์ครอบครัว</p>
+              <h1 id="brand-title" class="font-semibold text-white text-sm leading-tight font-heading truncate">ราชวิทยาลัยฯ</h1>
+              <p id="brand-subtitle" class="text-[11px] text-sky-400 truncate">เวชศาสตร์ครอบครัว</p>
             </div>
           </div>
         </div>
@@ -94,13 +97,13 @@
 
           <button onclick="switchView('directory')" id="nav-directory" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
             <i class="fa-solid fa-address-book w-5 text-center text-base text-sky-400"></i>
-            <span class="flex-1 text-left">ทำเนียบสมาชิก (Sheet)</span>
+            <span class="flex-1 text-left">รายชื่อสมาชิกที่ Update ข้อมูล</span>
             <span id="sidebar-member-badge" class="px-1.5 py-0.5 rounded-md bg-slate-800 text-[10px] text-sky-300 font-mono">314 คน</span>
           </button>
 
           <button onclick="switchView('thaifammed')" id="nav-thaifammed" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
             <i class="fa-solid fa-hospital-user w-5 text-center text-base text-emerald-400"></i>
-            <span class="flex-1 text-left">แพทย์ไทย (Thaifammed)</span>
+            <span class="flex-1 text-left">สมาชิกในฐานข้อมูลThaifammed</span>
             <span class="px-1.5 py-0.5 rounded-md bg-emerald-950 text-emerald-300 text-[10px] font-mono border border-emerald-800">3,750</span>
           </button>
 
@@ -116,7 +119,8 @@
 
           <button onclick="switchView('management')" id="nav-management" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
             <i class="fa-solid fa-database w-5 text-center text-base text-rose-400"></i>
-            <span>การจัดการข้อมูล & ซิงค์</span>
+            <span class="flex-1 text-left">การจัดการข้อมูล & ซิงค์</span>
+            <span id="sidebar-management-lock" class="text-xs text-rose-400" title="ต้องใช้สิทธิ์ Admin หรือผู้ได้รับมอบหมาย"><i class="fa-solid fa-lock"></i></span>
           </button>
         </nav>
       </div>
@@ -212,7 +216,7 @@
                 <i class="fa-solid fa-map-location-dot"></i> สำรวจแผนที่
               </button>
               <button onclick="switchView('thaifammed')" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl text-sm transition flex items-center gap-2 shadow-lg shadow-emerald-600/30">
-                <i class="fa-solid fa-hospital-user"></i> ข้อมูลแพทย์ไทย (3,750 คน)
+                <i class="fa-solid fa-hospital-user"></i> สมาชิกในฐานข้อมูลThaifammed (3,750 คน)
               </button>
             </div>
           </div>
@@ -434,7 +438,7 @@
                 <!-- Health Zone Filter -->
                 <div class="flex items-center space-x-1.5">
                   <label class="text-slate-500 font-medium">เขตสุขภาพ:</label>
-                  <select id="map-filter-zone" onchange="applyMapFilters()" class="py-1.5 px-2.5 rounded-xl border-slate-200 bg-slate-50 text-slate-700 text-xs focus:ring-sky-500 font-medium">
+                  <select id="map-filter-zone" onchange="handleMapZoneChange(this.value)" class="py-1.5 px-2.5 rounded-xl border-slate-200 bg-slate-50 text-slate-700 text-xs focus:ring-sky-500 font-medium">
                     <option value="all">ทุกเขต (1-13)</option>
                     <option value="1">เขต 1 (เหนือบน)</option>
                     <option value="2">เขต 2</option>
@@ -452,12 +456,16 @@
                   </select>
                 </div>
 
-                <!-- Province Filter -->
+                <!-- Province Filter (Dropdown + Type search) -->
                 <div class="flex items-center space-x-1.5">
                   <label class="text-slate-500 font-medium">จังหวัด:</label>
-                  <select id="map-filter-province" onchange="applyMapFilters()" class="py-1.5 px-2.5 rounded-xl border-slate-200 bg-slate-50 text-slate-700 text-xs focus:ring-sky-500 font-medium max-w-[140px]">
+                  <select id="map-filter-province" onchange="handleMapProvinceSelect(this.value)" class="py-1.5 px-2.5 rounded-xl border-slate-200 bg-slate-50 text-slate-700 text-xs focus:ring-sky-500 font-medium max-w-[130px]">
                     <option value="all">ทุกจังหวัด</option>
                   </select>
+                  <div class="relative">
+                    <input type="text" id="map-search-province" list="map-province-datalist" placeholder="พิมพ์ชื่อจังหวัด..." oninput="handleMapProvinceInput(this.value)" class="py-1.5 px-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs w-28 focus:w-36 focus:ring-2 focus:ring-sky-500 transition-all">
+                    <datalist id="map-province-datalist"></datalist>
+                  </div>
                 </div>
 
                 <!-- Cert Filter -->
@@ -559,7 +567,7 @@
           <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-4">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h3 id="brand-directory-title" class="font-bold text-slate-900 text-lg font-heading">ทำเนียบสมาชิกแพทย์เวชศาสตร์ครอบครัว (Google Sheet)</h3>
+                <h3 id="brand-directory-title" class="font-bold text-slate-900 text-lg font-heading">รายชื่อสมาชิกที่ Update ข้อมูล</h3>
                 <p id="brand-directory-desc" class="text-xs text-slate-500">ข้อมูลสมาชิก 314 ราย ที่อัปเดตข้อมูลผ่านแบบฟอร์ม พร้อมระบบแก้ไขและรูปถ่าย</p>
               </div>
 
@@ -680,7 +688,7 @@
                 <div id="brand-thaifammed-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold mb-1">
                   <i class="fa-solid fa-database"></i> ฐานข้อมูลแพทย์เวชศาสตร์ครอบครัวของไทย (Thai Family Physicians Database)
                 </div>
-                <h3 id="brand-thaifammed-title" class="font-bold text-slate-900 text-lg font-heading">รายชื่อแพทย์เวชศาสตร์ครอบครัว 3,750 รายการทั่วประเทศ</h3>
+                <h3 id="brand-thaifammed-title" class="font-bold text-slate-900 text-lg font-heading">สมาชิกในฐานข้อมูลThaifammed (3,750 รายการทั่วประเทศ)</h3>
                 <p id="brand-thaifammed-desc" class="text-xs text-slate-500">ข้อมูลจาก <a href="https://database.thaifammed.org/thai_family_physicians_fp.php" target="_blank" class="text-sky-600 underline font-medium">database.thaifammed.org</a> เชื่อมโยงสถานะการอัปเดตข้อมูลกับ Google Sheet</p>
               </div>
 
@@ -934,6 +942,52 @@
               </div>
             </div>
 
+            <!-- ================= MASTER DB DELEGATED ACCESS PANEL (Admin Only) ================= -->
+            <div id="master-db-delegation-panel" class="p-6 rounded-3xl bg-white border-2 border-rose-400/40 shadow-xl space-y-4">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-3.5">
+                  <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-600 to-pink-500 text-white flex items-center justify-center text-xl shadow-lg shadow-rose-500/25 shrink-0">
+                    <i class="fa-solid fa-user-shield"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h4 class="font-bold text-slate-900 text-base font-heading">ผู้มีสิทธิ์เข้าถึงฐานข้อมูล Master DB (Access Control & Delegation)</h4>
+                      <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold border border-rose-200">Admin Only</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">กำหนดให้เฉพาะ Admin และแพทย์ผู้ที่ Admin มอบหมายเท่านั้น ที่สามารถเปิดดูหน้านี้และเข้าถึงฐานข้อมูล Master DB ได้</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="delegate-count-badge" class="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">0 คนที่ได้รับมอบหมาย</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="md:col-span-2 space-y-2.5">
+                  <label class="block text-slate-700 font-semibold">มอบหมายสิทธิ์ให้แพทย์ (พิมพ์ค้นหาชื่อ หรือระบุเลข ว.):</label>
+                  <div class="flex gap-2">
+                    <input type="text" id="input-new-delegate" list="all-doctors-datalist" placeholder="เช่น 56210 หรือ พิมพ์ชื่อแพทย์..." class="flex-1 p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-rose-500">
+                    <datalist id="all-doctors-datalist"></datalist>
+                    <button type="button" onclick="AuthManager.addDelegateFromInput()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95">
+                      <i class="fa-solid fa-user-plus"></i> มอบหมายสิทธิ์
+                    </button>
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    💡 <strong>หมายเหตุ:</strong> แพทย์ที่ได้รับมอบหมาย เมื่อเข้าสู่ระบบ (Login) จะสามารถเปิดดูหน้าจัดการข้อมูลและลิงก์ไปยัง Google Sheet Master DB ได้อัตโนมัติ
+                  </p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                  <span class="font-bold text-slate-700 block text-xs flex items-center justify-between">
+                    <span>รายชื่อผู้ได้รับมอบหมาย:</span>
+                    <i class="fa-solid fa-shield-halved text-rose-500"></i>
+                  </span>
+                  <div id="delegates-list-container" class="max-h-36 overflow-y-auto space-y-1.5 text-xs">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- ================= BRANDING & UI CUSTOMIZATION SECTION ================= -->
             <div class="p-6 rounded-3xl bg-white border-2 border-indigo-500/40 shadow-xl space-y-6">
               <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-100 gap-4">
@@ -1068,7 +1122,42 @@
                           ทดสอบรูป
                         </button>
                       </div>
-                      <p class="text-[10px] text-slate-400">สามารถใส่ลิงก์รูปภาพจาก Google Drive หรือ CDN ภายนอกได้</p>
+                    </div>
+                  </div>
+
+                  <!-- Logo 2 Configuration Panel -->
+                  <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div class="font-bold text-slate-800 text-xs flex items-center gap-2">
+                        <i class="fa-solid fa-hospital text-emerald-600"></i> โลโก้ที่ ๒ (Logo 2 - แสดงข้างๆ โลโก้แรกใน Sidebar)
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-[11px] text-slate-500">ตัวอย่าง:</span>
+                        <div id="brand-logo2-preview" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-sm overflow-hidden shrink-0">
+                          <i class="fa-solid fa-hospital text-sm"></i>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div class="border-2 border-dashed border-slate-300 hover:border-emerald-400 rounded-xl p-3 text-center bg-white transition cursor-pointer" onclick="document.getElementById('input-brand-logo2-file').click()">
+                        <i class="fa-solid fa-cloud-arrow-up text-xl text-emerald-600 mb-1"></i>
+                        <p class="font-semibold text-slate-700">อัปโหลดไฟล์ Logo 2</p>
+                        <p class="text-[10px] text-slate-400">คลิกเพื่อเลือกภาพจากเครื่อง</p>
+                        <input type="file" id="input-brand-logo2-file" accept="image/*" class="hidden" onchange="BrandingManager.handleLogo2Upload(event)">
+                      </div>
+                      <div class="space-y-1.5 bg-white p-3 rounded-xl border border-slate-200">
+                        <label class="block text-slate-600 font-medium">หรือระบุ URL รูป Logo 2:</label>
+                        <div class="flex gap-1.5">
+                          <input type="url" id="input-brand-logo2-url" oninput="BrandingManager.handleLogo2UrlInput(this.value)" placeholder="https://.../logo2.png" class="flex-1 p-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500">
+                          <button type="button" onclick="BrandingManager.applyLogo2Url()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold">
+                            ใช้รูป
+                          </button>
+                        </div>
+                        <button type="button" onclick="BrandingManager.removeLogo2()" class="text-[10px] text-rose-500 hover:underline">
+                          รีเซ็ต Logo 2 เป็นไอคอนเริ่มต้น
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1670,11 +1759,28 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
             <div>
               <label class="block text-slate-600 font-medium mb-1">Latitude (ละติจูด):</label>
-              <input type="number" step="any" id="form-lat" placeholder="เช่น 18.5638" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs font-mono focus:ring-sky-500">
+              <input type="number" step="any" id="form-lat" oninput="handleManualCoordInput()" placeholder="เช่น 18.5638" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs font-mono focus:ring-sky-500">
             </div>
             <div>
               <label class="block text-slate-600 font-medium mb-1">Longitude (ลองจิจูด):</label>
-              <input type="number" step="any" id="form-lng" placeholder="เช่น 98.9742" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs font-mono focus:ring-sky-500">
+              <input type="number" step="any" id="form-lng" oninput="handleManualCoordInput()" placeholder="เช่น 98.9742" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs font-mono focus:ring-sky-500">
+            </div>
+          </div>
+
+          <!-- Interactive Mini-Map for Pin Relocation inside Edit Popup -->
+          <div class="p-3 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-amber-900 text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-location-crosshairs text-amber-600 text-sm animate-pulse"></i> ปักหมุดและย้ายพิกัดบนแผนที่ย่อ:
+              </span>
+              <span id="minimap-coords-display" class="text-[11px] text-amber-800 font-mono font-semibold">ลากหมุดสีส้ม หรือคลิกบนแผนที่</span>
+            </div>
+            <div id="edit-modal-minimap" class="h-48 w-full rounded-xl border border-amber-300 shadow-inner overflow-hidden relative"></div>
+            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+              <span>💡 คลิกบนแผนที่หรือลากหมุดเพื่อเปลี่ยนพิกัดทันที</span>
+              <button type="button" onclick="centerMiniMapOnCurrentPin()" class="px-2 py-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-semibold transition flex items-center gap-1 shadow-sm">
+                <i class="fa-solid fa-crosshairs"></i> เล็งกึ่งกลางหมุด
+              </button>
             </div>
           </div>
         </div>
@@ -1992,6 +2098,37 @@
             </button>
           </div>
         </div>
+      </div>
+  <!-- 8. PROVINCE DOCTORS LIST MODAL (Requirement 6.2) -->
+  <div id="provinceDoctorsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[88vh] animate-fade-in text-xs">
+      <div class="bg-gradient-to-r from-slate-900 via-sky-950 to-teal-900 text-white p-5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white text-lg">
+            <i class="fa-solid fa-users-viewfinder"></i>
+          </div>
+          <div>
+            <h3 id="province-modal-title" class="text-base font-bold font-heading">รายชื่อแพทย์ในจังหวัด</h3>
+            <p id="province-modal-subtitle" class="text-xs text-sky-300">คลิกดูประวัติรายบุคคล หรือกดดูตำแหน่งหมุดบนแผนที่</p>
+          </div>
+        </div>
+        <button onclick="closeModal('provinceDoctorsModal')" class="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Search Bar & Filter inside Province Modal -->
+      <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input type="text" id="province-doctor-search" oninput="filterProvinceDoctorsList(this.value)" placeholder="ค้นหาแพทย์, โรงพยาบาล, เลข ว. ในจังหวัดนี้..." class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-sky-500">
+        </div>
+        <span id="province-doctor-count" class="px-3 py-1 rounded-full bg-sky-100 text-sky-800 font-bold text-xs shrink-0">0 คน</span>
+      </div>
+
+      <!-- Doctor Cards Container -->
+      <div id="province-doctors-list-container" class="p-4 overflow-y-auto space-y-2.5 flex-1 divide-y divide-slate-100">
+        <!-- Populated dynamically -->
       </div>
     </div>
   </div>
