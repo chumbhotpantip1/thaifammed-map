@@ -1277,10 +1277,11 @@ function handleRelocateHospitalSelect(hospitalQuery) {
 // Requirement: พิกัดเมื่อแก้ไขแล้วให้แก้ไขในทุกเมนูที่มีพิกัดเป็นพิกัดเดียวกันโดยอัตโนมัติ
 function syncDoctorCoordinates(options) {
   const { sourceType, id, lat, lng, workplaceName, province, amphoe, healthZone, memberObj } = options;
-  if (lat === null || lat === undefined || lng === null || lng === undefined) return null;
+  const hasCoords = (lat !== null && lat !== undefined && lng !== null && lng !== undefined && !isNaN(lat) && !isNaN(lng));
+  if (!hasCoords && !memberObj && !workplaceName) return null;
 
-  const numLat = parseFloat(Number(lat).toFixed(6));
-  const numLng = parseFloat(Number(lng).toFixed(6));
+  const numLat = hasCoords ? parseFloat(Number(lat).toFixed(6)) : null;
+  const numLng = hasCoords ? parseFloat(Number(lng).toFixed(6)) : null;
 
   let matchedLicenseNo = '';
   let updatedMember = null;
@@ -1291,10 +1292,16 @@ function syncDoctorCoordinates(options) {
     const idx = AppState.members.findIndex(m => m.id == id);
     if (idx !== -1) {
       if (memberObj) {
-        AppState.members[idx] = { ...AppState.members[idx], ...memberObj, lat: numLat, lng: numLng };
+        AppState.members[idx] = { ...AppState.members[idx], ...memberObj };
+        if (hasCoords) {
+          AppState.members[idx].lat = numLat;
+          AppState.members[idx].lng = numLng;
+        }
       } else {
-        AppState.members[idx].lat = numLat;
-        AppState.members[idx].lng = numLng;
+        if (hasCoords) {
+          AppState.members[idx].lat = numLat;
+          AppState.members[idx].lng = numLng;
+        }
         if (workplaceName) {
           AppState.members[idx].workplace = AppState.members[idx].workplace || {};
           AppState.members[idx].workplace.name = workplaceName;
@@ -1328,9 +1335,11 @@ function syncDoctorCoordinates(options) {
   }
 
   if (tfDoc) {
-    tfDoc.lat = numLat;
-    tfDoc.lng = numLng;
-    tfDoc.isUpdated = true;
+    if (hasCoords) {
+      tfDoc.lat = numLat;
+      tfDoc.lng = numLng;
+      tfDoc.isUpdated = true;
+    }
     if (workplaceName) tfDoc.workplace = workplaceName;
     if (province) tfDoc.province = province;
     if (healthZone) tfDoc.healthZone = String(healthZone);
@@ -1348,8 +1357,10 @@ function syncDoctorCoordinates(options) {
       (matchedLicenseNo && m.licenseNo && String(m.licenseNo).trim() === String(matchedLicenseNo).trim())
     );
     if (matchedSheet) {
-      matchedSheet.lat = numLat;
-      matchedSheet.lng = numLng;
+      if (hasCoords) {
+        matchedSheet.lat = numLat;
+        matchedSheet.lng = numLng;
+      }
       if (workplaceName) {
         matchedSheet.workplace = matchedSheet.workplace || {};
         matchedSheet.workplace.name = workplaceName;
@@ -2297,9 +2308,24 @@ function openEditMemberModal(id) {
   document.getElementById('form-modal-title').innerText = 'แก้ไขข้อมูลสมาชิก';
   document.getElementById('form-member-id').value = m.id;
 
-  document.getElementById('form-title-th').value = m.titleTh || '';
-  document.getElementById('form-firstname-th').value = m.firstNameTh || '';
-  document.getElementById('form-lastname-th').value = m.lastNameTh || '';
+  let title = m.titleTh || '';
+  let fn = m.firstNameTh || '';
+  let ln = m.lastNameTh || '';
+  if (!fn && m.fullNameTh) {
+    let raw = m.fullNameTh.trim();
+    const titleMatch = raw.match(/^(นพ\.|พญ\.|นาย|นางสาว|นาง|ดร\.|ทพ\.|อ\.|ผศ\.|รศ\.|ศ\.)\s*/);
+    if (titleMatch) {
+      title = title || titleMatch[1];
+      raw = raw.replace(titleMatch[0], '').trim();
+    }
+    const parts = raw.split(/\s+/);
+    fn = parts[0] || raw;
+    ln = parts.slice(1).join(' ') || '';
+  }
+
+  document.getElementById('form-title-th').value = title;
+  document.getElementById('form-firstname-th').value = fn;
+  document.getElementById('form-lastname-th').value = ln;
   document.getElementById('form-license-no').value = m.licenseNo || '';
 
   document.getElementById('form-title-en').value = m.titleEn || '';
@@ -2629,7 +2655,7 @@ function autoGeocodeFormAddress() {
 }
 
 function handleSaveMember(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
 
   const idInput = document.getElementById('form-member-id').value;
   const isNew = !idInput;
@@ -2638,7 +2664,15 @@ function handleSaveMember(e) {
   const titleTh = document.getElementById('form-title-th').value.trim();
   const firstNameTh = document.getElementById('form-firstname-th').value.trim();
   const lastNameTh = document.getElementById('form-lastname-th').value.trim();
-  const fullNameTh = `${titleTh} ${firstNameTh} ${lastNameTh}`.trim();
+  let fullNameTh = `${titleTh} ${firstNameTh} ${lastNameTh}`.trim();
+  if (!fullNameTh && firstNameTh) fullNameTh = firstNameTh;
+
+  if (!firstNameTh && !fullNameTh) {
+    showToast('กรุณาระบุชื่อแพทย์ก่อนบันทึก', 'warning');
+    const fnInput = document.getElementById('form-firstname-th');
+    if (fnInput) fnInput.focus();
+    return;
+  }
 
   const titleEn = document.getElementById('form-title-en').value.trim();
   const firstNameEn = document.getElementById('form-firstname-en').value.trim();
@@ -2705,36 +2739,58 @@ function handleSaveMember(e) {
     contactChannels: 'ที่อยู่ปัจจุบัน, E-mail'
   };
 
+  // 1. อัปเดตข้อมูลใน AppState.members โดยตรงทันที
   if (isNew) {
     AppState.members.unshift(memberObj);
-    saveMembersToStorage();
-    handleDirectoryFilter();
-    renderDashboard();
-    if (AppState.map) renderMapMarkers();
   } else {
-    // Requirement: พิกัดเมื่อแก้ไขแล้วให้แก้ไขในทุกเมนูที่มีพิกัดเป็นพิกัดเดียวกันโดยอัตโนมัติ
-    syncDoctorCoordinates({
-      sourceType: 'sheet',
-      id: memberId,
-      lat: lat,
-      lng: lng,
-      workplaceName: memberObj.workplace.name,
-      province: memberObj.workplace.province,
-      amphoe: memberObj.workplace.amphoe,
-      healthZone: memberObj.healthZone,
-      memberObj: memberObj
-    });
+    const idx = AppState.members.findIndex(m => m.id == memberId);
+    if (idx !== -1) {
+      AppState.members[idx] = { ...AppState.members[idx], ...memberObj };
+    } else {
+      AppState.members.unshift(memberObj);
+    }
   }
 
-  // ซิงค์ข้อมูลสมาชิกขึ้น Google Sheet แบบ Realtime Cloud
+  // 2. บันทึกลง LocalStorage และรีเฟรชหน้าจอทั้งหมด
+  saveMembersToStorage();
+  handleDirectoryFilter();
+  renderDashboard();
+  if (AppState.map) renderMapMarkers();
+
+  // 3. ซิงค์พิกัดข้ามเมนู (ถ้ามีพิกัดที่ถูกต้อง)
+  if (!isNew && lat !== null && !isNaN(lat) && lng !== null && !isNaN(lng)) {
+    try {
+      syncDoctorCoordinates({
+        sourceType: 'sheet',
+        id: memberId,
+        lat: lat,
+        lng: lng,
+        workplaceName: memberObj.workplace.name,
+        province: memberObj.workplace.province,
+        amphoe: memberObj.workplace.amphoe,
+        healthZone: memberObj.healthZone,
+        memberObj: memberObj
+      });
+    } catch (syncErr) {
+      console.warn('Cross sync coordinates warning:', syncErr);
+    }
+  }
+
+  // 4. ปิดหน้าต่าง Popup ทันที และแจ้งเตือนผู้ใช้งานชัดเจน
+  closeModal('memberEditModal');
+  showToast(isNew ? 'เพิ่มสมาชิกใหม่เรียบร้อยแล้ว กำลังซิงค์ Cloud...' : 'บันทึกการแก้ไขเรียบร้อย กำลังซิงค์ Cloud...', 'info');
+
+  // 5. ซิงค์ข้อมูลขึ้น Google Sheet Master DB แบบ Dual-Engine (Realtime Cloud)
   sendToGasApi({ action: 'saveMember', member: memberObj }).then(res => {
     if (res && res.status === 'success') {
-      showToast('ข้อมูลสมาชิกซิงค์ลง Google Sheet สำเร็จ (Realtime Cloud)', 'success');
+      showToast('✅ ข้อมูลบันทึกลง Google Sheet สำเร็จ (Realtime Cloud)', 'success');
+    } else {
+      showToast('บันทึกลงระบบเรียบร้อย (ระบบจะซิงค์ให้อัตโนมัติ)', 'success');
     }
+  }).catch(err => {
+    console.warn('Cloud sync error:', err);
+    showToast('บันทึกในเครื่องเรียบร้อยแล้ว', 'success');
   });
-
-  closeModal('memberEditModal');
-  showToast(isNew ? 'เพิ่มสมาชิกใหม่เรียบร้อยแล้ว' : 'บันทึกการแก้ไขข้อมูลสำเร็จ (ซิงค์พิกัดทุกเมนูเรียบร้อย)', 'success');
 }
 
 function confirmDeleteMember(id) {
