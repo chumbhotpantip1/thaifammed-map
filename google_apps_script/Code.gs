@@ -51,7 +51,13 @@ function doGet(e) {
 
   if (action === 'saveMember' && e && e.parameter && e.parameter.data) {
     try {
-      var memberObj = JSON.parse(decodeURIComponent(e.parameter.data));
+      var raw = e.parameter.data;
+      var memberObj;
+      try {
+        memberObj = JSON.parse(raw);
+      } catch (e1) {
+        memberObj = JSON.parse(decodeURIComponent(raw));
+      }
       var res = saveMemberInSheet(memberObj);
       return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: res }))
         .setMimeType(ContentService.MimeType.JSON);
@@ -278,7 +284,8 @@ function saveMemberInSheet(member) {
   var idCol = colMap['ID'] || 1;
   var targetRow = -1;
 
-  if (member.id) {
+  // 1. ค้นหาแถวตาม ID (ถ้าเป็นรหัสสมาชิกปกติ)
+  if (member.id && parseInt(member.id, 10) < 1000000) {
     var idValues = sheet.getRange(1, idCol, lastRow, 1).getValues();
     var searchId = parseInt(member.id, 10);
     for (var r = 1; r < idValues.length; r++) {
@@ -289,7 +296,41 @@ function saveMemberInSheet(member) {
     }
   }
 
-  var wpName = (member.workplace && member.workplace.name) || '';
+  // 2. ถ้าไม่พบตาม ID ให้ค้นหาตามเลขที่ใบประกอบวิชาชีพเวชกรรม (ว.)
+  if (targetRow === -1 && member.licenseNo && colMap['เลขที่ใบประกอบ_ว']) {
+    var licCol = colMap['เลขที่ใบประกอบ_ว'];
+    var licValues = sheet.getRange(1, licCol, lastRow, 1).getValues();
+    var searchLic = String(member.licenseNo).replace(/[^0-9]/g, '').trim();
+    if (searchLic) {
+      for (var r = 1; r < licValues.length; r++) {
+        var rowLic = String(licValues[r][0]).replace(/[^0-9]/g, '').trim();
+        if (rowLic && rowLic === searchLic) {
+          targetRow = r + 1;
+          break;
+        }
+      }
+    }
+  }
+
+  // 3. ถ้ายังไม่พบ ให้ค้นหาตามชื่อ-สกุลแพทย์
+  if (targetRow === -1 && (member.firstNameTh || member.fullNameTh)) {
+    var nameCol = colMap['ชื่อ_สกุล_ไทย'] || colMap['ชื่อ_สกุล'] || 2;
+    var nameValues = sheet.getRange(1, nameCol, lastRow, 1).getValues();
+    var cleanSearchName = String(member.firstNameTh || member.fullNameTh)
+      .replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '')
+      .trim();
+    if (cleanSearchName.length >= 3) {
+      for (var r = 1; r < nameValues.length; r++) {
+        var rowName = String(nameValues[r][0] || '');
+        if (rowName && rowName.indexOf(cleanSearchName) !== -1) {
+          targetRow = r + 1;
+          break;
+        }
+      }
+    }
+  }
+
+  var wpName = (member.workplace && member.workplace.name) || (typeof member.workplace === 'string' ? member.workplace : '') || '';
   var wpType = (member.workplace && member.workplace.type) || 'รัฐบาล';
   var wpTambon = (member.workplace && member.workplace.tambon) || '';
   var wpAmphoe = (member.workplace && member.workplace.amphoe) || '';
@@ -298,32 +339,41 @@ function saveMemberInSheet(member) {
   var fullName = member.fullNameTh || ((member.firstNameTh || '') + ' ' + (member.lastNameTh || ''));
 
   if (targetRow > 1) {
-    // แก้ไขแถวเดิม
+    // แก้ไขแถวเดิมที่มีอยู่แล้ว
     if (colMap['ชื่อ_สกุล_ไทย']) sheet.getRange(targetRow, colMap['ชื่อ_สกุล_ไทย']).setValue(fullName);
-    if (colMap['คำนำหน้า']) sheet.getRange(targetRow, colMap['คำนำหน้า']).setValue(member.titleTh || '');
-    if (colMap['ชื่อ']) sheet.getRange(targetRow, colMap['ชื่อ']).setValue(member.firstNameTh || '');
-    if (colMap['นามสกุล']) sheet.getRange(targetRow, colMap['นามสกุล']).setValue(member.lastNameTh || '');
-    if (colMap['เลขที่ใบประกอบ_ว']) sheet.getRange(targetRow, colMap['เลขที่ใบประกอบ_ว']).setValue(member.licenseNo || '');
-    if (colMap['ประเภทคุณวุฒิ']) sheet.getRange(targetRow, colMap['ประเภทคุณวุฒิ']).setValue(member.certGroup || '');
-    if (colMap['ปีที่ได้รับ']) sheet.getRange(targetRow, colMap['ปีที่ได้รับ']).setValue(member.certYear || '');
-    if (colMap['แพทยศาสตรบัณฑิตจาก']) sheet.getRange(targetRow, colMap['แพทยศาสตรบัณฑิตจาก']).setValue(member.medSchool || '');
-    if (colMap['สถาบันฝึกอบรม']) sheet.getRange(targetRow, colMap['สถาบันฝึกอบรม']).setValue(member.trainingInstitute || '');
-    if (colMap['สถานที่ทำงาน']) sheet.getRange(targetRow, colMap['สถานที่ทำงาน']).setValue(wpName);
-    if (colMap['สังกัด']) sheet.getRange(targetRow, colMap['สังกัด']).setValue(wpType);
-    if (colMap['ตำบล']) sheet.getRange(targetRow, colMap['ตำบล']).setValue(wpTambon);
-    if (colMap['อำเภอ']) sheet.getRange(targetRow, colMap['อำเภอ']).setValue(wpAmphoe);
-    if (colMap['จังหวัด']) sheet.getRange(targetRow, colMap['จังหวัด']).setValue(wpProvince);
-    if (colMap['รหัสไปรษณีย์']) sheet.getRange(targetRow, colMap['รหัสไปรษณีย์']).setValue(wpZipcode);
-    if (colMap['เขตสุขภาพ']) sheet.getRange(targetRow, colMap['เขตสุขภาพ']).setValue(member.healthZone || '');
+    if (colMap['คำนำหน้า'] && member.titleTh) sheet.getRange(targetRow, colMap['คำนำหน้า']).setValue(member.titleTh);
+    if (colMap['ชื่อ'] && member.firstNameTh) sheet.getRange(targetRow, colMap['ชื่อ']).setValue(member.firstNameTh);
+    if (colMap['นามสกุล'] && member.lastNameTh) sheet.getRange(targetRow, colMap['นามสกุล']).setValue(member.lastNameTh);
+    if (colMap['เลขที่ใบประกอบ_ว'] && member.licenseNo) sheet.getRange(targetRow, colMap['เลขที่ใบประกอบ_ว']).setValue(member.licenseNo);
+    if (colMap['ประเภทคุณวุฒิ'] && member.certGroup) sheet.getRange(targetRow, colMap['ประเภทคุณวุฒิ']).setValue(member.certGroup);
+    if (colMap['ปีที่ได้รับ'] && member.certYear) sheet.getRange(targetRow, colMap['ปีที่ได้รับ']).setValue(member.certYear);
+    if (colMap['แพทยศาสตรบัณฑิตจาก'] && member.medSchool) sheet.getRange(targetRow, colMap['แพทยศาสตรบัณฑิตจาก']).setValue(member.medSchool);
+    if (colMap['สถาบันฝึกอบรม'] && member.trainingInstitute) sheet.getRange(targetRow, colMap['สถาบันฝึกอบรม']).setValue(member.trainingInstitute);
+    if (colMap['สถานที่ทำงาน'] && wpName) sheet.getRange(targetRow, colMap['สถานที่ทำงาน']).setValue(wpName);
+    if (colMap['สังกัด'] && wpType) sheet.getRange(targetRow, colMap['สังกัด']).setValue(wpType);
+    if (colMap['ตำบล'] && wpTambon) sheet.getRange(targetRow, colMap['ตำบล']).setValue(wpTambon);
+    if (colMap['อำเภอ'] && wpAmphoe) sheet.getRange(targetRow, colMap['อำเภอ']).setValue(wpAmphoe);
+    if (colMap['จังหวัด'] && wpProvince) sheet.getRange(targetRow, colMap['จังหวัด']).setValue(wpProvince);
+    if (colMap['รหัสไปรษณีย์'] && wpZipcode) sheet.getRange(targetRow, colMap['รหัสไปรษณีย์']).setValue(wpZipcode);
+    if (colMap['เขตสุขภาพ'] && member.healthZone) sheet.getRange(targetRow, colMap['เขตสุขภาพ']).setValue(member.healthZone);
     if (colMap['ละติจูด'] && member.lat) sheet.getRange(targetRow, colMap['ละติจูด']).setValue(member.lat);
     if (colMap['ลองจิจูด'] && member.lng) sheet.getRange(targetRow, colMap['ลองจิจูด']).setValue(member.lng);
-    if (colMap['โทรศัพท์มือถือ']) sheet.getRange(targetRow, colMap['โทรศัพท์มือถือ']).setValue(member.mobilePhone || '');
-    if (colMap['อีเมล']) sheet.getRange(targetRow, colMap['อีเมล']).setValue(member.email || '');
+    if (colMap['โทรศัพท์มือถือ'] && member.mobilePhone) sheet.getRange(targetRow, colMap['โทรศัพท์มือถือ']).setValue(member.mobilePhone);
+    if (colMap['อีเมล'] && member.email) sheet.getRange(targetRow, colMap['อีเมล']).setValue(member.email);
     if (colMap['Drive_Photo_ID'] && member.photoDriveId) sheet.getRange(targetRow, colMap['Drive_Photo_ID']).setValue(member.photoDriveId);
-    return { success: true, status: 'updated', id: member.id, row: targetRow, updatedTime: new Date().toISOString() };
+    var actualId = sheet.getRange(targetRow, idCol).getValue() || member.id;
+    return { success: true, status: 'updated', id: actualId, row: targetRow, updatedTime: new Date().toISOString() };
   } else {
-    // เพิ่มแถวใหม่ต่อท้าย
-    var newId = lastRow;
+    // เพิ่มแถวใหม่ต่อท้าย พร้อมรัน ID ตามลำดับจริง
+    var maxId = 0;
+    if (lastRow > 1) {
+      var allIds = sheet.getRange(2, idCol, lastRow - 1, 1).getValues();
+      for (var i = 0; i < allIds.length; i++) {
+        var val = parseInt(allIds[i][0], 10);
+        if (!isNaN(val) && val > maxId && val < 1000000) maxId = val;
+      }
+    }
+    var newId = maxId > 0 ? (maxId + 1) : lastRow;
     sheet.appendRow([
       newId,
       fullName,
@@ -332,7 +382,7 @@ function saveMemberInSheet(member) {
       member.firstNameTh || '',
       member.lastNameTh || '',
       member.licenseNo || '',
-      member.certGroup || 'วว. แผน ก (Formal training)',
+      member.certGroup || 'วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว',
       member.certYear || '',
       member.medSchool || '',
       member.trainingInstitute || '',
@@ -350,6 +400,6 @@ function saveMemberInSheet(member) {
       member.photoDriveId || '',
       member.photoUrl || ''
     ]);
-    return { success: true, status: 'created', id: newId, row: sheet.getLastRow() };
+    return { success: true, status: 'created', id: newId, row: sheet.getLastRow(), updatedTime: new Date().toISOString() };
   }
 }

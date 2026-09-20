@@ -55,7 +55,7 @@ const STORAGE_KEY_CREDENTIALS = 'MEDICAL_DASHBOARD_CREDENTIALS_V1';
 const STORAGE_KEY_DELEGATES = 'MEDICAL_DASHBOARD_DELEGATES_V1';
 
 // Default GAS Endpoint (realtime Google Apps Script Web App API for Sheet 1PVM2q...)
-const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyXB_YHNHcyo-9TvCuCw7bvu3rlWHVf90JSL3IZgufX1RtvEKixKq-xxet8yNWVRv2xew/exec';
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwni60636sNcnQQkqdphsInDkLJqJudCRpRFDNMo5zcq2Cgz5Fwgv8VJRKkZnFAtQ2DVA/exec';
 
 function getGasEndpoint() {
   return localStorage.getItem(STORAGE_KEY_GAS_URL) || DEFAULT_GAS_URL || '';
@@ -69,9 +69,68 @@ function setGasEndpoint(url) {
   }
 }
 
+function cleanMemberPayload(m) {
+  if (!m) return {};
+  const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || '') };
+  return {
+    id: m.id || '',
+    fullNameTh: m.fullNameTh || '',
+    titleTh: m.titleTh || '',
+    firstNameTh: m.firstNameTh || '',
+    lastNameTh: m.lastNameTh || '',
+    fullNameEn: m.fullNameEn || '',
+    licenseNo: m.licenseNo || '',
+    certGroup: m.certGroup || '',
+    certYear: m.certYear || '',
+    medSchool: m.medSchool || '',
+    trainingInstitute: m.trainingInstitute || '',
+    otherDegree: m.otherDegree || '',
+    workplace: {
+      name: wp.name || '',
+      type: wp.type || 'รัฐบาล',
+      tambon: wp.tambon || '',
+      amphoe: wp.amphoe || '',
+      province: wp.province || '',
+      zipcode: wp.zipcode || ''
+    },
+    healthZone: m.healthZone || '',
+    lat: (m.lat !== null && !isNaN(Number(m.lat))) ? Number(m.lat) : '',
+    lng: (m.lng !== null && !isNaN(Number(m.lng))) ? Number(m.lng) : '',
+    mobilePhone: m.mobilePhone || '',
+    email: m.email || '',
+    photoDriveId: m.photoDriveId || ''
+  };
+}
+
 async function sendToGasApi(payload) {
+  // Case A: Running directly inside Google Apps Script (HTML Service)
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    return new Promise((resolve) => {
+      if (payload.action === 'saveMember') {
+        const clean = cleanMemberPayload(payload.member);
+        google.script.run
+          .withSuccessHandler(res => resolve({ status: 'success', result: res }))
+          .withFailureHandler(err => resolve({ status: 'error', message: err }))
+          .saveMemberInSheet(clean);
+      } else if (payload.action === 'updateCoordinate') {
+        google.script.run
+          .withSuccessHandler(res => resolve({ status: 'success', result: res }))
+          .withFailureHandler(err => resolve({ status: 'error', message: err }))
+          .updateDoctorCoordinateInSheet(payload.memberId, payload.lat, payload.lng, payload.workplace, payload.sourceType);
+      } else {
+        resolve(null);
+      }
+    });
+  }
+
+  // Case B: Web App URL endpoint
   const endpoint = getGasEndpoint();
   if (!endpoint || !endpoint.startsWith('http')) return null;
+
+  const cleanPayload = (payload.action === 'saveMember') ? {
+    action: 'saveMember',
+    member: cleanMemberPayload(payload.member)
+  } : payload;
 
   // Dual-Engine Cloud Sync Transport:
   // 1. First attempt via POST
@@ -79,11 +138,11 @@ async function sendToGasApi(payload) {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(cleanPayload)
     });
     try {
       const result = await response.json();
-      if (result && result.status === 'success') {
+      if (result && (result.status === 'success' || (result.result && result.result.success))) {
         console.log('Google Apps Script POST sync succeeded:', result);
         return result;
       }
@@ -101,7 +160,7 @@ async function sendToGasApi(payload) {
     if (payload.action === 'updateCoordinate') {
       getUrl += `${sep}action=updateCoordinate&memberId=${encodeURIComponent(payload.memberId)}&lat=${encodeURIComponent(payload.lat)}&lng=${encodeURIComponent(payload.lng)}&workplace=${encodeURIComponent(payload.workplace || '')}&sourceType=${encodeURIComponent(payload.sourceType || 'sheet')}`;
     } else if (payload.action === 'saveMember') {
-      getUrl += `${sep}action=saveMember&data=${encodeURIComponent(JSON.stringify(payload.member))}`;
+      getUrl += `${sep}action=saveMember&data=${encodeURIComponent(JSON.stringify(cleanPayload.member))}`;
     } else {
       getUrl += `${sep}action=${encodeURIComponent(payload.action)}`;
     }
@@ -198,6 +257,9 @@ function initData() {
   AppState.thaifammedStats = window.INITIAL_DATA ? (window.INITIAL_DATA.thaifammedStats || {}) : {};
   AppState.filteredThaifammed = [...AppState.thaifammed];
 
+  // Auto cross-link Sheet members with Thaifammed directory
+  syncThaifammedWithMembers();
+
   // Extract unique provinces for Thaifammed
   const tfProvSet = new Set();
   AppState.thaifammed.forEach(d => {
@@ -223,6 +285,56 @@ function initData() {
   AppState.provinces = Array.from(provSet).sort((a, b) => a.localeCompare(b, 'th'));
 
   document.getElementById('sidebar-member-badge').innerText = `${AppState.members.length} คน`;
+}
+
+function syncThaifammedWithMembers() {
+  if (!AppState.members || !AppState.thaifammed) return 0;
+  let matchCount = 0;
+
+  AppState.members.forEach(m => {
+    if (!m) return;
+    let tfDoc = null;
+
+    // Match 1: By License No (ว.)
+    if (m.licenseNo) {
+      const cleanLic = String(m.licenseNo).replace(/[^0-9]/g, '').trim();
+      if (cleanLic) {
+        tfDoc = AppState.thaifammed.find(d => {
+          const tfLic = String(d.gpNo || '').replace(/[^0-9]/g, '').trim();
+          return tfLic && tfLic === cleanLic;
+        });
+      }
+    }
+
+    // Match 2: By Name
+    if (!tfDoc && m.fullNameTh) {
+      const cleanName = m.fullNameTh.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').trim();
+      if (cleanName.length >= 3) {
+        tfDoc = AppState.thaifammed.find(d => {
+          const tfClean = (d.cleanName || d.name || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').trim();
+          return tfClean && (tfClean.includes(cleanName) || cleanName.includes(tfClean));
+        });
+      }
+    }
+
+    if (tfDoc) {
+      tfDoc.isUpdated = true;
+      tfDoc.matchedMemberId = m.id;
+      if (m.lat && m.lng && !isNaN(Number(m.lat)) && !isNaN(Number(m.lng))) {
+        tfDoc.lat = Number(m.lat);
+        tfDoc.lng = Number(m.lng);
+      }
+      if (m.workplace) {
+        const wpName = typeof m.workplace === 'object' ? m.workplace.name : m.workplace;
+        const wpProv = typeof m.workplace === 'object' ? m.workplace.province : '';
+        if (wpName) tfDoc.workplace = wpName;
+        if (wpProv) tfDoc.province = wpProv;
+      }
+      matchCount++;
+    }
+  });
+
+  return matchCount;
 }
 
 function updateStorageStatus() {
@@ -1076,12 +1188,15 @@ function renderMapMarkers() {
           <div class="pt-2 flex items-center space-x-2">
             ${isUpdated && d.matchedMemberId ? `
               <button onclick="openMemberDetailModal(${d.matchedMemberId})" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
-                ดูใน Sheet
+                <i class="fa-solid fa-address-card mr-1"></i> ดูประวัติ
               </button>
               <button onclick="openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold text-center transition" title="แก้ไขข้อมูล">
                 <i class="fa-solid fa-pen-to-square"></i> แก้ไข
               </button>
             ` : `
+              <button onclick="openMemberDetailModal(${d.id})" class="py-1.5 px-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold text-center transition" title="ดูข้อมูลแพทย์">
+                <i class="fa-solid fa-address-card mr-1"></i> ดูประวัติ
+              </button>
               <button onclick="openUpdateDoctorModal('thaifammed', ${d.id})" class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold text-center transition shadow-sm">
                 <i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูล
               </button>
@@ -1702,6 +1817,9 @@ function renderProvinceDoctorsList(doctors) {
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
           ` : `
+            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.id})" class="px-2.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติ">
+              <i class="fa-solid fa-address-card"></i> ประวัติ
+            </button>
             <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('thaifammed', ${d.id})" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm" title="อัปเดตข้อมูลลง Sheet">
               <i class="fa-solid fa-user-pen"></i> อัปเดตข้อมูล
             </button>
@@ -2264,28 +2382,112 @@ function focusOnMap(lat, lng, label) {
 
 /* ================= MODALS & CRUD OPERATIONS ================= */
 function openMemberDetailModal(id) {
-  const m = AppState.members.find(item => item.id == id);
-  if (!m) return;
+  let m = null;
+  let tfDoc = null;
 
-  AppState.selectedMemberId = id;
+  // 1. Search in AppState.members by ID
+  if (AppState.members && AppState.members.length > 0) {
+    m = AppState.members.find(item => item.id == id);
+  }
+
+  // 2. If not found in members, search in AppState.thaifammed
+  if (!m && AppState.thaifammed && AppState.thaifammed.length > 0) {
+    tfDoc = AppState.thaifammed.find(item => item.id == id || (item.matchedMemberId && item.matchedMemberId == id));
+    if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
+      m = AppState.members.find(item => item.id == tfDoc.matchedMemberId);
+    }
+  }
+
+  // 3. Fallback: Search by License Number or Doctor Name in AppState.members
+  if (!m && AppState.members) {
+    const searchStr = String(id).trim();
+    m = AppState.members.find(item => 
+      (item.licenseNo && String(item.licenseNo).trim() === searchStr) ||
+      (item.fullNameTh && item.fullNameTh.includes(searchStr))
+    );
+  }
+
+  // 4. Fallback: Search by License Number or Name in AppState.thaifammed
+  if (!m && !tfDoc && AppState.thaifammed) {
+    const searchStr = String(id).trim();
+    tfDoc = AppState.thaifammed.find(item =>
+      (item.gpNo && String(item.gpNo).trim() === searchStr) ||
+      (item.name && item.name.includes(searchStr))
+    );
+    if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
+      m = AppState.members.find(item => item.id == tfDoc.matchedMemberId);
+    }
+  }
+
+  // 5. If only found in Thaifammed, synthesize a complete display member
+  if (!m && tfDoc) {
+    const tfName = tfDoc.name || '';
+    const formattedName = (tfName.startsWith('นพ.') || tfName.startsWith('พญ.') || tfName.startsWith('นายแพทย์') || tfName.startsWith('แพทย์หญิง')) ? tfName : `นพ. ${tfName}`;
+    const tfWpName = (typeof tfDoc.workplace === 'object' && tfDoc.workplace) ? (tfDoc.workplace.name || '') : (tfDoc.workplace || '-');
+    m = {
+      id: tfDoc.id,
+      fullNameTh: formattedName,
+      fullNameEn: '',
+      licenseNo: tfDoc.gpNo || '',
+      fpNo: tfDoc.fpNo || '',
+      certGroup: 'วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว',
+      certYear: '',
+      medSchool: '',
+      trainingInstitute: '',
+      otherDegree: '',
+      workplace: {
+        name: tfWpName,
+        type: 'รัฐบาล',
+        address: '',
+        tambon: '',
+        amphoe: '',
+        province: tfDoc.province || '',
+        zipcode: ''
+      },
+      healthZone: tfDoc.healthZone || '',
+      lat: tfDoc.lat,
+      lng: tfDoc.lng,
+      mobilePhone: '',
+      email: '',
+      photoUrl: tfDoc.photoUrl || '',
+      photoDriveId: ''
+    };
+  }
+
+  // 6. If still not found, notify user
+  if (!m) {
+    showToast('ไม่พบข้อมูลประวัติแพทย์ในระบบ', 'warning');
+    return;
+  }
+
+  AppState.selectedMemberId = m.id;
   const photoSrc = getDoctorPrimaryImage(m) || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.fullNameTh)}&background=0284c7&color=fff`;
   const driveId = m.photoDriveId || '';
   const encodedName = encodeURIComponent(m.fullNameTh);
 
   const photoImg = document.getElementById('detail-photo');
-  photoImg.setAttribute('data-error-step', '0');
-  photoImg.onerror = () => handleImgError(photoImg, driveId, encodedName);
-  photoImg.src = photoSrc;
+  if (photoImg) {
+    photoImg.setAttribute('data-error-step', '0');
+    photoImg.onerror = () => handleImgError(photoImg, driveId, encodedName);
+    photoImg.src = photoSrc;
+  }
 
-  document.getElementById('detail-name-th').innerText = m.fullNameTh;
+  document.getElementById('detail-name-th').innerText = m.fullNameTh || '-';
   document.getElementById('detail-name-en').innerText = m.fullNameEn || '-';
-  document.getElementById('detail-license').innerText = m.licenseNo ? `ว. ${m.licenseNo}` : 'ไม่ระบุเลข ว.';
-  document.getElementById('detail-cert-badge').innerText = m.certGroup;
+  document.getElementById('detail-license').innerText = m.licenseNo ? `ว. ${m.licenseNo}` : (m.fpNo ? `FP: ${m.fpNo}` : 'ไม่ระบุเลข ว.');
+  document.getElementById('detail-cert-badge').innerText = m.certGroup || 'วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว';
 
-  document.getElementById('detail-workplace-name').innerText = m.workplace.name || '-';
-  document.getElementById('detail-workplace-type').innerText = m.workplace.type || 'รัฐบาล';
-  document.getElementById('detail-workplace-address').innerText = `${m.workplace.address || ''} ${m.workplace.tambon || ''} ${m.workplace.amphoe || ''} ${m.workplace.province || ''} ${m.workplace.zipcode || ''}`.trim() || '-';
-  document.getElementById('detail-coordinates').innerText = (m.lat && m.lng) ? `${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}` : 'ยังไม่มีพิกัด';
+  const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || '-') };
+  const wpName = wp.name || String(m.workplace || '-');
+  const wpType = wp.type || 'รัฐบาล';
+  const wpAddress = `${wp.address || ''} ${wp.tambon || ''} ${wp.amphoe || ''} ${wp.province || ''} ${wp.zipcode || ''}`.trim() || wp.province || wpName || '-';
+
+  document.getElementById('detail-workplace-name').innerText = wpName;
+  document.getElementById('detail-workplace-type').innerText = wpType;
+  document.getElementById('detail-workplace-address').innerText = wpAddress;
+
+  const hasCoord = (m.lat && m.lng && !isNaN(Number(m.lat)) && !isNaN(Number(m.lng)));
+  document.getElementById('detail-coordinates').innerText = hasCoord ? `${Number(m.lat).toFixed(5)}, ${Number(m.lng).toFixed(5)}` : 'ยังไม่มีพิกัด';
 
   document.getElementById('detail-medschool').innerText = m.medSchool || m.institute || '-';
   document.getElementById('detail-training-inst').innerText = m.trainingInstitute || m.practiceInstitute || '-';
@@ -2298,39 +2500,51 @@ function openMemberDetailModal(id) {
 
   // Drive link & Google Maps navigation link
   const driveBtn = document.getElementById('detail-drive-link');
-  if (driveId) {
-    driveBtn.href = `https://drive.google.com/file/d/${driveId}/view`;
-    driveBtn.classList.remove('hidden');
-  } else {
-    driveBtn.classList.add('hidden');
+  if (driveBtn) {
+    if (driveId) {
+      driveBtn.href = `https://drive.google.com/file/d/${driveId}/view`;
+      driveBtn.classList.remove('hidden');
+    } else {
+      driveBtn.classList.add('hidden');
+    }
   }
 
   const gmapLink = document.getElementById('detail-google-maps-link');
-  if (m.lat && m.lng) {
-    gmapLink.href = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
-    gmapLink.classList.remove('hidden');
-  } else {
-    gmapLink.classList.add('hidden');
+  if (gmapLink) {
+    if (hasCoord) {
+      gmapLink.href = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
+      gmapLink.classList.remove('hidden');
+    } else {
+      gmapLink.classList.add('hidden');
+    }
   }
 
-  const canEditDetail = typeof AuthManager !== 'undefined' && AuthManager.canEdit('sheet', id);
+  // Edit / Update button from Profile Detail
   const editBtn = document.getElementById('btn-edit-from-detail');
   if (editBtn) {
-    if (canEditDetail) {
-      editBtn.classList.remove('hidden');
+    editBtn.classList.remove('hidden');
+    const isTfOnly = tfDoc && (!tfDoc.matchedMemberId || !AppState.members.some(item => item.id == tfDoc.matchedMemberId));
+    if (isTfOnly) {
+      editBtn.innerHTML = `<i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูลลง Sheet`;
+      editBtn.className = `px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition`;
       editBtn.onclick = () => {
         closeModal('memberDetailModal');
-        openEditMemberModal(id);
+        openUpdateDoctorModal('thaifammed', tfDoc.id);
       };
     } else {
-      editBtn.classList.add('hidden');
+      editBtn.innerHTML = `<i class="fa-solid fa-pen-to-square mr-1"></i> แก้ไขข้อมูล`;
+      editBtn.className = `px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold shadow transition`;
+      editBtn.onclick = () => {
+        closeModal('memberDetailModal');
+        openEditMemberModal(m.id);
+      };
     }
   }
 
   openModal('memberDetailModal');
 
   setTimeout(() => {
-    initMiniMap(m.lat, m.lng, m.workplace.name || m.fullNameTh);
+    initMiniMap(m.lat, m.lng, wpName || m.fullNameTh);
   }, 200);
 }
 
@@ -2967,7 +3181,17 @@ function handleSaveMember(e) {
 
   // 6. ซิงค์ข้อมูลขึ้น Google Sheet Master DB แบบ Dual-Engine (Realtime Cloud)
   sendToGasApi({ action: 'saveMember', member: memberObj }).then(res => {
-    if (res && res.status === 'success') {
+    if (res && (res.status === 'success' || (res.result && res.result.success))) {
+      const assignedId = (res.result && res.result.id) ? res.result.id : memberObj.id;
+      if (assignedId && memberObj.id !== assignedId) {
+        const oldId = memberObj.id;
+        memberObj.id = assignedId;
+        const idx = AppState.members.findIndex(m => m.id == oldId);
+        if (idx !== -1) AppState.members[idx].id = assignedId;
+        if (tfDoc) tfDoc.matchedMemberId = assignedId;
+        saveMembersToStorage();
+        saveThaifammedOverrides();
+      }
       showToast('✅ ข้อมูลบันทึกลง Google Sheet สำเร็จ (Realtime Cloud)', 'success');
     } else {
       showToast('บันทึกลงระบบเรียบร้อย (ระบบจะซิงค์ให้อัตโนมัติ)', 'success');
@@ -3090,11 +3314,13 @@ async function syncLiveSheetData(isSilent = false) {
         if (response && response.members) {
           AppState.members = response.members;
           localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
+          syncThaifammedWithMembers();
           renderDashboard();
           renderDirectory();
           if (AppState.map) renderMapMarkers();
+          if (typeof renderThaifammed === 'function') renderThaifammed();
           const nowStr = new Date().toLocaleTimeString('th-TH');
-          if (statusEl) statusEl.innerHTML = `ซิงค์กับ Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">18sXvaCY...</a>) สำเร็จเมื่อ ${nowStr} (${AppState.members.length} สมาชิก)`;
+          if (statusEl) statusEl.innerHTML = `ซิงค์กับ Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">1PVM2qdb...</a>) สำเร็จเมื่อ ${nowStr} (${AppState.members.length} สมาชิก)`;
           if (!isSilent) showToast(`ซิงค์ข้อมูลสดกับ Google Sheet สำเร็จ (${AppState.members.length} คน)`, 'success');
         }
       })
@@ -3118,11 +3344,13 @@ async function syncLiveSheetData(isSilent = false) {
       if (data && data.members && Array.isArray(data.members)) {
         AppState.members = data.members;
         localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
+        syncThaifammedWithMembers();
         handleDirectoryFilter();
         renderDashboard();
         if (AppState.map) renderMapMarkers();
+        if (typeof renderThaifammed === 'function') renderThaifammed();
         const nowStr = new Date().toLocaleTimeString('th-TH');
-        if (statusEl) statusEl.innerHTML = `ซิงค์ผ่าน GAS Web App Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">18sXvaCY...</a>) สำเร็จเมื่อ ${nowStr}`;
+        if (statusEl) statusEl.innerHTML = `ซิงค์ผ่าน GAS Web App Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">1PVM2qdb...</a>) สำเร็จเมื่อ ${nowStr}`;
         if (btnHeader) {
           btnHeader.disabled = false;
           btnHeader.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="hidden md:inline">ซิงค์ Google Drive</span>`;
@@ -3579,9 +3807,9 @@ function renderThaifammed() {
         </td>
         <td class="py-3 px-4 text-center">
           <div class="flex items-center justify-center gap-1.5">
+            <button onclick="openMemberDetailModal(${d.matchedMemberId || d.id})" class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition inline-flex items-center gap-1 border border-sky-200 shadow-sm" title="ดูประวัติแพทย์"><i class="fa-solid fa-address-card"></i> โปรไฟล์</button>
             ${isUpdated && d.matchedMemberId
               ? `
-                <button onclick="openMemberDetailModal(${d.matchedMemberId})" class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition inline-flex items-center gap-1 border border-sky-200 shadow-sm" title="ดูประวัติใน Sheet"><i class="fa-solid fa-address-card"></i> โปรไฟล์</button>
                 <button onclick="openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="px-2 py-1 rounded-xl bg-slate-50 text-slate-700 hover:bg-slate-100 font-medium text-xs transition inline-flex items-center gap-1 border border-slate-200 shadow-sm" title="แก้ไขข้อมูล"><i class="fa-solid fa-pen-to-square text-sky-600"></i> แก้ไข</button>
               `
               : `

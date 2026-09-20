@@ -284,11 +284,15 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 }
 
 /* Custom Branding & Logo Styles */
-.brand-logo-img {
+.brand-logo-img, .brand-logo2-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: inherit;
+}
+
+#edit-modal-minimap {
+  z-index: 10;
 }
 
 .brand-icon-opt.active, .brand-grad-opt.active {
@@ -338,6 +342,96 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
 }
 
+/* ================= DOCTOR PIN NAME LABEL ================= */
+.leaflet-tooltip.doctor-marker-label {
+  background: rgba(15, 23, 42, 0.88) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 6px !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  font-family: 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  padding: 1.5px 7px !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35) !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  letter-spacing: 0.01em !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-tooltip-bottom.doctor-marker-label::before {
+  border-bottom-color: rgba(15, 23, 42, 0.88) !important;
+}
+
+.leaflet-tooltip-top.doctor-marker-label::before {
+  border-top-color: rgba(15, 23, 42, 0.88) !important;
+}
+
+/* ================= FULLSCREEN MINIMAP IN EDIT MODAL ================= */
+#edit-minimap-wrapper.minimap-fullscreen-active {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: #0f172a !important;
+  box-shadow: none !important;
+}
+
+#edit-minimap-wrapper.minimap-fullscreen-active #edit-modal-minimap {
+  height: 100vh !important;
+  width: 100vw !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+#edit-minimap-wrapper.minimap-fullscreen-active #minimap-fullscreen-bar {
+  display: flex !important;
+}
+
+#edit-minimap-wrapper.minimap-fullscreen-active > div:first-child,
+#edit-minimap-wrapper.minimap-fullscreen-active > div:last-child {
+  display: none !important;
+}
+
+/* ================= MOBILE RESPONSIVE OPTIMIZATIONS ================= */
+.safe-area-bottom {
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 768px) {
+  #map-container {
+    height: calc(100vh - 270px) !important;
+    min-height: 380px !important;
+    border-radius: 0.875rem !important;
+  }
+
+  /* Compact popup on mobile */
+  .custom-popup .leaflet-popup-content {
+    max-width: 270px !important;
+  }
+
+  /* Fullscreen Minimap topbar on mobile */
+  #minimap-fullscreen-bar {
+    top: 0.75rem !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  /* Smooth momentum touch scrolling for tables and containers */
+  .overflow-x-auto, .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 
 
 </style>
@@ -347,20 +441,30 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   <!-- Global Application Wrapper -->
   <div class="flex-1 flex overflow-hidden">
 
-    <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shrink-0 transition-all duration-300 z-30 shadow-xl no-print">
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div id="sidebar-backdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"></div>
+
+    <!-- Sidebar Navigation (Responsive Drawer on Mobile) -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 lg:static lg:translate-x-0 -translate-x-full w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-xl no-print">
       <div>
         <!-- Brand Header -->
-        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-          <div class="flex items-center space-x-3 overflow-hidden">
-            <div id="brand-logo-container" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-sky-500/30 overflow-hidden shrink-0">
-              <i class="fa-solid fa-user-doctor text-lg"></i>
+        <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center space-x-2 overflow-hidden">
+            <div id="brand-logo-container" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-sky-500/30 overflow-hidden shrink-0" title="โลโก้ที่ 1">
+              <i class="fa-solid fa-user-doctor text-base"></i>
+            </div>
+            <div id="brand-logo2-container" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 overflow-hidden shrink-0" title="โลโก้ที่ 2">
+              <i class="fa-solid fa-hospital text-base"></i>
             </div>
             <div class="overflow-hidden">
-              <h1 id="brand-title" class="font-semibold text-white text-base leading-tight font-heading truncate">ราชวิทยาลัยฯ</h1>
-              <p id="brand-subtitle" class="text-xs text-sky-400 truncate">เวชศาสตร์ครอบครัว</p>
+              <h1 id="brand-title" class="font-semibold text-white text-sm leading-tight font-heading truncate">ราชวิทยาลัยฯ</h1>
+              <p id="brand-subtitle" class="text-[11px] text-sky-400 truncate">เวชศาสตร์ครอบครัว</p>
             </div>
           </div>
+          <!-- Close button on Mobile Drawer -->
+          <button type="button" onclick="closeMobileSidebar()" class="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition" title="ปิดเมนู">
+            <i class="fa-solid fa-xmark text-base"></i>
+          </button>
         </div>
 
         <!-- Data Sources Indicator -->
@@ -392,13 +496,13 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
           <button onclick="switchView('directory')" id="nav-directory" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
             <i class="fa-solid fa-address-book w-5 text-center text-base text-sky-400"></i>
-            <span class="flex-1 text-left">ทำเนียบสมาชิก (Sheet)</span>
+            <span class="flex-1 text-left">รายชื่อสมาชิกที่ Update ข้อมูล</span>
             <span id="sidebar-member-badge" class="px-1.5 py-0.5 rounded-md bg-slate-800 text-[10px] text-sky-300 font-mono">314 คน</span>
           </button>
 
           <button onclick="switchView('thaifammed')" id="nav-thaifammed" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
             <i class="fa-solid fa-hospital-user w-5 text-center text-base text-emerald-400"></i>
-            <span class="flex-1 text-left">แพทย์ไทย (Thaifammed)</span>
+            <span class="flex-1 text-left">สมาชิกในฐานข้อมูลThaifammed</span>
             <span class="px-1.5 py-0.5 rounded-md bg-emerald-950 text-emerald-300 text-[10px] font-mono border border-emerald-800">3,750</span>
           </button>
 
@@ -407,14 +511,15 @@ h1, h2, h3, h4, h5, h6, .font-heading {
             <span>คลังรูปภาพสมาชิก (Photos)</span>
           </button>
 
-          <button onclick="switchView('geo')" id="nav-geo" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
+          <button onclick="switchView('geo')" id="nav-geo" class="nav-item w-full items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70 hidden">
             <i class="fa-solid fa-location-crosshairs w-5 text-center text-base text-amber-400"></i>
             <span>ฐานข้อมูลพิกัด (Geo Master)</span>
           </button>
 
-          <button onclick="switchView('management')" id="nav-management" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
+          <button onclick="switchView('management')" id="nav-management" class="nav-item w-full items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70 hidden">
             <i class="fa-solid fa-database w-5 text-center text-base text-rose-400"></i>
-            <span>การจัดการข้อมูล & ซิงค์</span>
+            <span class="flex-1 text-left">การจัดการข้อมูล & ซิงค์</span>
+            <span id="sidebar-management-lock" class="text-xs text-rose-400" title="ต้องใช้สิทธิ์ Admin หรือผู้ได้รับมอบหมาย"><i class="fa-solid fa-lock"></i></span>
           </button>
         </nav>
       </div>
@@ -434,7 +539,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
           </span>
         </div>
         <div class="pt-1 flex gap-2">
-          <a href="https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link" target="_blank" class="flex-1 py-1.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-700/50 rounded-lg text-emerald-300 text-center transition text-[11px]" title="Google Sheet ฐานข้อมูล Master DB (18sXvaCY...)">
+          <a href="https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link" target="_blank" id="sidebar-master-db-link" class="hidden flex-1 py-1.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-700/50 rounded-lg text-emerald-300 text-center transition text-[11px]" title="Google Sheet ฐานข้อมูล Master DB (เฉพาะผู้ดูแลระบบ)">
             <i class="fa-solid fa-file-excel text-emerald-400"></i> Master DB
           </a>
           <a href="https://database.thaifammed.org/thai_family_physicians_fp.php" target="_blank" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700/80 rounded-lg text-slate-300 text-center transition text-[11px]" title="เว็บ Thaifammed Database">
@@ -448,35 +553,40 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
       
       <!-- Top Application Bar -->
-      <header class="h-16 glass-header px-6 flex items-center justify-between shrink-0 z-20 no-print">
-        <div class="flex items-center space-x-4">
-          <button id="sidebar-toggle" onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition">
+      <header class="h-16 glass-header px-3 sm:px-6 flex items-center justify-between shrink-0 z-20 no-print gap-2">
+        <div class="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
+          <button id="sidebar-toggle" onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition shrink-0" title="เปิด/ปิดเมนู">
             <i class="fa-solid fa-bars text-lg"></i>
           </button>
           
-          <div class="hidden lg:flex flex-col">
+          <div class="hidden lg:flex flex-col shrink-0">
             <span id="brand-header-title" class="text-xs font-bold text-slate-700 leading-tight font-heading">ระบบสารสนเทศสมาชิกแพทย์เวชศาสตร์ครอบครัว</span>
             <span id="brand-header-subtitle" class="text-[10px] text-slate-400">Google Drive Realtime & OpenStreetMap Engine</span>
           </div>
 
-          <div class="relative w-64 md:w-80 lg:w-96">
-            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-            <input type="text" id="global-search" oninput="handleGlobalSearch(this.value)" placeholder="ค้นหาชื่อแพทย์, เลข ว., โรงพยาบาล, จังหวัด..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-sky-500 text-sm placeholder-slate-400 transition">
+          <div class="relative flex-1 max-w-[190px] sm:max-w-xs md:w-80 lg:w-96">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs sm:text-sm"></i>
+            <input type="text" id="global-search" oninput="handleGlobalSearch(this.value)" placeholder="ค้นชื่อแพทย์, เลข ว., รพ., จังหวัด..." class="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-sky-500 text-xs sm:text-sm placeholder-slate-400 transition">
           </div>
         </div>
 
-
         <!-- Header Actions & Auth Status -->
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
           <!-- Auth User Status Container (Dynamically rendered) -->
-          <div id="auth-header-container" class="flex items-center space-x-2"></div>
+          <div id="auth-header-container" class="flex items-center space-x-1.5 sm:space-x-2"></div>
 
-          <button onclick="syncLiveSheetData()" id="btn-live-sync-header" class="hidden sm:flex items-center space-x-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-semibold transition shadow-sm" title="ซิงค์ข้อมูล Realtime กับ Google Drive">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span class="hidden md:inline">ซิงค์ Google Drive</span>
-          </button>
+          <!-- Cloud Sync Group (Restricted to Admin & Delegated) -->
+          <div id="header-cloud-sync-group" class="hidden items-center rounded-xl border border-emerald-300 bg-emerald-50 overflow-hidden shadow-sm">
+            <button onclick="syncLiveSheetData()" id="btn-live-sync-header" class="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition" title="ซิงค์ข้อมูลสด Real-time กับ Google Sheet">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="hidden md:inline">ซิงค์ Google Drive</span>
+            </button>
+            <button onclick="openGasConfigModal()" class="px-2 sm:px-2.5 py-1.5 sm:py-2 hover:bg-emerald-100 text-emerald-700 border-l border-emerald-200 transition" title="ตั้งค่าเชื่อมต่อ Google Sheet Web App URL">
+              <i class="fa-solid fa-gear text-xs"></i>
+            </button>
+          </div>
 
-          <button onclick="exportDataToCsv()" class="hidden md:flex items-center space-x-2 px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium transition shadow-sm">
+          <button id="header-export-csv" onclick="exportDataToCsv()" class="hidden items-center space-x-2 px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium transition shadow-sm">
             <i class="fa-solid fa-file-arrow-down text-emerald-600"></i>
             <span>ส่งออก CSV</span>
           </button>
@@ -484,8 +594,8 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
       </header>
 
-      <!-- Scrollable Main View Container -->
-      <div id="content-container" class="flex-1 overflow-y-auto p-6 space-y-6">
+      <!-- Scrollable Main View Container (with bottom padding for mobile navigation bar) -->
+      <div id="content-container" class="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 pb-24 lg:pb-6 space-y-4 sm:space-y-6">
 
         <!-- ================= VIEW 1: DASHBOARD OVERVIEW ================= -->
         <section id="view-dashboard" class="space-y-6 animate-fade-in">
@@ -504,7 +614,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                 <i class="fa-solid fa-map-location-dot"></i> สำรวจแผนที่
               </button>
               <button onclick="switchView('thaifammed')" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl text-sm transition flex items-center gap-2 shadow-lg shadow-emerald-600/30">
-                <i class="fa-solid fa-hospital-user"></i> ข้อมูลแพทย์ไทย (3,750 คน)
+                <i class="fa-solid fa-hospital-user"></i> ทำเนียบแพทย์เวชศาสตร์ครอบครัว (3,750 คน)
               </button>
             </div>
           </div>
@@ -726,7 +836,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                 <!-- Health Zone Filter -->
                 <div class="flex items-center space-x-1.5">
                   <label class="text-slate-500 font-medium">เขตสุขภาพ:</label>
-                  <select id="map-filter-zone" onchange="applyMapFilters()" class="py-1.5 px-2.5 rounded-xl border-slate-200 bg-slate-50 text-slate-700 text-xs focus:ring-sky-500 font-medium">
+                  <select id="map-filter-zone" onchange="handleMapZoneChange(this.value)" class="py-1.5 px-2.5 rounded-xl border-slate-200 bg-slate-50 text-slate-700 text-xs focus:ring-sky-500 font-medium">
                     <option value="all">ทุกเขต (1-13)</option>
                     <option value="1">เขต 1 (เหนือบน)</option>
                     <option value="2">เขต 2</option>
@@ -744,12 +854,16 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                   </select>
                 </div>
 
-                <!-- Province Filter -->
+                <!-- Province Filter (Dropdown + Type search) -->
                 <div class="flex items-center space-x-1.5">
                   <label class="text-slate-500 font-medium">จังหวัด:</label>
-                  <select id="map-filter-province" onchange="applyMapFilters()" class="py-1.5 px-2.5 rounded-xl border-slate-200 bg-slate-50 text-slate-700 text-xs focus:ring-sky-500 font-medium max-w-[140px]">
+                  <select id="map-filter-province" onchange="handleMapProvinceSelect(this.value)" class="py-1.5 px-2.5 rounded-xl border-slate-200 bg-slate-50 text-slate-700 text-xs focus:ring-sky-500 font-medium max-w-[130px]">
                     <option value="all">ทุกจังหวัด</option>
                   </select>
+                  <div class="relative">
+                    <input type="text" id="map-search-province" list="map-province-datalist" placeholder="พิมพ์ชื่อจังหวัด..." oninput="handleMapProvinceInput(this.value)" class="py-1.5 px-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs w-28 focus:w-36 focus:ring-2 focus:ring-sky-500 transition-all">
+                    <datalist id="map-province-datalist"></datalist>
+                  </div>
                 </div>
 
                 <!-- Cert Filter -->
@@ -851,7 +965,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
           <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-4">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h3 id="brand-directory-title" class="font-bold text-slate-900 text-lg font-heading">ทำเนียบสมาชิกแพทย์เวชศาสตร์ครอบครัว (Google Sheet)</h3>
+                <h3 id="brand-directory-title" class="font-bold text-slate-900 text-lg font-heading">รายชื่อสมาชิกที่ Update ข้อมูล</h3>
                 <p id="brand-directory-desc" class="text-xs text-slate-500">ข้อมูลสมาชิก 314 ราย ที่อัปเดตข้อมูลผ่านแบบฟอร์ม พร้อมระบบแก้ไขและรูปถ่าย</p>
               </div>
 
@@ -972,7 +1086,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                 <div id="brand-thaifammed-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold mb-1">
                   <i class="fa-solid fa-database"></i> ฐานข้อมูลแพทย์เวชศาสตร์ครอบครัวของไทย (Thai Family Physicians Database)
                 </div>
-                <h3 id="brand-thaifammed-title" class="font-bold text-slate-900 text-lg font-heading">รายชื่อแพทย์เวชศาสตร์ครอบครัว 3,750 รายการทั่วประเทศ</h3>
+                <h3 id="brand-thaifammed-title" class="font-bold text-slate-900 text-lg font-heading">สมาชิกในฐานข้อมูลThaifammed (3,750 รายการทั่วประเทศ)</h3>
                 <p id="brand-thaifammed-desc" class="text-xs text-slate-500">ข้อมูลจาก <a href="https://database.thaifammed.org/thai_family_physicians_fp.php" target="_blank" class="text-sky-600 underline font-medium">database.thaifammed.org</a> เชื่อมโยงสถานะการอัปเดตข้อมูลกับ Google Sheet</p>
               </div>
 
@@ -1226,6 +1340,52 @@ h1, h2, h3, h4, h5, h6, .font-heading {
               </div>
             </div>
 
+            <!-- ================= MASTER DB DELEGATED ACCESS PANEL (Admin Only) ================= -->
+            <div id="master-db-delegation-panel" class="p-6 rounded-3xl bg-white border-2 border-rose-400/40 shadow-xl space-y-4">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-3.5">
+                  <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-600 to-pink-500 text-white flex items-center justify-center text-xl shadow-lg shadow-rose-500/25 shrink-0">
+                    <i class="fa-solid fa-user-shield"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h4 class="font-bold text-slate-900 text-base font-heading">ผู้มีสิทธิ์เข้าถึงฐานข้อมูล Master DB (Access Control & Delegation)</h4>
+                      <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold border border-rose-200">Admin Only</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">กำหนดให้เฉพาะ Admin และแพทย์ผู้ที่ Admin มอบหมายเท่านั้น ที่สามารถเปิดดูหน้านี้และเข้าถึงฐานข้อมูล Master DB ได้</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="delegate-count-badge" class="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">0 คนที่ได้รับมอบหมาย</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="md:col-span-2 space-y-2.5">
+                  <label class="block text-slate-700 font-semibold">มอบหมายสิทธิ์ให้แพทย์ (พิมพ์ค้นหาชื่อ หรือระบุเลข ว.):</label>
+                  <div class="flex gap-2">
+                    <input type="text" id="input-new-delegate" list="all-doctors-datalist" placeholder="เช่น 56210 หรือ พิมพ์ชื่อแพทย์..." class="flex-1 p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-rose-500">
+                    <datalist id="all-doctors-datalist"></datalist>
+                    <button type="button" onclick="AuthManager.addDelegateFromInput()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95">
+                      <i class="fa-solid fa-user-plus"></i> มอบหมายสิทธิ์
+                    </button>
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    💡 <strong>หมายเหตุ:</strong> แพทย์ที่ได้รับมอบหมาย เมื่อเข้าสู่ระบบ (Login) จะสามารถเปิดดูหน้าจัดการข้อมูลและลิงก์ไปยัง Google Sheet Master DB ได้อัตโนมัติ
+                  </p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                  <span class="font-bold text-slate-700 block text-xs flex items-center justify-between">
+                    <span>รายชื่อผู้ได้รับมอบหมาย:</span>
+                    <i class="fa-solid fa-shield-halved text-rose-500"></i>
+                  </span>
+                  <div id="delegates-list-container" class="max-h-36 overflow-y-auto space-y-1.5 text-xs">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- ================= BRANDING & UI CUSTOMIZATION SECTION ================= -->
             <div class="p-6 rounded-3xl bg-white border-2 border-indigo-500/40 shadow-xl space-y-6">
               <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-100 gap-4">
@@ -1360,7 +1520,42 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                           ทดสอบรูป
                         </button>
                       </div>
-                      <p class="text-[10px] text-slate-400">สามารถใส่ลิงก์รูปภาพจาก Google Drive หรือ CDN ภายนอกได้</p>
+                    </div>
+                  </div>
+
+                  <!-- Logo 2 Configuration Panel -->
+                  <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div class="font-bold text-slate-800 text-xs flex items-center gap-2">
+                        <i class="fa-solid fa-hospital text-emerald-600"></i> โลโก้ที่ ๒ (Logo 2 - แสดงข้างๆ โลโก้แรกใน Sidebar)
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-[11px] text-slate-500">ตัวอย่าง:</span>
+                        <div id="brand-logo2-preview" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-sm overflow-hidden shrink-0">
+                          <i class="fa-solid fa-hospital text-sm"></i>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div class="border-2 border-dashed border-slate-300 hover:border-emerald-400 rounded-xl p-3 text-center bg-white transition cursor-pointer" onclick="document.getElementById('input-brand-logo2-file').click()">
+                        <i class="fa-solid fa-cloud-arrow-up text-xl text-emerald-600 mb-1"></i>
+                        <p class="font-semibold text-slate-700">อัปโหลดไฟล์ Logo 2</p>
+                        <p class="text-[10px] text-slate-400">คลิกเพื่อเลือกภาพจากเครื่อง</p>
+                        <input type="file" id="input-brand-logo2-file" accept="image/*" class="hidden" onchange="BrandingManager.handleLogo2Upload(event)">
+                      </div>
+                      <div class="space-y-1.5 bg-white p-3 rounded-xl border border-slate-200">
+                        <label class="block text-slate-600 font-medium">หรือระบุ URL รูป Logo 2:</label>
+                        <div class="flex gap-1.5">
+                          <input type="url" id="input-brand-logo2-url" oninput="BrandingManager.handleLogo2UrlInput(this.value)" placeholder="https://.../logo2.png" class="flex-1 p-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500">
+                          <button type="button" onclick="BrandingManager.applyLogo2Url()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold">
+                            ใช้รูป
+                          </button>
+                        </div>
+                        <button type="button" onclick="BrandingManager.removeLogo2()" class="text-[10px] text-rose-500 hover:underline">
+                          รีเซ็ต Logo 2 เป็นไอคอนเริ่มต้น
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1845,11 +2040,11 @@ h1, h2, h3, h4, h5, h6, .font-heading {
             </div>
             <div>
               <label class="block text-slate-600 font-medium mb-1">ชื่อ (ไทย): <span class="text-rose-500">*</span></label>
-              <input type="text" id="form-firstname-th" required placeholder="ชื่อจริง" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
+              <input type="text" id="form-firstname-th" placeholder="ชื่อจริง" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
             </div>
             <div>
-              <label class="block text-slate-600 font-medium mb-1">นามสกุล (ไทย): <span class="text-rose-500">*</span></label>
-              <input type="text" id="form-lastname-th" required placeholder="นามสกุล" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
+              <label class="block text-slate-600 font-medium mb-1">นามสกุล (ไทย):</label>
+              <input type="text" id="form-lastname-th" placeholder="นามสกุล" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
             </div>
             <div>
               <label class="block text-slate-600 font-medium mb-1">เลข ว. (ใบประกอบวิชาชีพ):</label>
@@ -1926,8 +2121,8 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="sm:col-span-2">
-              <label class="block text-slate-600 font-medium mb-1">ชื่อสถานที่ทำงาน/โรงพยาบาล: <span class="text-rose-500">*</span></label>
-              <input type="text" id="form-workplace-name" list="gov-hospitals-datalist" onchange="autoFillHospitalDetails(this.value)" required placeholder="เช่น โรงพยาบาลขอนแก่น, รพ.ศิริราช (พิมพ์เพื่อค้นหาสถานบริการรัฐ)" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
+              <label class="block text-slate-600 font-medium mb-1">ชื่อสถานที่ทำงาน/โรงพยาบาล:</label>
+              <input type="text" id="form-workplace-name" list="gov-hospitals-datalist" onchange="autoFillHospitalDetails(this.value)" placeholder="เช่น โรงพยาบาลขอนแก่น, รพ.ศิริราช (พิมพ์เพื่อค้นหาสถานบริการรัฐ)" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
             </div>
             <div>
               <label class="block text-slate-600 font-medium mb-1">ประเภทสังกัด:</label>
@@ -1950,8 +2145,8 @@ h1, h2, h3, h4, h5, h6, .font-heading {
               <input type="text" id="form-workplace-amphoe" onchange="autoGeocodeFormAddress()" placeholder="อำเภอ" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
             </div>
             <div>
-              <label class="block text-slate-600 font-medium mb-1">จังหวัด: <span class="text-rose-500">*</span></label>
-              <input type="text" id="form-workplace-province" onchange="autoGeocodeFormAddress()" required placeholder="จังหวัด" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
+              <label class="block text-slate-600 font-medium mb-1">จังหวัด:</label>
+              <input type="text" id="form-workplace-province" onchange="autoGeocodeFormAddress()" placeholder="จังหวัด" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
             </div>
             <div>
               <label class="block text-slate-600 font-medium mb-1">รหัสไปรษณีย์:</label>
@@ -1962,11 +2157,63 @@ h1, h2, h3, h4, h5, h6, .font-heading {
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
             <div>
               <label class="block text-slate-600 font-medium mb-1">Latitude (ละติจูด):</label>
-              <input type="number" step="any" id="form-lat" placeholder="เช่น 18.5638" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs font-mono focus:ring-sky-500">
+              <input type="number" step="any" id="form-lat" oninput="handleManualCoordInput()" placeholder="เช่น 18.5638" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs font-mono focus:ring-sky-500">
             </div>
             <div>
               <label class="block text-slate-600 font-medium mb-1">Longitude (ลองจิจูด):</label>
-              <input type="number" step="any" id="form-lng" placeholder="เช่น 98.9742" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs font-mono focus:ring-sky-500">
+              <input type="number" step="any" id="form-lng" oninput="handleManualCoordInput()" placeholder="เช่น 98.9742" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs font-mono focus:ring-sky-500">
+            </div>
+          </div>
+
+          <!-- Interactive Mini-Map for Pin Relocation inside Edit Popup -->
+          <div id="edit-minimap-slot" class="w-full">
+            <div id="edit-minimap-wrapper" class="p-3 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2 relative transition-all duration-300">
+              <!-- Normal Header -->
+              <div class="flex items-center justify-between flex-wrap gap-1.5">
+                <span class="font-bold text-amber-900 text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-location-crosshairs text-amber-600 text-sm animate-pulse"></i> ปักหมุดและย้ายพิกัดบนแผนที่:
+                </span>
+                <div class="flex items-center gap-2">
+                  <span id="minimap-coords-display" class="text-[11px] text-amber-800 font-mono font-semibold">ลากหมุดสีส้ม หรือคลิกบนแผนที่</span>
+                  <button type="button" id="btn-minimap-fullscreen" onclick="toggleMiniMapFullscreen()" class="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg font-bold text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95" title="ขยายแผนที่เต็มจอ">
+                    <i class="fa-solid fa-expand"></i> ขยายเต็มจอ
+                  </button>
+                </div>
+              </div>
+
+              <!-- Fullscreen Floating Topbar (Only visible when fullscreen) -->
+              <div id="minimap-fullscreen-bar" class="hidden absolute top-4 left-4 right-4 z-[1001] bg-slate-900/90 backdrop-blur-md text-white p-3 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-between gap-3">
+                <div class="flex items-center space-x-3 min-w-0">
+                  <div class="w-9 h-9 rounded-xl bg-amber-500/30 border border-amber-400/50 flex items-center justify-center text-amber-300 text-base shrink-0">
+                    <i class="fa-solid fa-location-crosshairs"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-bold text-xs flex items-center gap-2">
+                      <span>โหมดปักหมุดพิกัดเต็มจอ (สามารถเลือกภาพถ่ายดาวเทียมได้ที่ปุ่มมุมขวาบน)</span>
+                    </div>
+                    <div id="minimap-fullscreen-coords" class="text-[11px] text-amber-300 font-mono">
+                      พิกัดปัจจุบัน: Lat -, Lng -
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button type="button" onclick="centerMiniMapOnCurrentPin()" class="px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1 border border-white/20">
+                    <i class="fa-solid fa-crosshairs text-amber-300"></i> เล็งกึ่งกลางหมุด
+                  </button>
+                  <button type="button" onclick="toggleMiniMapFullscreen()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg">
+                    <i class="fa-solid fa-compress"></i> ย่อกลับ (ESC)
+                  </button>
+                </div>
+              </div>
+
+              <div id="edit-modal-minimap" class="h-52 w-full rounded-xl border border-amber-300 shadow-inner overflow-hidden relative"></div>
+              
+              <div class="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                <span>💡 คลิกบนแผนที่หรือลากหมุดเพื่อเปลี่ยนพิกัดทันที (เลือกดาวเทียมที่มุมขวาบน)</span>
+                <button type="button" onclick="centerMiniMapOnCurrentPin()" class="px-2 py-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-semibold transition flex items-center gap-1 shadow-sm">
+                  <i class="fa-solid fa-crosshairs"></i> เล็งกึ่งกลางหมุด
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2237,18 +2484,124 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   </div>
 
 
-  <!-- 4. TOAST NOTIFICATION -->
+  <!-- 7. GOOGLE APPS SCRIPT CLOUD SYNC MODAL -->
+  <div id="gasConfigModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 p-6 space-y-4 animate-fade-in text-xs">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-900 text-sm font-heading">เชื่อมต่อ Google Sheet Real-time Cloud</h4>
+            <p class="text-[11px] text-slate-500">บันทึกและซิงค์ข้อมูลสดให้ทุกคนเห็นตรงกันผ่าน Google Apps Script</p>
+          </div>
+        </div>
+        <button onclick="closeModal('gasConfigModal')" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
 
-  <div id="toast" class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-medium text-white transition-all duration-300 transform translate-y-20 opacity-0 bg-slate-900 border border-slate-800 pointer-events-none">
-    <div id="toast-icon" class="w-5 h-5 rounded-full flex items-center justify-center text-xs">
+      <div class="space-y-3">
+        <div class="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 space-y-1">
+          <div class="font-bold flex items-center gap-1.5 text-emerald-800">
+            <i class="fa-solid fa-circle-info"></i> ทำไมต้องเชื่อมต่อ Google Sheet Web App?
+          </div>
+          <p class="text-emerald-700 leading-relaxed">
+            เมื่อเชื่อมต่อแล้ว ทุกครั้งที่มีการแก้ไขข้อมูล หรือย้ายหมุด ระบบจะส่งไปบันทึกใน Google Sheet ใน Google Drive ทันที และเมื่อคนอื่นเปิดเว็บ จะได้ข้อมูลล่าสุดที่อัปเดตตรงกันทุกคนแบบ Real-time!
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Google Apps Script Web App URL:</label>
+          <input type="url" id="gas-endpoint-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+          <div id="gas-config-status" class="mt-1.5 text-[11px] text-slate-500"></div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+          <a href="https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link" target="_blank" class="text-[11px] text-sky-600 hover:underline flex items-center gap-1">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิด Google Sheet Master DB
+          </a>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeModal('gasConfigModal')" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">
+              ปิด
+            </button>
+            <button type="button" onclick="testAndSaveGasEndpoint()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> บันทึกและทดสอบเชื่อมต่อ
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. PROVINCE DOCTORS LIST MODAL (Requirement 6.2) -->
+  <div id="provinceDoctorsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1050] flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[88vh] animate-fade-in text-xs">
+      <div class="bg-gradient-to-r from-slate-900 via-sky-950 to-teal-900 text-white p-5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white text-lg">
+            <i class="fa-solid fa-users-viewfinder"></i>
+          </div>
+          <div>
+            <h3 id="province-modal-title" class="text-base font-bold font-heading">รายชื่อแพทย์ในจังหวัด</h3>
+            <p id="province-modal-subtitle" class="text-xs text-sky-300">คลิกดูประวัติรายบุคคล หรือกดดูตำแหน่งหมุดบนแผนที่</p>
+          </div>
+        </div>
+        <button onclick="closeModal('provinceDoctorsModal')" class="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Search Bar & Filter inside Province Modal -->
+      <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input type="text" id="province-doctor-search" oninput="filterProvinceDoctorsList(this.value)" placeholder="ค้นหาแพทย์, โรงพยาบาล, เลข ว. ในจังหวัดนี้..." class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-sky-500">
+        </div>
+        <span id="province-doctor-count" class="px-3 py-1 rounded-full bg-sky-100 text-sky-800 font-bold text-xs shrink-0">0 คน</span>
+      </div>
+
+      <!-- Doctor Cards Container -->
+      <div id="province-doctors-list-container" class="p-4 overflow-y-auto space-y-2.5 flex-1 divide-y divide-slate-100">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar (Visible only on mobile/tablet screens < lg) -->
+  <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-around h-16 px-1 text-slate-400 no-print safe-area-bottom shadow-lg">
+    <button onclick="switchView('dashboard')" id="bnav-dashboard" class="flex flex-col items-center justify-center flex-1 py-1 transition text-sky-400 font-bold active:scale-95">
+      <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">แดชบอร์ด</span>
+    </button>
+    <button onclick="switchView('map')" id="bnav-map" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-map-location-dot text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">แผนที่</span>
+    </button>
+    <button onclick="switchView('directory')" id="bnav-directory" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-address-book text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">สมาชิก</span>
+    </button>
+    <button onclick="switchView('thaifammed')" id="bnav-thaifammed" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-hospital-user text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">แพทย์ไทย</span>
+    </button>
+    <button onclick="toggleSidebar()" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-bars text-lg mb-0.5"></i>
+      <span class="text-[10px] leading-none">เมนู</span>
+    </button>
+  </nav>
+
+  <!-- 4. TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-medium text-white transition-all duration-300 transform translate-y-20 opacity-0 bg-slate-900 border border-slate-800 pointer-events-none max-w-[90vw]">
+    <div id="toast-icon" class="w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0">
       <i class="fa-solid fa-check"></i>
     </div>
-    <span id="toast-message">บันทึกข้อมูลสำเร็จ</span>
+    <span id="toast-message" class="truncate">บันทึกข้อมูลสำเร็จ</span>
   </div>
 
   <!-- Load Data Bundle and App Logic -->
-  
-  <!-- Inlined Government Healthcare Facilities DB -->
   <script>
 window.GOV_HEALTH_FACILITIES = {
   "hospitals": [
@@ -4411,10 +4764,7 @@ window.GOV_HEALTH_FACILITIES = {
   "totalProvinces": 77
 };
 
-  </script>
-  <!-- Inlined Member & Thaifammed Data Bundle -->
-  <script>
-/* Medical Member Dashboard Initial Data Bundle */
+
 window.INITIAL_DATA = {
   "dashboardStats": {
     "updatedCount": 314,
@@ -20797,6 +21147,58 @@ window.INITIAL_DATA = {
       "photoDriveId": "1AYzgA-4MIUJIhqHS6KU0U-uqDBPfym_J",
       "photoUrl": "https://lh3.googleusercontent.com/d/1AYzgA-4MIUJIhqHS6KU0U-uqDBPfym_J=w500",
       "photoDriveViewUrl": "https://drive.google.com/file/d/1AYzgA-4MIUJIhqHS6KU0U-uqDBPfym_J/view",
+      "consent": "ยินยอม"
+    },
+    {
+      "id": 316,
+      "timestamp": "20/09/2026, 23:30:00",
+      "regType": "ปรับปรุงข้อมูลสมาชิก",
+      "email": "",
+      "titleTh": "นพ.",
+      "firstNameTh": "อนุวัตร",
+      "middleNameTh": "",
+      "lastNameTh": "แก้วเชียงหวาง",
+      "fullNameTh": "นพ.อนุวัตร แก้วเชียงหวาง",
+      "titleEn": "",
+      "firstNameEn": "",
+      "middleNameEn": "",
+      "lastNameEn": "",
+      "fullNameEn": "",
+      "medSchool": "",
+      "institute": "",
+      "licenseNo": "2428",
+      "otherDegree": "",
+      "certTypeRaw": "วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว",
+      "certGroup": "วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว",
+      "certYear": "2548",
+      "trainingInstitute": "",
+      "academicInstitute": "",
+      "practiceInstitute": "",
+      "birthDate": "",
+      "homeAddress": {
+        "line": "",
+        "tambon": "",
+        "amphoe": "",
+        "province": "มุกดาหาร",
+        "zipcode": "49000"
+      },
+      "homePhone": "",
+      "mobilePhone": "",
+      "workplace": {
+        "type": "รัฐบาล",
+        "name": "โรงพยาบาลมุกดาหาร",
+        "address": "ถ.พิทักษ์พนมเขต ต.มุกดาหาร",
+        "tambon": "มุกดาหาร",
+        "amphoe": "เมืองมุกดาหาร",
+        "province": "มุกดาหาร",
+        "zipcode": "49000"
+      },
+      "lat": 16.5436,
+      "lng": 104.7212,
+      "contactChannels": "ที่อยู่ปัจจุบัน, E-mail",
+      "photoDriveId": "",
+      "photoUrl": "https://ui-avatars.com/api/?name=%E0%B8%AD%E0%B8%99%E0%B8%B8%E0%B8%A7%E0%B8%B1%E0%B8%95%E0%B8%A3&background=0284c7&color=fff",
+      "photoDriveViewUrl": "",
       "consent": "ยินยอม"
     }
   ],
@@ -58678,7 +59080,7 @@ window.INITIAL_DATA = {
       "matchedMemberId": null,
       "photoUrl": "",
       "workplace": "จังหวัดบุรีรัมย์",
-      "lat": 15.0,
+      "lat": 15,
       "lng": 103.1414,
       "coordSource": "province_centroid",
       "facilityName": "จังหวัดบุรีรัมย์"
@@ -59236,7 +59638,7 @@ window.INITIAL_DATA = {
       "matchedMemberId": null,
       "photoUrl": "",
       "workplace": "จังหวัดบุรีรัมย์",
-      "lat": 15.0,
+      "lat": 15,
       "lng": 103.1414,
       "coordSource": "province_centroid",
       "facilityName": "จังหวัดบุรีรัมย์"
@@ -65748,14 +66150,14 @@ window.INITIAL_DATA = {
       "province": "มุกดาหาร",
       "healthZone": "10",
       "note": "",
-      "isUpdated": false,
-      "matchedMemberId": null,
+      "isUpdated": true,
+      "matchedMemberId": 316,
       "photoUrl": "",
-      "workplace": "จังหวัดมุกดาหาร",
-      "lat": 16.5154,
-      "lng": 104.734,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดมุกดาหาร"
+      "workplace": "โรงพยาบาลมุกดาหาร",
+      "lat": 16.5436,
+      "lng": 104.7212,
+      "coordSource": "gov_hospital_direct",
+      "facilityName": "โรงพยาบาลมุกดาหาร"
     },
     {
       "id": 2365,
@@ -90810,9 +91212,6 @@ window.INITIAL_DATA = {
   }
 };
 
-  </script>
-  <!-- Inlined Dashboard Application Engine -->
-  <script>
 /**
  * Medical Member Dashboard - Core Application Engine
  * Integrates all 5 Google Sheet tabs:
@@ -90870,7 +91269,7 @@ const STORAGE_KEY_CREDENTIALS = 'MEDICAL_DASHBOARD_CREDENTIALS_V1';
 const STORAGE_KEY_DELEGATES = 'MEDICAL_DASHBOARD_DELEGATES_V1';
 
 // Default GAS Endpoint (realtime Google Apps Script Web App API for Sheet 1PVM2q...)
-const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyXB_YHNHcyo-9TvCuCw7bvu3rlWHVf90JSL3IZgufX1RtvEKixKq-xxet8yNWVRv2xew/exec';
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwni60636sNcnQQkqdphsInDkLJqJudCRpRFDNMo5zcq2Cgz5Fwgv8VJRKkZnFAtQ2DVA/exec';
 
 function getGasEndpoint() {
   return localStorage.getItem(STORAGE_KEY_GAS_URL) || DEFAULT_GAS_URL || '';
@@ -90884,9 +91283,68 @@ function setGasEndpoint(url) {
   }
 }
 
+function cleanMemberPayload(m) {
+  if (!m) return {};
+  const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || '') };
+  return {
+    id: m.id || '',
+    fullNameTh: m.fullNameTh || '',
+    titleTh: m.titleTh || '',
+    firstNameTh: m.firstNameTh || '',
+    lastNameTh: m.lastNameTh || '',
+    fullNameEn: m.fullNameEn || '',
+    licenseNo: m.licenseNo || '',
+    certGroup: m.certGroup || '',
+    certYear: m.certYear || '',
+    medSchool: m.medSchool || '',
+    trainingInstitute: m.trainingInstitute || '',
+    otherDegree: m.otherDegree || '',
+    workplace: {
+      name: wp.name || '',
+      type: wp.type || 'รัฐบาล',
+      tambon: wp.tambon || '',
+      amphoe: wp.amphoe || '',
+      province: wp.province || '',
+      zipcode: wp.zipcode || ''
+    },
+    healthZone: m.healthZone || '',
+    lat: (m.lat !== null && !isNaN(Number(m.lat))) ? Number(m.lat) : '',
+    lng: (m.lng !== null && !isNaN(Number(m.lng))) ? Number(m.lng) : '',
+    mobilePhone: m.mobilePhone || '',
+    email: m.email || '',
+    photoDriveId: m.photoDriveId || ''
+  };
+}
+
 async function sendToGasApi(payload) {
+  // Case A: Running directly inside Google Apps Script (HTML Service)
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    return new Promise((resolve) => {
+      if (payload.action === 'saveMember') {
+        const clean = cleanMemberPayload(payload.member);
+        google.script.run
+          .withSuccessHandler(res => resolve({ status: 'success', result: res }))
+          .withFailureHandler(err => resolve({ status: 'error', message: err }))
+          .saveMemberInSheet(clean);
+      } else if (payload.action === 'updateCoordinate') {
+        google.script.run
+          .withSuccessHandler(res => resolve({ status: 'success', result: res }))
+          .withFailureHandler(err => resolve({ status: 'error', message: err }))
+          .updateDoctorCoordinateInSheet(payload.memberId, payload.lat, payload.lng, payload.workplace, payload.sourceType);
+      } else {
+        resolve(null);
+      }
+    });
+  }
+
+  // Case B: Web App URL endpoint
   const endpoint = getGasEndpoint();
   if (!endpoint || !endpoint.startsWith('http')) return null;
+
+  const cleanPayload = (payload.action === 'saveMember') ? {
+    action: 'saveMember',
+    member: cleanMemberPayload(payload.member)
+  } : payload;
 
   // Dual-Engine Cloud Sync Transport:
   // 1. First attempt via POST
@@ -90894,11 +91352,11 @@ async function sendToGasApi(payload) {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(cleanPayload)
     });
     try {
       const result = await response.json();
-      if (result && result.status === 'success') {
+      if (result && (result.status === 'success' || (result.result && result.result.success))) {
         console.log('Google Apps Script POST sync succeeded:', result);
         return result;
       }
@@ -90916,7 +91374,7 @@ async function sendToGasApi(payload) {
     if (payload.action === 'updateCoordinate') {
       getUrl += `${sep}action=updateCoordinate&memberId=${encodeURIComponent(payload.memberId)}&lat=${encodeURIComponent(payload.lat)}&lng=${encodeURIComponent(payload.lng)}&workplace=${encodeURIComponent(payload.workplace || '')}&sourceType=${encodeURIComponent(payload.sourceType || 'sheet')}`;
     } else if (payload.action === 'saveMember') {
-      getUrl += `${sep}action=saveMember&data=${encodeURIComponent(JSON.stringify(payload.member))}`;
+      getUrl += `${sep}action=saveMember&data=${encodeURIComponent(JSON.stringify(cleanPayload.member))}`;
     } else {
       getUrl += `${sep}action=${encodeURIComponent(payload.action)}`;
     }
@@ -91013,6 +91471,9 @@ function initData() {
   AppState.thaifammedStats = window.INITIAL_DATA ? (window.INITIAL_DATA.thaifammedStats || {}) : {};
   AppState.filteredThaifammed = [...AppState.thaifammed];
 
+  // Auto cross-link Sheet members with Thaifammed directory
+  syncThaifammedWithMembers();
+
   // Extract unique provinces for Thaifammed
   const tfProvSet = new Set();
   AppState.thaifammed.forEach(d => {
@@ -91038,6 +91499,56 @@ function initData() {
   AppState.provinces = Array.from(provSet).sort((a, b) => a.localeCompare(b, 'th'));
 
   document.getElementById('sidebar-member-badge').innerText = `${AppState.members.length} คน`;
+}
+
+function syncThaifammedWithMembers() {
+  if (!AppState.members || !AppState.thaifammed) return 0;
+  let matchCount = 0;
+
+  AppState.members.forEach(m => {
+    if (!m) return;
+    let tfDoc = null;
+
+    // Match 1: By License No (ว.)
+    if (m.licenseNo) {
+      const cleanLic = String(m.licenseNo).replace(/[^0-9]/g, '').trim();
+      if (cleanLic) {
+        tfDoc = AppState.thaifammed.find(d => {
+          const tfLic = String(d.gpNo || '').replace(/[^0-9]/g, '').trim();
+          return tfLic && tfLic === cleanLic;
+        });
+      }
+    }
+
+    // Match 2: By Name
+    if (!tfDoc && m.fullNameTh) {
+      const cleanName = m.fullNameTh.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').trim();
+      if (cleanName.length >= 3) {
+        tfDoc = AppState.thaifammed.find(d => {
+          const tfClean = (d.cleanName || d.name || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').trim();
+          return tfClean && (tfClean.includes(cleanName) || cleanName.includes(tfClean));
+        });
+      }
+    }
+
+    if (tfDoc) {
+      tfDoc.isUpdated = true;
+      tfDoc.matchedMemberId = m.id;
+      if (m.lat && m.lng && !isNaN(Number(m.lat)) && !isNaN(Number(m.lng))) {
+        tfDoc.lat = Number(m.lat);
+        tfDoc.lng = Number(m.lng);
+      }
+      if (m.workplace) {
+        const wpName = typeof m.workplace === 'object' ? m.workplace.name : m.workplace;
+        const wpProv = typeof m.workplace === 'object' ? m.workplace.province : '';
+        if (wpName) tfDoc.workplace = wpName;
+        if (wpProv) tfDoc.province = wpProv;
+      }
+      matchCount++;
+    }
+  });
+
+  return matchCount;
 }
 
 function updateStorageStatus() {
@@ -91891,12 +92402,15 @@ function renderMapMarkers() {
           <div class="pt-2 flex items-center space-x-2">
             ${isUpdated && d.matchedMemberId ? `
               <button onclick="openMemberDetailModal(${d.matchedMemberId})" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
-                ดูใน Sheet
+                <i class="fa-solid fa-address-card mr-1"></i> ดูประวัติ
               </button>
               <button onclick="openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold text-center transition" title="แก้ไขข้อมูล">
                 <i class="fa-solid fa-pen-to-square"></i> แก้ไข
               </button>
             ` : `
+              <button onclick="openMemberDetailModal(${d.id})" class="py-1.5 px-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold text-center transition" title="ดูข้อมูลแพทย์">
+                <i class="fa-solid fa-address-card mr-1"></i> ดูประวัติ
+              </button>
               <button onclick="openUpdateDoctorModal('thaifammed', ${d.id})" class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold text-center transition shadow-sm">
                 <i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูล
               </button>
@@ -92517,6 +93031,9 @@ function renderProvinceDoctorsList(doctors) {
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
           ` : `
+            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.id})" class="px-2.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติ">
+              <i class="fa-solid fa-address-card"></i> ประวัติ
+            </button>
             <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('thaifammed', ${d.id})" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm" title="อัปเดตข้อมูลลง Sheet">
               <i class="fa-solid fa-user-pen"></i> อัปเดตข้อมูล
             </button>
@@ -93079,28 +93596,112 @@ function focusOnMap(lat, lng, label) {
 
 /* ================= MODALS & CRUD OPERATIONS ================= */
 function openMemberDetailModal(id) {
-  const m = AppState.members.find(item => item.id == id);
-  if (!m) return;
+  let m = null;
+  let tfDoc = null;
 
-  AppState.selectedMemberId = id;
+  // 1. Search in AppState.members by ID
+  if (AppState.members && AppState.members.length > 0) {
+    m = AppState.members.find(item => item.id == id);
+  }
+
+  // 2. If not found in members, search in AppState.thaifammed
+  if (!m && AppState.thaifammed && AppState.thaifammed.length > 0) {
+    tfDoc = AppState.thaifammed.find(item => item.id == id || (item.matchedMemberId && item.matchedMemberId == id));
+    if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
+      m = AppState.members.find(item => item.id == tfDoc.matchedMemberId);
+    }
+  }
+
+  // 3. Fallback: Search by License Number or Doctor Name in AppState.members
+  if (!m && AppState.members) {
+    const searchStr = String(id).trim();
+    m = AppState.members.find(item => 
+      (item.licenseNo && String(item.licenseNo).trim() === searchStr) ||
+      (item.fullNameTh && item.fullNameTh.includes(searchStr))
+    );
+  }
+
+  // 4. Fallback: Search by License Number or Name in AppState.thaifammed
+  if (!m && !tfDoc && AppState.thaifammed) {
+    const searchStr = String(id).trim();
+    tfDoc = AppState.thaifammed.find(item =>
+      (item.gpNo && String(item.gpNo).trim() === searchStr) ||
+      (item.name && item.name.includes(searchStr))
+    );
+    if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
+      m = AppState.members.find(item => item.id == tfDoc.matchedMemberId);
+    }
+  }
+
+  // 5. If only found in Thaifammed, synthesize a complete display member
+  if (!m && tfDoc) {
+    const tfName = tfDoc.name || '';
+    const formattedName = (tfName.startsWith('นพ.') || tfName.startsWith('พญ.') || tfName.startsWith('นายแพทย์') || tfName.startsWith('แพทย์หญิง')) ? tfName : `นพ. ${tfName}`;
+    const tfWpName = (typeof tfDoc.workplace === 'object' && tfDoc.workplace) ? (tfDoc.workplace.name || '') : (tfDoc.workplace || '-');
+    m = {
+      id: tfDoc.id,
+      fullNameTh: formattedName,
+      fullNameEn: '',
+      licenseNo: tfDoc.gpNo || '',
+      fpNo: tfDoc.fpNo || '',
+      certGroup: 'วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว',
+      certYear: '',
+      medSchool: '',
+      trainingInstitute: '',
+      otherDegree: '',
+      workplace: {
+        name: tfWpName,
+        type: 'รัฐบาล',
+        address: '',
+        tambon: '',
+        amphoe: '',
+        province: tfDoc.province || '',
+        zipcode: ''
+      },
+      healthZone: tfDoc.healthZone || '',
+      lat: tfDoc.lat,
+      lng: tfDoc.lng,
+      mobilePhone: '',
+      email: '',
+      photoUrl: tfDoc.photoUrl || '',
+      photoDriveId: ''
+    };
+  }
+
+  // 6. If still not found, notify user
+  if (!m) {
+    showToast('ไม่พบข้อมูลประวัติแพทย์ในระบบ', 'warning');
+    return;
+  }
+
+  AppState.selectedMemberId = m.id;
   const photoSrc = getDoctorPrimaryImage(m) || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.fullNameTh)}&background=0284c7&color=fff`;
   const driveId = m.photoDriveId || '';
   const encodedName = encodeURIComponent(m.fullNameTh);
 
   const photoImg = document.getElementById('detail-photo');
-  photoImg.setAttribute('data-error-step', '0');
-  photoImg.onerror = () => handleImgError(photoImg, driveId, encodedName);
-  photoImg.src = photoSrc;
+  if (photoImg) {
+    photoImg.setAttribute('data-error-step', '0');
+    photoImg.onerror = () => handleImgError(photoImg, driveId, encodedName);
+    photoImg.src = photoSrc;
+  }
 
-  document.getElementById('detail-name-th').innerText = m.fullNameTh;
+  document.getElementById('detail-name-th').innerText = m.fullNameTh || '-';
   document.getElementById('detail-name-en').innerText = m.fullNameEn || '-';
-  document.getElementById('detail-license').innerText = m.licenseNo ? `ว. ${m.licenseNo}` : 'ไม่ระบุเลข ว.';
-  document.getElementById('detail-cert-badge').innerText = m.certGroup;
+  document.getElementById('detail-license').innerText = m.licenseNo ? `ว. ${m.licenseNo}` : (m.fpNo ? `FP: ${m.fpNo}` : 'ไม่ระบุเลข ว.');
+  document.getElementById('detail-cert-badge').innerText = m.certGroup || 'วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว';
 
-  document.getElementById('detail-workplace-name').innerText = m.workplace.name || '-';
-  document.getElementById('detail-workplace-type').innerText = m.workplace.type || 'รัฐบาล';
-  document.getElementById('detail-workplace-address').innerText = `${m.workplace.address || ''} ${m.workplace.tambon || ''} ${m.workplace.amphoe || ''} ${m.workplace.province || ''} ${m.workplace.zipcode || ''}`.trim() || '-';
-  document.getElementById('detail-coordinates').innerText = (m.lat && m.lng) ? `${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}` : 'ยังไม่มีพิกัด';
+  const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || '-') };
+  const wpName = wp.name || String(m.workplace || '-');
+  const wpType = wp.type || 'รัฐบาล';
+  const wpAddress = `${wp.address || ''} ${wp.tambon || ''} ${wp.amphoe || ''} ${wp.province || ''} ${wp.zipcode || ''}`.trim() || wp.province || wpName || '-';
+
+  document.getElementById('detail-workplace-name').innerText = wpName;
+  document.getElementById('detail-workplace-type').innerText = wpType;
+  document.getElementById('detail-workplace-address').innerText = wpAddress;
+
+  const hasCoord = (m.lat && m.lng && !isNaN(Number(m.lat)) && !isNaN(Number(m.lng)));
+  document.getElementById('detail-coordinates').innerText = hasCoord ? `${Number(m.lat).toFixed(5)}, ${Number(m.lng).toFixed(5)}` : 'ยังไม่มีพิกัด';
 
   document.getElementById('detail-medschool').innerText = m.medSchool || m.institute || '-';
   document.getElementById('detail-training-inst').innerText = m.trainingInstitute || m.practiceInstitute || '-';
@@ -93113,39 +93714,51 @@ function openMemberDetailModal(id) {
 
   // Drive link & Google Maps navigation link
   const driveBtn = document.getElementById('detail-drive-link');
-  if (driveId) {
-    driveBtn.href = `https://drive.google.com/file/d/${driveId}/view`;
-    driveBtn.classList.remove('hidden');
-  } else {
-    driveBtn.classList.add('hidden');
+  if (driveBtn) {
+    if (driveId) {
+      driveBtn.href = `https://drive.google.com/file/d/${driveId}/view`;
+      driveBtn.classList.remove('hidden');
+    } else {
+      driveBtn.classList.add('hidden');
+    }
   }
 
   const gmapLink = document.getElementById('detail-google-maps-link');
-  if (m.lat && m.lng) {
-    gmapLink.href = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
-    gmapLink.classList.remove('hidden');
-  } else {
-    gmapLink.classList.add('hidden');
+  if (gmapLink) {
+    if (hasCoord) {
+      gmapLink.href = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
+      gmapLink.classList.remove('hidden');
+    } else {
+      gmapLink.classList.add('hidden');
+    }
   }
 
-  const canEditDetail = typeof AuthManager !== 'undefined' && AuthManager.canEdit('sheet', id);
+  // Edit / Update button from Profile Detail
   const editBtn = document.getElementById('btn-edit-from-detail');
   if (editBtn) {
-    if (canEditDetail) {
-      editBtn.classList.remove('hidden');
+    editBtn.classList.remove('hidden');
+    const isTfOnly = tfDoc && (!tfDoc.matchedMemberId || !AppState.members.some(item => item.id == tfDoc.matchedMemberId));
+    if (isTfOnly) {
+      editBtn.innerHTML = `<i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูลลง Sheet`;
+      editBtn.className = `px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition`;
       editBtn.onclick = () => {
         closeModal('memberDetailModal');
-        openEditMemberModal(id);
+        openUpdateDoctorModal('thaifammed', tfDoc.id);
       };
     } else {
-      editBtn.classList.add('hidden');
+      editBtn.innerHTML = `<i class="fa-solid fa-pen-to-square mr-1"></i> แก้ไขข้อมูล`;
+      editBtn.className = `px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold shadow transition`;
+      editBtn.onclick = () => {
+        closeModal('memberDetailModal');
+        openEditMemberModal(m.id);
+      };
     }
   }
 
   openModal('memberDetailModal');
 
   setTimeout(() => {
-    initMiniMap(m.lat, m.lng, m.workplace.name || m.fullNameTh);
+    initMiniMap(m.lat, m.lng, wpName || m.fullNameTh);
   }, 200);
 }
 
@@ -93782,7 +94395,17 @@ function handleSaveMember(e) {
 
   // 6. ซิงค์ข้อมูลขึ้น Google Sheet Master DB แบบ Dual-Engine (Realtime Cloud)
   sendToGasApi({ action: 'saveMember', member: memberObj }).then(res => {
-    if (res && res.status === 'success') {
+    if (res && (res.status === 'success' || (res.result && res.result.success))) {
+      const assignedId = (res.result && res.result.id) ? res.result.id : memberObj.id;
+      if (assignedId && memberObj.id !== assignedId) {
+        const oldId = memberObj.id;
+        memberObj.id = assignedId;
+        const idx = AppState.members.findIndex(m => m.id == oldId);
+        if (idx !== -1) AppState.members[idx].id = assignedId;
+        if (tfDoc) tfDoc.matchedMemberId = assignedId;
+        saveMembersToStorage();
+        saveThaifammedOverrides();
+      }
       showToast('✅ ข้อมูลบันทึกลง Google Sheet สำเร็จ (Realtime Cloud)', 'success');
     } else {
       showToast('บันทึกลงระบบเรียบร้อย (ระบบจะซิงค์ให้อัตโนมัติ)', 'success');
@@ -93905,11 +94528,13 @@ async function syncLiveSheetData(isSilent = false) {
         if (response && response.members) {
           AppState.members = response.members;
           localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
+          syncThaifammedWithMembers();
           renderDashboard();
           renderDirectory();
           if (AppState.map) renderMapMarkers();
+          if (typeof renderThaifammed === 'function') renderThaifammed();
           const nowStr = new Date().toLocaleTimeString('th-TH');
-          if (statusEl) statusEl.innerHTML = `ซิงค์กับ Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">18sXvaCY...</a>) สำเร็จเมื่อ ${nowStr} (${AppState.members.length} สมาชิก)`;
+          if (statusEl) statusEl.innerHTML = `ซิงค์กับ Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">1PVM2qdb...</a>) สำเร็จเมื่อ ${nowStr} (${AppState.members.length} สมาชิก)`;
           if (!isSilent) showToast(`ซิงค์ข้อมูลสดกับ Google Sheet สำเร็จ (${AppState.members.length} คน)`, 'success');
         }
       })
@@ -93933,11 +94558,13 @@ async function syncLiveSheetData(isSilent = false) {
       if (data && data.members && Array.isArray(data.members)) {
         AppState.members = data.members;
         localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
+        syncThaifammedWithMembers();
         handleDirectoryFilter();
         renderDashboard();
         if (AppState.map) renderMapMarkers();
+        if (typeof renderThaifammed === 'function') renderThaifammed();
         const nowStr = new Date().toLocaleTimeString('th-TH');
-        if (statusEl) statusEl.innerHTML = `ซิงค์ผ่าน GAS Web App Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">18sXvaCY...</a>) สำเร็จเมื่อ ${nowStr}`;
+        if (statusEl) statusEl.innerHTML = `ซิงค์ผ่าน GAS Web App Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">1PVM2qdb...</a>) สำเร็จเมื่อ ${nowStr}`;
         if (btnHeader) {
           btnHeader.disabled = false;
           btnHeader.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="hidden md:inline">ซิงค์ Google Drive</span>`;
@@ -94394,9 +95021,9 @@ function renderThaifammed() {
         </td>
         <td class="py-3 px-4 text-center">
           <div class="flex items-center justify-center gap-1.5">
+            <button onclick="openMemberDetailModal(${d.matchedMemberId || d.id})" class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition inline-flex items-center gap-1 border border-sky-200 shadow-sm" title="ดูประวัติแพทย์"><i class="fa-solid fa-address-card"></i> โปรไฟล์</button>
             ${isUpdated && d.matchedMemberId
               ? `
-                <button onclick="openMemberDetailModal(${d.matchedMemberId})" class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition inline-flex items-center gap-1 border border-sky-200 shadow-sm" title="ดูประวัติใน Sheet"><i class="fa-solid fa-address-card"></i> โปรไฟล์</button>
                 <button onclick="openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="px-2 py-1 rounded-xl bg-slate-50 text-slate-700 hover:bg-slate-100 font-medium text-xs transition inline-flex items-center gap-1 border border-slate-200 shadow-sm" title="แก้ไขข้อมูล"><i class="fa-solid fa-pen-to-square text-sky-600"></i> แก้ไข</button>
               `
               : `
@@ -95572,7 +96199,6 @@ const AuthManager = {
 
 
 
-  </script>
-
+</script>
 </body>
 </html>

@@ -1,4 +1,3 @@
-/* Medical Member Dashboard Initial Data Bundle */
 window.INITIAL_DATA = {
   "dashboardStats": {
     "updatedCount": 314,
@@ -16381,6 +16380,58 @@ window.INITIAL_DATA = {
       "photoDriveId": "1AYzgA-4MIUJIhqHS6KU0U-uqDBPfym_J",
       "photoUrl": "https://lh3.googleusercontent.com/d/1AYzgA-4MIUJIhqHS6KU0U-uqDBPfym_J=w500",
       "photoDriveViewUrl": "https://drive.google.com/file/d/1AYzgA-4MIUJIhqHS6KU0U-uqDBPfym_J/view",
+      "consent": "ยินยอม"
+    },
+    {
+      "id": 316,
+      "timestamp": "20/09/2026, 23:30:00",
+      "regType": "ปรับปรุงข้อมูลสมาชิก",
+      "email": "",
+      "titleTh": "นพ.",
+      "firstNameTh": "อนุวัตร",
+      "middleNameTh": "",
+      "lastNameTh": "แก้วเชียงหวาง",
+      "fullNameTh": "นพ.อนุวัตร แก้วเชียงหวาง",
+      "titleEn": "",
+      "firstNameEn": "",
+      "middleNameEn": "",
+      "lastNameEn": "",
+      "fullNameEn": "",
+      "medSchool": "",
+      "institute": "",
+      "licenseNo": "2428",
+      "otherDegree": "",
+      "certTypeRaw": "วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว",
+      "certGroup": "วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว",
+      "certYear": "2548",
+      "trainingInstitute": "",
+      "academicInstitute": "",
+      "practiceInstitute": "",
+      "birthDate": "",
+      "homeAddress": {
+        "line": "",
+        "tambon": "",
+        "amphoe": "",
+        "province": "มุกดาหาร",
+        "zipcode": "49000"
+      },
+      "homePhone": "",
+      "mobilePhone": "",
+      "workplace": {
+        "type": "รัฐบาล",
+        "name": "โรงพยาบาลมุกดาหาร",
+        "address": "ถ.พิทักษ์พนมเขต ต.มุกดาหาร",
+        "tambon": "มุกดาหาร",
+        "amphoe": "เมืองมุกดาหาร",
+        "province": "มุกดาหาร",
+        "zipcode": "49000"
+      },
+      "lat": 16.5436,
+      "lng": 104.7212,
+      "contactChannels": "ที่อยู่ปัจจุบัน, E-mail",
+      "photoDriveId": "",
+      "photoUrl": "https://ui-avatars.com/api/?name=%E0%B8%AD%E0%B8%99%E0%B8%B8%E0%B8%A7%E0%B8%B1%E0%B8%95%E0%B8%A3&background=0284c7&color=fff",
+      "photoDriveViewUrl": "",
       "consent": "ยินยอม"
     }
   ],
@@ -54262,7 +54313,7 @@ window.INITIAL_DATA = {
       "matchedMemberId": null,
       "photoUrl": "",
       "workplace": "จังหวัดบุรีรัมย์",
-      "lat": 15.0,
+      "lat": 15,
       "lng": 103.1414,
       "coordSource": "province_centroid",
       "facilityName": "จังหวัดบุรีรัมย์"
@@ -54820,7 +54871,7 @@ window.INITIAL_DATA = {
       "matchedMemberId": null,
       "photoUrl": "",
       "workplace": "จังหวัดบุรีรัมย์",
-      "lat": 15.0,
+      "lat": 15,
       "lng": 103.1414,
       "coordSource": "province_centroid",
       "facilityName": "จังหวัดบุรีรัมย์"
@@ -61332,14 +61383,14 @@ window.INITIAL_DATA = {
       "province": "มุกดาหาร",
       "healthZone": "10",
       "note": "",
-      "isUpdated": false,
-      "matchedMemberId": null,
+      "isUpdated": true,
+      "matchedMemberId": 316,
       "photoUrl": "",
-      "workplace": "จังหวัดมุกดาหาร",
-      "lat": 16.5154,
-      "lng": 104.734,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดมุกดาหาร"
+      "workplace": "โรงพยาบาลมุกดาหาร",
+      "lat": 16.5436,
+      "lng": 104.7212,
+      "coordSource": "gov_hospital_direct",
+      "facilityName": "โรงพยาบาลมุกดาหาร"
     },
     {
       "id": 2365,
