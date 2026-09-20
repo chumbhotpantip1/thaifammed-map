@@ -1402,7 +1402,7 @@ function renderProvinceDoctorsList(doctors) {
     const encodedName = encodeURIComponent(d.name);
 
     return `
-      <div class="py-3 px-2 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-xl transition">
+      <div class="py-3 px-2 flex items-center justify-between gap-3 hover:bg-sky-50/50 rounded-xl transition cursor-pointer border border-transparent hover:border-sky-100" onclick="focusDoctorOnMap(${d.lat}, ${d.lng}, '${escapeHtml(d.name).replace(/'/g, "\\'")}', '${d.type}', ${d.id})">
         <div class="flex items-center space-x-3 min-w-0 flex-1">
           <div class="w-11 h-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
             ${isSheet ? `
@@ -1431,7 +1431,7 @@ function renderProvinceDoctorsList(doctors) {
         </div>
 
         <!-- Action buttons -->
-        <div class="flex items-center space-x-1.5 shrink-0">
+        <div class="flex items-center space-x-1.5 shrink-0" onclick="event.stopPropagation()">
           <button onclick="focusDoctorOnMap(${d.lat}, ${d.lng}, '${escapeHtml(d.name).replace(/'/g, "\\'")}', '${d.type}', ${d.id})" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูตำแหน่งหมุดบนแผนที่">
             <i class="fa-solid fa-location-dot"></i> ดูหมุด
           </button>
@@ -2154,7 +2154,7 @@ function updateMiniMapCoords(lat, lng) {
 }
 
 function updateMiniMapCoordsDisplay(lat, lng) {
-  const el = document.getElementById('edit-minimap-coords-display');
+  const el = document.getElementById('edit-minimap-coords-display') || document.getElementById('minimap-coords-display');
   if (el) {
     if (lat && lng) {
       el.textContent = `พิกัดปัจจุบัน: ${lat}, ${lng} (ลากหมุดหรือคลิกบนแผนที่เพื่อเปลี่ยน)`;
