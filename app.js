@@ -73,6 +73,8 @@ async function sendToGasApi(payload) {
   const endpoint = getGasEndpoint();
   if (!endpoint || !endpoint.startsWith('http')) return null;
 
+  // Dual-Engine Cloud Sync Transport:
+  // 1. First attempt via POST
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -81,12 +83,35 @@ async function sendToGasApi(payload) {
     });
     try {
       const result = await response.json();
-      return result;
+      if (result && result.status === 'success') {
+        console.log('Google Apps Script POST sync succeeded:', result);
+        return result;
+      }
     } catch (parseErr) {
-      return { status: 'success', message: 'Response received' };
+      // response wasn't JSON, proceed to GET fallback
     }
   } catch (err) {
-    console.warn('Sync to Google Apps Script failed:', err);
+    console.warn('POST to GAS failed or redirected, falling back to GET transport:', err);
+  }
+
+  // 2. Fallback via GET (100% immune to CORS preflight and 302 redirect issues on mobile browsers)
+  try {
+    let getUrl = endpoint;
+    const sep = endpoint.includes('?') ? '&' : '?';
+    if (payload.action === 'updateCoordinate') {
+      getUrl += `${sep}action=updateCoordinate&memberId=${encodeURIComponent(payload.memberId)}&lat=${encodeURIComponent(payload.lat)}&lng=${encodeURIComponent(payload.lng)}&workplace=${encodeURIComponent(payload.workplace || '')}&sourceType=${encodeURIComponent(payload.sourceType || 'sheet')}`;
+    } else if (payload.action === 'saveMember') {
+      getUrl += `${sep}action=saveMember&data=${encodeURIComponent(JSON.stringify(payload.member))}`;
+    } else {
+      getUrl += `${sep}action=${encodeURIComponent(payload.action)}`;
+    }
+
+    const getResponse = await fetch(getUrl);
+    const getResult = await getResponse.json();
+    console.log('Google Apps Script GET fallback sync succeeded:', getResult);
+    return getResult;
+  } catch (getErr) {
+    console.warn('Both POST and GET sync to Google Apps Script failed:', getErr);
     return null;
   }
 }

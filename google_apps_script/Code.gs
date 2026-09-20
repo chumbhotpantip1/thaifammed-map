@@ -21,7 +21,7 @@ function getActiveSpreadsheet() {
 }
 
 /**
- * รองรับการดึงข้อมูลแบบ GET (เช่น ?action=getMembers หรือเปิดหน้าเว็บ)
+ * รองรับการดึงข้อมูลและบันทึกข้อมูลแบบ GET (เช่น ?action=getMembers หรือ ?action=updateCoordinate)
  */
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || '';
@@ -33,27 +33,42 @@ function doGet(e) {
   }
 
   if (action === 'ping') {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'online', time: new Date().toISOString() }))
+    return ContentService.createTextOutput(JSON.stringify({ status: 'online', spreadsheetId: SPREADSHEET_ID, time: new Date().toISOString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // หากเปิดตรงๆ ผ่านบราวเซอร์ และมีไฟล์ index.html ให้แสดงหน้าเว็บ
-  try {
-    var template = HtmlService.createTemplateFromFile('index');
-    return template.evaluate()
-      .setTitle('ระบบสมาชิกและแผนที่แพทย์เวชศาสตร์ครอบครัว (Google Drive Realtime)')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  } catch (err) {
-    var info = {
-      status: 'online',
-      name: 'Medical Member Dashboard API',
-      spreadsheetId: SPREADSHEET_ID,
-      time: new Date().toISOString()
-    };
-    return ContentService.createTextOutput(JSON.stringify(info))
-      .setMimeType(ContentService.MimeType.JSON);
+  if (action === 'updateCoordinate' && e && e.parameter) {
+    try {
+      var p = e.parameter;
+      var res = updateDoctorCoordinateInSheet(p.memberId, parseFloat(p.lat), parseFloat(p.lng), p.workplace || '', p.sourceType || 'sheet');
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: res }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
   }
+
+  if (action === 'saveMember' && e && e.parameter && e.parameter.data) {
+    try {
+      var memberObj = JSON.parse(decodeURIComponent(e.parameter.data));
+      var res = saveMemberInSheet(memberObj);
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: res }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  var info = {
+    status: 'online',
+    name: 'Medical Member Dashboard API (ThaiFamMed)',
+    spreadsheetId: SPREADSHEET_ID,
+    time: new Date().toISOString()
+  };
+  return ContentService.createTextOutput(JSON.stringify(info))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /**
