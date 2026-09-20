@@ -1,6 +1,6 @@
 # Medical Member Interactive Dashboard (ฐานข้อมูลสมาชิก ราชวิทยาลัยและสมาคม)
 
-ระบบ **Interactive Dashboard** อัจฉริยะสำหรับสืบค้น วิเคราะห์ แสดงผลพิกัดภูมิศาสตร์ และจัดการแก้ไขฐานข้อมูลสมาชิกแพทย์เวชศาสตร์ครอบครัว โดยประมวลผลข้อมูลครอบคลุมทั้ง 5 Tabs จาก [Google Spreadsheet Master DB (18sXvaCY...)](https://docs.google.com/spreadsheets/d/18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN/edit?usp=drive_link) ในโฟลเดอร์ Google Drive [ระบบสมาชิก](https://drive.google.com/drive/folders/1kG-hz2vQ1hwbw-vX2xs80PyZhAN9ARz6?usp=sharing)
+ระบบ **Interactive Dashboard** อัจฉริยะสำหรับสืบค้น วิเคราะห์ แสดงผลพิกัดภูมิศาสตร์ และจัดการแก้ไขฐานข้อมูลสมาชิกแพทย์เวชศาสตร์ครอบครัว โดยประมวลผลข้อมูลครอบคลุมทั้ง 5 Tabs จาก [Google Spreadsheet Master DB (18sXvaCY...)](https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link) ในโฟลเดอร์ Google Drive [ระบบสมาชิก](https://drive.google.com/drive/folders/1kG-hz2vQ1hwbw-vX2xs80PyZhAN9ARz6?usp=sharing)
 
 ---
 

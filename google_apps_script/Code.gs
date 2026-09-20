@@ -2,13 +2,13 @@
  * =========================================================================
  * Medical Member Dashboard - Google Apps Script Backend (Realtime API)
  * ฐานข้อมูลหลัก: ฐานข้อมูลสมาชิกแพทย์เวชศาสตร์ครอบครัว_MasterDB_2026
- * Spreadsheet ID: 18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN
+ * Spreadsheet ID: 1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU
  * โฟลเดอร์ Google Drive: ระบบสมาชิก
  * URL: https://drive.google.com/drive/folders/1kG-hz2vQ1hwbw-vX2xs80PyZhAN9ARz6?usp=sharing
  * =========================================================================
  */
 
-const SPREADSHEET_ID = '18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN';
+const SPREADSHEET_ID = '1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU';
 const FALLBACK_SPREADSHEET_ID = '1AzFotDmKisar6OqrdPb-kIJewiPOGH7mx0O2Vc18Dxk';
 
 function getActiveSpreadsheet() {

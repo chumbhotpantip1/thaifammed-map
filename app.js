@@ -2707,8 +2707,8 @@ function resetToInitialData() {
 }
 
 /* ================= GOOGLE DRIVE & GOOGLE SHEET REALTIME SYNC ================= */
-const ACTIVE_SPREADSHEET_ID = '18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN';
-const ACTIVE_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN/edit?usp=drive_link';
+const ACTIVE_SPREADSHEET_ID = '1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU';
+const ACTIVE_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link';
 
 async function syncLiveSheetData(isSilent = false) {
   const btnHeader = document.getElementById('btn-live-sync-header');
