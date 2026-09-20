@@ -1,0 +1,12 @@
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Large local zip files (optional, can be kept if wanted)
+# medical-member-dashboard-complete.zip
