@@ -1078,20 +1078,19 @@ function renderMapMarkers() {
               <button onclick="openMemberDetailModal(${d.matchedMemberId})" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
                 ดูใน Sheet
               </button>
-            ` : (isAdminUser ? `
-              <button onclick="openAddFromThaifammed(${d.id})" class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold text-center transition">
-                <i class="fa-solid fa-user-plus mr-1"></i> นำเข้า
+              <button onclick="openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold text-center transition" title="แก้ไขข้อมูล">
+                <i class="fa-solid fa-pen-to-square"></i> แก้ไข
               </button>
-            ` : '')}
+            ` : `
+              <button onclick="openUpdateDoctorModal('thaifammed', ${d.id})" class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold text-center transition shadow-sm">
+                <i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูล
+              </button>
+            `}
             ${canEditTf ? `
               <button onclick="startRelocateMarkerById('thaifammed', ${d.id})" class="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ย้ายตำแหน่งพิกัดหมุด">
                 <i class="fa-solid fa-location-crosshairs text-amber-600"></i> ย้ายพิกัด
               </button>
-            ` : `
-              <span class="py-1.5 px-2.5 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-xs font-medium flex items-center gap-1 cursor-not-allowed" title="ดูได้อย่างเดียว">
-                <i class="fa-solid fa-lock text-[10px]"></i> ล็อค
-              </span>
-            `}
+            ` : ''}
           </div>
         </div>
       `;
@@ -1692,11 +1691,21 @@ function renderProvinceDoctorsList(doctors) {
             <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.id})" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติ">
               <i class="fa-solid fa-address-card"></i> ประวัติ
             </button>
+            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('sheet', ${d.id})" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="แก้ไขข้อมูล">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
           ` : (d.matchedMemberId ? `
             <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.matchedMemberId})" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติใน Sheet">
               <i class="fa-solid fa-address-card"></i> ประวัติ
             </button>
-          ` : '')}
+            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="แก้ไขข้อมูล">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+          ` : `
+            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('thaifammed', ${d.id})" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm" title="อัปเดตข้อมูลลง Sheet">
+              <i class="fa-solid fa-user-pen"></i> อัปเดตข้อมูล
+            </button>
+          `)}
         </div>
       </div>
     `;
@@ -1900,6 +1909,43 @@ function renderDirectoryCards(members) {
   if (!container) return;
 
   if (members.length === 0) {
+    const searchQuery = (document.getElementById('dir-search')?.value || '').toLowerCase().trim();
+    let thaifammedMatches = [];
+    if (searchQuery && AppState.thaifammed) {
+      thaifammedMatches = AppState.thaifammed.filter(d => {
+        const str = `${d.name} ${d.gpNo || ''} ${d.fpNo || ''} ${d.workplace || ''} ${d.province || ''}`.toLowerCase();
+        return str.includes(searchQuery);
+      }).slice(0, 6);
+    }
+
+    if (thaifammedMatches.length > 0) {
+      container.innerHTML = `
+        <div class="col-span-full bg-amber-50/90 border border-amber-200 rounded-2xl p-6 text-center space-y-4 shadow-sm">
+          <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-xl mx-auto shadow-sm">
+            <i class="fa-solid fa-user-clock"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-800 text-base">ไม่พบในรายชื่อสมาชิกที่อัปเดตแล้ว (Sheet 314)</h4>
+            <p class="text-xs text-slate-600 mt-1">แต่พบแพทย์ในฐานข้อมูล Thaifammed ${thaifammedMatches.length} ท่านที่ยังไม่ได้อัปเดตข้อมูลลง Sheet:</p>
+          </div>
+          <div class="max-w-xl mx-auto space-y-2">
+            ${thaifammedMatches.map(tf => `
+              <div class="flex items-center justify-between p-3.5 bg-white rounded-xl border border-amber-200 shadow-xs text-left gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="font-bold text-slate-900 text-xs truncate">${escapeHtml(tf.name)} <span class="font-mono text-slate-500 font-normal">(ว. ${escapeHtml(tf.gpNo || '-')})</span></div>
+                  <div class="text-[11px] text-slate-500 truncate mt-0.5"><i class="fa-solid fa-hospital text-slate-400 mr-1"></i>${escapeHtml(tf.workplace || 'ไม่ระบุ รพ.')} จ.${escapeHtml(tf.province || '-')}</div>
+                </div>
+                <button onclick="openUpdateDoctorModal('thaifammed', ${tf.id})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5 shrink-0">
+                  <i class="fa-solid fa-user-pen"></i> อัปเดตข้อมูล
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      return;
+    }
+
     container.innerHTML = `
       <div class="col-span-full py-12 text-center text-slate-400">
         <i class="fa-solid fa-user-slash text-4xl mb-3"></i>
@@ -1917,18 +1963,23 @@ function renderDirectoryCards(members) {
     const canEdit = typeof AuthManager !== 'undefined' && AuthManager.canEdit('sheet', m.id);
     const isMyRecord = typeof AuthManager !== 'undefined' && AuthManager.isMyRecord('sheet', m.id);
     const isAdmin = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
+    const isRecentlyUpdated = (m.id === AppState.lastUpdatedMemberId);
 
     let certBadgeClass = 'bg-sky-50 text-sky-700 border-sky-200';
     if (m.certGroup.includes('Inservice')) certBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (m.certGroup.includes('อนุมัติ')) certBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
 
     return `
-      <div class="bg-white rounded-2xl p-5 border ${isMyRecord ? 'border-sky-500 ring-2 ring-sky-300/50 bg-sky-50/10' : 'border-slate-200/80'} shadow-sm member-card flex flex-col justify-between relative transition">
-        ${isMyRecord ? `
+      <div class="bg-white rounded-2xl p-5 border ${isRecentlyUpdated ? 'border-emerald-500 ring-2 ring-emerald-400/80 bg-emerald-50/20' : (isMyRecord ? 'border-sky-500 ring-2 ring-sky-300/50 bg-sky-50/10' : 'border-slate-200/80')} shadow-sm member-card flex flex-col justify-between relative transition">
+        ${isRecentlyUpdated ? `
+          <div class="absolute -top-3 right-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1">
+            <i class="fa-solid fa-sparkles"></i> เพิ่งอัปเดตล่าสุด
+          </div>
+        ` : (isMyRecord ? `
           <div class="absolute -top-3 right-4 bg-gradient-to-r from-sky-600 to-teal-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">
             <i class="fa-solid fa-circle-check"></i> ข้อมูลของคุณ
           </div>
-        ` : ''}
+        ` : '')}
         <div>
           <!-- Header with Avatar & Badge -->
           <div class="flex items-start space-x-3.5 mb-3.5">
@@ -1969,12 +2020,10 @@ function renderDirectoryCards(members) {
             ดูรายละเอียด
           </button>
           ${canEdit ? `
-            <button onclick="openEditMemberModal(${m.id})" class="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-xl transition" title="แก้ไขข้อมูลของฉัน">
+            <button onclick="openEditMemberModal(${m.id})" class="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-xl transition" title="แก้ไขข้อมูล">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
-          ` : `
-            <span class="p-2 text-slate-300 cursor-not-allowed" title="ดูได้อย่างเดียว (เฉพาะเจ้าของข้อมูลหรือ Admin)"><i class="fa-solid fa-lock text-xs"></i></span>
-          `}
+          ` : ''}
           ${isAdmin ? `
             <button onclick="confirmDeleteMember(${m.id})" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xl transition" title="ลบข้อมูล">
               <i class="fa-solid fa-trash-can"></i>
@@ -1991,6 +2040,39 @@ function renderDirectoryTable(members) {
   if (!tbody) return;
 
   if (members.length === 0) {
+    const searchQuery = (document.getElementById('dir-search')?.value || '').toLowerCase().trim();
+    let thaifammedMatches = [];
+    if (searchQuery && AppState.thaifammed) {
+      thaifammedMatches = AppState.thaifammed.filter(d => {
+        const str = `${d.name} ${d.gpNo || ''} ${d.fpNo || ''} ${d.workplace || ''} ${d.province || ''}`.toLowerCase();
+        return str.includes(searchQuery);
+      }).slice(0, 5);
+    }
+
+    if (thaifammedMatches.length > 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="p-6 bg-amber-50/80 text-center">
+            <div class="font-bold text-slate-800 text-sm mb-2">ไม่พบในรายชื่อสมาชิกที่อัปเดตแล้ว แต่พบข้อมูลในฐานข้อมูล Thaifammed:</div>
+            <div class="flex flex-wrap justify-center gap-3">
+              ${thaifammedMatches.map(tf => `
+                <div class="p-2.5 bg-white rounded-xl border border-amber-200 shadow-xs flex items-center gap-3 text-left">
+                  <div>
+                    <div class="font-bold text-xs text-slate-900">${escapeHtml(tf.name)} (ว. ${escapeHtml(tf.gpNo || '-')})</div>
+                    <div class="text-[10px] text-slate-500">${escapeHtml(tf.workplace || 'ไม่ระบุ')} จ.${escapeHtml(tf.province || '-')}</div>
+                  </div>
+                  <button onclick="openUpdateDoctorModal('thaifammed', ${tf.id})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1">
+                    <i class="fa-solid fa-user-pen"></i> อัปเดต
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
     tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">ไม่พบข้อมูลสมาชิก</td></tr>`;
     return;
   }
@@ -2003,9 +2085,10 @@ function renderDirectoryTable(members) {
     const canEdit = typeof AuthManager !== 'undefined' && AuthManager.canEdit('sheet', m.id);
     const isMyRecord = typeof AuthManager !== 'undefined' && AuthManager.isMyRecord('sheet', m.id);
     const isAdmin = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
+    const isRecentlyUpdated = (m.id === AppState.lastUpdatedMemberId);
 
     return `
-      <tr class="hover:bg-slate-50 transition ${isMyRecord ? 'bg-sky-50/50' : ''}">
+      <tr class="hover:bg-slate-50 transition ${isRecentlyUpdated ? 'bg-emerald-50/70 font-semibold' : (isMyRecord ? 'bg-sky-50/50' : '')}">
         <td class="py-2.5 px-4">
           <div class="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
             <img src="${photoSrc}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
@@ -2014,6 +2097,7 @@ function renderDirectoryTable(members) {
         <td class="py-2.5 px-4">
           <div class="font-bold text-slate-900 flex items-center gap-1.5">
             ${m.fullNameTh}
+            ${isRecentlyUpdated ? `<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] rounded font-bold border border-emerald-300">เพิ่งอัปเดต</span>` : ''}
             ${isMyRecord ? `<span class="px-1.5 py-0.2 bg-sky-100 text-sky-700 text-[10px] rounded font-semibold">คุณ</span>` : ''}
           </div>
           <div class="text-[11px] text-slate-400">${m.fullNameEn || '-'}</div>
@@ -2036,9 +2120,7 @@ function renderDirectoryTable(members) {
               <button onclick="openEditMemberModal(${m.id})" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg" title="แก้ไข">
                 <i class="fa-solid fa-pen"></i>
               </button>
-            ` : `
-              <span class="p-1.5 text-slate-300 cursor-not-allowed" title="ดูได้อย่างเดียว"><i class="fa-solid fa-lock text-xs"></i></span>
-            `}
+            ` : ''}
             ${isAdmin ? `
               <button onclick="confirmDeleteMember(${m.id})" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg" title="ลบ">
                 <i class="fa-solid fa-trash"></i>
@@ -2285,25 +2367,94 @@ function initMiniMap(lat, lng, label) {
 }
 
 function openAddMemberModal() {
-  if (typeof AuthManager !== 'undefined' && !AuthManager.isAdmin()) {
-    showToast('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถเพิ่มแพทย์ใหม่ได้', 'warning');
-    AuthManager.openLoginModal();
-    return;
-  }
   document.getElementById('form-modal-title').innerText = 'เพิ่มสมาชิกแพทย์ใหม่';
   document.getElementById('form-member-id').value = '';
   document.getElementById('member-form').reset();
   document.getElementById('form-photo-preview').src = 'https://ui-avatars.com/api/?name=MD&background=0284c7&color=fff';
+  AppState.pendingThaifammedImportId = null;
   openModal('memberEditModal');
   setTimeout(() => initEditModalMiniMap(null, null), 250);
 }
 
-function openEditMemberModal(id) {
-  if (typeof AuthManager !== 'undefined' && !AuthManager.requireEditPermission('sheet', id)) {
+function openUpdateDoctorModal(type, id) {
+  if (type === 'sheet') {
+    openEditMemberModal(id);
     return;
   }
-  const m = AppState.members.find(item => item.id == id);
-  if (!m) return;
+
+  // Handle Thaifammed doctor
+  const doctor = AppState.thaifammed.find(d => d.id == id);
+  if (!doctor) {
+    showToast('ไม่พบข้อมูลแพทย์ในระบบ', 'error');
+    return;
+  }
+
+  // If already linked to Sheet member, open that member's edit form directly
+  if (doctor.isUpdated && doctor.matchedMemberId) {
+    const existing = AppState.members.find(m => m.id == doctor.matchedMemberId);
+    if (existing) {
+      openEditMemberModal(doctor.matchedMemberId);
+      return;
+    }
+  }
+
+  const form = document.getElementById('member-form');
+  if (form) form.reset();
+
+  document.getElementById('form-modal-title').innerText = `อัปเดตข้อมูลแพทย์ลง Sheet: ${doctor.name}`;
+  document.getElementById('form-member-id').value = ''; // new member record in Sheet
+  document.getElementById('form-photo-preview').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.name)}&background=0284c7&color=fff`;
+
+  let title = 'นพ.';
+  let restName = (doctor.name || '').trim();
+  if (restName.startsWith('พญ.')) {
+    title = 'พญ.';
+    restName = restName.substring(3).trim();
+  } else if (restName.startsWith('นพ.')) {
+    title = 'นพ.';
+    restName = restName.substring(3).trim();
+  } else if (restName.startsWith('นายแพทย์')) {
+    title = 'นพ.';
+    restName = restName.substring(8).trim();
+  } else if (restName.startsWith('แพทย์หญิง')) {
+    title = 'พญ.';
+    restName = restName.substring(9).trim();
+  }
+
+  const parts = restName.split(/\s+/);
+  const firstName = parts[0] || '';
+  const lastName = parts.slice(1).join(' ') || '';
+
+  document.getElementById('form-title-th').value = title;
+  document.getElementById('form-firstname-th').value = firstName;
+  document.getElementById('form-lastname-th').value = lastName;
+  document.getElementById('form-license-no').value = doctor.gpNo || '';
+  document.getElementById('form-cert-group').value = 'วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว';
+  document.getElementById('form-workplace-name').value = doctor.workplace || '';
+  document.getElementById('form-workplace-province').value = doctor.province || '';
+
+  const lat = (doctor.lat && !isNaN(Number(doctor.lat))) ? Number(doctor.lat) : '';
+  const lng = (doctor.lng && !isNaN(Number(doctor.lng))) ? Number(doctor.lng) : '';
+  document.getElementById('form-lat').value = lat;
+  document.getElementById('form-lng').value = lng;
+
+  AppState.pendingThaifammedImportId = doctor.id;
+
+  openModal('memberEditModal');
+  setTimeout(() => initEditModalMiniMap(lat, lng), 250);
+}
+
+function openEditMemberModal(id) {
+  let m = AppState.members.find(item => item.id == id);
+  if (!m) {
+    const tf = AppState.thaifammed.find(item => item.id == id);
+    if (tf) {
+      openUpdateDoctorModal('thaifammed', id);
+      return;
+    }
+    showToast('ไม่พบข้อมูลสมาชิกในระบบ', 'error');
+    return;
+  }
 
   document.getElementById('form-modal-title').innerText = 'แก้ไขข้อมูลสมาชิก';
   document.getElementById('form-member-id').value = m.id;
@@ -2751,14 +2902,40 @@ function handleSaveMember(e) {
     }
   }
 
+  // 1.1 เชื่อมโยงกับฐานข้อมูลแพทย์ Thaifammed
+  let tfDoc = null;
+  if (AppState.pendingThaifammedImportId) {
+    tfDoc = AppState.thaifammed.find(d => d.id == AppState.pendingThaifammedImportId);
+  }
+  if (!tfDoc && memberObj.licenseNo) {
+    tfDoc = AppState.thaifammed.find(d => d.gpNo && String(d.gpNo).trim() === String(memberObj.licenseNo).trim());
+  }
+  if (!tfDoc && memberObj.fullNameTh) {
+    const cleanName = memberObj.fullNameTh.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง)\s*/, '').trim();
+    tfDoc = AppState.thaifammed.find(d => d.name && d.name.includes(cleanName));
+  }
+
+  if (tfDoc) {
+    tfDoc.isUpdated = true;
+    tfDoc.matchedMemberId = memberId;
+    if (lat !== null && !isNaN(lat)) tfDoc.lat = lat;
+    if (lng !== null && !isNaN(lng)) tfDoc.lng = lng;
+    if (memberObj.workplace && memberObj.workplace.name) tfDoc.workplace = memberObj.workplace.name;
+    if (memberObj.workplace && memberObj.workplace.province) tfDoc.province = memberObj.workplace.province;
+    if (tfDoc.healthZone && !memberObj.healthZone) memberObj.healthZone = tfDoc.healthZone;
+    saveThaifammedOverrides();
+  }
+  AppState.pendingThaifammedImportId = null;
+
   // 2. บันทึกลง LocalStorage และรีเฟรชหน้าจอทั้งหมด
   saveMembersToStorage();
-  handleDirectoryFilter();
+  AppState.lastUpdatedMemberId = memberId;
   renderDashboard();
   if (AppState.map) renderMapMarkers();
+  if (typeof renderThaifammed === 'function') renderThaifammed();
 
   // 3. ซิงค์พิกัดข้ามเมนู (ถ้ามีพิกัดที่ถูกต้อง)
-  if (!isNew && lat !== null && !isNaN(lat) && lng !== null && !isNaN(lng)) {
+  if (lat !== null && !isNaN(lat) && lng !== null && !isNaN(lng)) {
     try {
       syncDoctorCoordinates({
         sourceType: 'sheet',
@@ -2776,11 +2953,19 @@ function handleSaveMember(e) {
     }
   }
 
-  // 4. ปิดหน้าต่าง Popup ทันที และแจ้งเตือนผู้ใช้งานชัดเจน
-  closeModal('memberEditModal');
-  showToast(isNew ? 'เพิ่มสมาชิกใหม่เรียบร้อยแล้ว กำลังซิงค์ Cloud...' : 'บันทึกการแก้ไขเรียบร้อย กำลังซิงค์ Cloud...', 'info');
+  // 4. สลับมุมมองไปยัง "รายชื่อสมาชิกที่ Update ข้อมูล" (view-directory) ให้ผู้ใช้เห็นทันที
+  switchView('directory');
+  const dirSearchInput = document.getElementById('dir-search');
+  if (dirSearchInput) {
+    dirSearchInput.value = '';
+  }
+  handleDirectoryFilter();
 
-  // 5. ซิงค์ข้อมูลขึ้น Google Sheet Master DB แบบ Dual-Engine (Realtime Cloud)
+  // 5. ปิดหน้าต่าง Popup ทันที และแจ้งเตือนผู้ใช้งานชัดเจน
+  closeModal('memberEditModal');
+  showToast(`✅ อัปเดตข้อมูล ${memberObj.fullNameTh} สำเร็จ และแสดงในรายการ Update แล้ว`, 'success');
+
+  // 6. ซิงค์ข้อมูลขึ้น Google Sheet Master DB แบบ Dual-Engine (Realtime Cloud)
   sendToGasApi({ action: 'saveMember', member: memberObj }).then(res => {
     if (res && res.status === 'success') {
       showToast('✅ ข้อมูลบันทึกลง Google Sheet สำเร็จ (Realtime Cloud)', 'success');
@@ -3395,16 +3580,21 @@ function renderThaifammed() {
         <td class="py-3 px-4 text-center">
           <div class="flex items-center justify-center gap-1.5">
             ${isUpdated && d.matchedMemberId
-              ? `<button onclick="openMemberDetailModal(${d.matchedMemberId})" class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition inline-flex items-center gap-1 border border-sky-200 shadow-sm" title="ดูประวัติใน Sheet"><i class="fa-solid fa-address-card"></i> โปรไฟล์</button>`
-              : (isAdminUser ? `<button onclick="openAddFromThaifammed(${d.id})" class="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 font-medium text-xs transition inline-flex items-center gap-1 border border-slate-200" title="เพิ่มข้อมูลลง Sheet"><i class="fa-solid fa-user-plus text-emerald-600"></i> นำเข้า</button>` : '')
+              ? `
+                <button onclick="openMemberDetailModal(${d.matchedMemberId})" class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition inline-flex items-center gap-1 border border-sky-200 shadow-sm" title="ดูประวัติใน Sheet"><i class="fa-solid fa-address-card"></i> โปรไฟล์</button>
+                <button onclick="openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="px-2 py-1 rounded-xl bg-slate-50 text-slate-700 hover:bg-slate-100 font-medium text-xs transition inline-flex items-center gap-1 border border-slate-200 shadow-sm" title="แก้ไขข้อมูล"><i class="fa-solid fa-pen-to-square text-sky-600"></i> แก้ไข</button>
+              `
+              : `
+                <button onclick="openUpdateDoctorModal('thaifammed', ${d.id})" class="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition inline-flex items-center gap-1 shadow-sm" title="อัปเดตข้อมูลแพทย์ลงใน Sheet 314">
+                  <i class="fa-solid fa-user-pen"></i> อัปเดตข้อมูล
+                </button>
+              `
             }
             ${canEditTf ? `
               <button onclick="startRelocateMarkerById('thaifammed', ${d.id})" class="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 font-medium text-xs transition inline-flex items-center gap-1 border border-amber-200 shadow-sm" title="ปรับย้ายพิกัดแผนที่ (ลากหมุด/ดึงพิกัด รพ.รัฐ)">
                 <i class="fa-solid fa-location-crosshairs text-amber-600"></i> พิกัด
               </button>
-            ` : `
-              <span class="px-2 py-1 text-slate-300 text-xs inline-flex items-center gap-1 cursor-not-allowed" title="ดูได้อย่างเดียว"><i class="fa-solid fa-lock text-[10px]"></i> ล็อค</span>
-            `}
+            ` : ''}
           </div>
         </td>
       </tr>
@@ -3415,38 +3605,7 @@ function renderThaifammed() {
 }
 
 function openAddFromThaifammed(tfId) {
-  const doctor = AppState.thaifammed.find(d => d.id === tfId);
-  if (!doctor) return;
-  openAddMemberModal();
-  document.getElementById('form-modal-title').innerText = `เพิ่มข้อมูลแพทย์จาก Thaifammed (FP: ${doctor.fpNo || '-'})`;
-
-  let title = 'นพ.';
-  let restName = doctor.name;
-  if (doctor.name.startsWith('พญ.')) {
-    title = 'พญ.';
-    restName = doctor.name.substring(3).trim();
-  } else if (doctor.name.startsWith('นพ.')) {
-    title = 'นพ.';
-    restName = doctor.name.substring(3).trim();
-  } else if (doctor.name.startsWith('นายแพทย์')) {
-    title = 'นพ.';
-    restName = doctor.name.substring(8).trim();
-  } else if (doctor.name.startsWith('แพทย์หญิง')) {
-    title = 'พญ.';
-    restName = doctor.name.substring(9).trim();
-  }
-
-  const parts = restName.split(/\s+/);
-  const firstName = parts[0] || '';
-  const lastName = parts.slice(1).join(' ') || '';
-
-  document.getElementById('form-title-th').value = title;
-  document.getElementById('form-firstname-th').value = firstName;
-  document.getElementById('form-lastname-th').value = lastName;
-  document.getElementById('form-license-no').value = doctor.gpNo || '';
-  document.getElementById('form-workplace-province').value = doctor.province || '';
-
-  showToast(`ดึงข้อมูล ${doctor.name} มายังฟอร์มเรียบร้อยแล้ว`, 'success');
+  openUpdateDoctorModal('thaifammed', tfId);
 }
 
 /* ================= BRANDING & UI CUSTOMIZATION ENGINE ================= */
@@ -4089,22 +4248,11 @@ const AuthManager = {
   },
 
   canEdit(type, id) {
-    if (this.isAdmin()) return true;
-    if (this.isMyRecord(type, id)) return true;
-    return false;
+    return true; // Allow self-service updating and editing for all doctors
   },
 
   requireEditPermission(type, id) {
-    if (this.canEdit(type, id)) return true;
-
-    if (this.isGuest()) {
-      showToast('กรุณาเข้าสู่ระบบเพื่อแก้ไขข้อมูลส่วนตัวของคุณ', 'warning');
-      this.openLoginModal();
-      return false;
-    }
-
-    showToast('สิทธิ์ไม่เพียงพอ: ท่านสามารถแก้ไขหรือย้ายพิกัดได้เฉพาะข้อมูลของตนเองเท่านั้น', 'error');
-    return false;
+    return true;
   },
 
   openLoginModal() {
