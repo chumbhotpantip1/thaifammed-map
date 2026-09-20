@@ -239,7 +239,7 @@ window.handleImgError = function(imgEl, driveId, encodedName) {
 
 /* ================= VIEW SWITCHING ================= */
 function switchView(viewName) {
-  if (viewName === 'management') {
+  if (viewName === 'management' || viewName === 'geo') {
     if (typeof AuthManager !== 'undefined' && !AuthManager.canAccessMasterDb()) {
       if (AuthManager.isGuest()) {
         showToast('กรุณาเข้าสู่ระบบก่อน (เฉพาะ Admin หรือผู้ได้รับมอบหมายสิทธิ์เท่านั้น)', 'warning');
@@ -2366,9 +2366,19 @@ function centerMiniMapOnCurrentPin() {
 // Requirement: ขยายหน้าจอให้ใหญ่เต็มจอเพื่อการเคลื่อนหมุดทำได้ง่ายขึ้น
 function toggleMiniMapFullscreen() {
   const wrapper = document.getElementById('edit-minimap-wrapper');
-  if (!wrapper) return;
+  const slot = document.getElementById('edit-minimap-slot');
+  if (!wrapper || !slot) return;
 
   const isFull = wrapper.classList.toggle('minimap-fullscreen-active');
+
+  // DOM reparenting: move wrapper to document.body to escape the modal's
+  // CSS transform (animate-fade-in) which traps position:fixed elements.
+  if (isFull) {
+    document.body.appendChild(wrapper);
+  } else {
+    slot.appendChild(wrapper);
+  }
+
   const btn = document.getElementById('btn-minimap-fullscreen');
   if (btn) {
     btn.innerHTML = isFull 
@@ -2787,6 +2797,10 @@ async function syncLiveSheetData(isSilent = false) {
 
 /* ================= GAS CONFIGURATION MODAL HANDLERS ================= */
 function openGasConfigModal() {
+  if (typeof AuthManager !== 'undefined' && !AuthManager.canAccessMasterDb()) {
+    showToast('สิทธิ์ไม่เพียงพอ: เฉพาะ Admin หรือผู้ได้รับมอบหมายเท่านั้น', 'error');
+    return;
+  }
   const currentUrl = getGasEndpoint();
   const inputEl = document.getElementById('gas-endpoint-input');
   const statusEl = document.getElementById('gas-config-status');
@@ -2862,6 +2876,10 @@ async function testAndSaveGasEndpoint() {
 
 /* ================= IMPORT / EXPORT ================= */
 function exportDataToCsv() {
+  if (typeof AuthManager !== 'undefined' && !AuthManager.canAccessMasterDb()) {
+    showToast('สิทธิ์ไม่เพียงพอ: เฉพาะ Admin หรือผู้ได้รับมอบหมายเท่านั้น', 'error');
+    return;
+  }
   const headers = [
     'ประทับเวลา', 'ประเภทการลงทะเบียน', 'ที่อยู่อีเมล', 'คำนำหน้าภาษาไทย', 'ชื่อภาษาไทย', 'นามสกุลภาษาไทย',
     'ชื่อ-นามสกุล', 'คำนำหน้าภาษาอังกฤษ', 'ชื่อภาษาอังกฤษ', 'นามสกุลภาษาอังกฤษ',
@@ -2924,6 +2942,10 @@ function exportDataToCsv() {
 }
 
 function exportDataToJson() {
+  if (typeof AuthManager !== 'undefined' && !AuthManager.canAccessMasterDb()) {
+    showToast('สิทธิ์ไม่เพียงพอ: เฉพาะ Admin หรือผู้ได้รับมอบหมายเท่านั้น', 'error');
+    return;
+  }
   const payload = {
     exportDate: new Date().toISOString(),
     totalMembers: AppState.members.length,
@@ -2961,6 +2983,19 @@ function openModal(id) {
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
+
+  // If closing the member edit modal, restore minimap wrapper to its slot
+  // (in case it was reparented to document.body during fullscreen mode)
+  if (id === 'memberEditModal') {
+    const wrapper = document.getElementById('edit-minimap-wrapper');
+    const slot = document.getElementById('edit-minimap-slot');
+    if (wrapper && slot && wrapper.classList.contains('minimap-fullscreen-active')) {
+      wrapper.classList.remove('minimap-fullscreen-active');
+      slot.appendChild(wrapper);
+      const btn = document.getElementById('btn-minimap-fullscreen');
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i> ขยายเต็มจอ';
+    }
+  }
 }
 
 function showToast(msg, type = 'success') {
@@ -4216,6 +4251,31 @@ const AuthManager = {
       }
     }
     this.updateDelegatesUI();
+
+    // Toggle visibility of restricted DB-access elements
+    const canDb = this.canAccessMasterDb();
+    const restrictedIds = [
+      'sidebar-master-db-link',
+      'nav-management',
+      'nav-geo',
+      'header-cloud-sync-group',
+      'header-export-csv'
+    ];
+    restrictedIds.forEach(elId => {
+      const restrictedEl = document.getElementById(elId);
+      if (restrictedEl) {
+        if (canDb) {
+          restrictedEl.classList.remove('hidden');
+          // Restore flex display for elements that need it
+          if (elId === 'header-cloud-sync-group' || elId === 'header-export-csv') {
+            restrictedEl.style.display = 'flex';
+          }
+        } else {
+          restrictedEl.classList.add('hidden');
+          restrictedEl.style.display = '';
+        }
+      }
+    });
 
     // 1. Render Sidebar Container
     if (sidebarContainer) {

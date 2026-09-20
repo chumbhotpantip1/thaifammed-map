@@ -112,12 +112,12 @@
             <span>คลังรูปภาพสมาชิก (Photos)</span>
           </button>
 
-          <button onclick="switchView('geo')" id="nav-geo" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
+          <button onclick="switchView('geo')" id="nav-geo" class="nav-item w-full items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70 hidden">
             <i class="fa-solid fa-location-crosshairs w-5 text-center text-base text-amber-400"></i>
             <span>ฐานข้อมูลพิกัด (Geo Master)</span>
           </button>
 
-          <button onclick="switchView('management')" id="nav-management" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
+          <button onclick="switchView('management')" id="nav-management" class="nav-item w-full items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70 hidden">
             <i class="fa-solid fa-database w-5 text-center text-base text-rose-400"></i>
             <span class="flex-1 text-left">การจัดการข้อมูล & ซิงค์</span>
             <span id="sidebar-management-lock" class="text-xs text-rose-400" title="ต้องใช้สิทธิ์ Admin หรือผู้ได้รับมอบหมาย"><i class="fa-solid fa-lock"></i></span>
@@ -140,7 +140,7 @@
           </span>
         </div>
         <div class="pt-1 flex gap-2">
-          <a href="https://docs.google.com/spreadsheets/d/18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN/edit?usp=drive_link" target="_blank" class="flex-1 py-1.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-700/50 rounded-lg text-emerald-300 text-center transition text-[11px]" title="Google Sheet ฐานข้อมูล Master DB (18sXvaCY...)">
+          <a href="https://docs.google.com/spreadsheets/d/18sXvaCY6aP7SsN5Ak6DWWDNzQRhcC1YN/edit?usp=drive_link" target="_blank" id="sidebar-master-db-link" class="hidden flex-1 py-1.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-700/50 rounded-lg text-emerald-300 text-center transition text-[11px]" title="Google Sheet ฐานข้อมูล Master DB (เฉพาะผู้ดูแลระบบ)">
             <i class="fa-solid fa-file-excel text-emerald-400"></i> Master DB
           </a>
           <a href="https://database.thaifammed.org/thai_family_physicians_fp.php" target="_blank" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700/80 rounded-lg text-slate-300 text-center transition text-[11px]" title="เว็บ Thaifammed Database">
@@ -177,8 +177,8 @@
           <!-- Auth User Status Container (Dynamically rendered) -->
           <div id="auth-header-container" class="flex items-center space-x-2"></div>
 
-          <!-- Cloud Sync Group -->
-          <div class="hidden sm:flex items-center rounded-xl border border-emerald-300 bg-emerald-50 overflow-hidden shadow-sm">
+          <!-- Cloud Sync Group (Restricted to Admin & Delegated) -->
+          <div id="header-cloud-sync-group" class="hidden items-center rounded-xl border border-emerald-300 bg-emerald-50 overflow-hidden shadow-sm">
             <button onclick="syncLiveSheetData()" id="btn-live-sync-header" class="flex items-center space-x-1.5 px-3 py-2 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition" title="ซิงค์ข้อมูลสด Real-time กับ Google Sheet">
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span class="hidden md:inline">ซิงค์ Google Drive</span>
@@ -188,7 +188,7 @@
             </button>
           </div>
 
-          <button onclick="exportDataToCsv()" class="hidden md:flex items-center space-x-2 px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium transition shadow-sm">
+          <button id="header-export-csv" onclick="exportDataToCsv()" class="hidden items-center space-x-2 px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium transition shadow-sm">
             <i class="fa-solid fa-file-arrow-down text-emerald-600"></i>
             <span>ส่งออก CSV</span>
           </button>
@@ -216,7 +216,7 @@
                 <i class="fa-solid fa-map-location-dot"></i> สำรวจแผนที่
               </button>
               <button onclick="switchView('thaifammed')" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl text-sm transition flex items-center gap-2 shadow-lg shadow-emerald-600/30">
-                <i class="fa-solid fa-hospital-user"></i> สมาชิกในฐานข้อมูลThaifammed (3,750 คน)
+                <i class="fa-solid fa-hospital-user"></i> ทำเนียบแพทย์เวชศาสตร์ครอบครัว (3,750 คน)
               </button>
             </div>
           </div>
@@ -1768,52 +1768,54 @@
           </div>
 
           <!-- Interactive Mini-Map for Pin Relocation inside Edit Popup -->
-          <div id="edit-minimap-wrapper" class="p-3 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2 relative transition-all duration-300">
-            <!-- Normal Header -->
-            <div class="flex items-center justify-between flex-wrap gap-1.5">
-              <span class="font-bold text-amber-900 text-xs flex items-center gap-1.5">
-                <i class="fa-solid fa-location-crosshairs text-amber-600 text-sm animate-pulse"></i> ปักหมุดและย้ายพิกัดบนแผนที่:
-              </span>
-              <div class="flex items-center gap-2">
-                <span id="minimap-coords-display" class="text-[11px] text-amber-800 font-mono font-semibold">ลากหมุดสีส้ม หรือคลิกบนแผนที่</span>
-                <button type="button" id="btn-minimap-fullscreen" onclick="toggleMiniMapFullscreen()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm" title="ขยายแผนที่เต็มจอ">
-                  <i class="fa-solid fa-expand"></i> ขยายเต็มจอ
-                </button>
-              </div>
-            </div>
-
-            <!-- Fullscreen Floating Topbar (Only visible when fullscreen) -->
-            <div id="minimap-fullscreen-bar" class="hidden absolute top-4 left-4 right-4 z-[1001] bg-slate-900/90 backdrop-blur-md text-white p-3 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-between gap-3">
-              <div class="flex items-center space-x-3 min-w-0">
-                <div class="w-9 h-9 rounded-xl bg-amber-500/30 border border-amber-400/50 flex items-center justify-center text-amber-300 text-base shrink-0">
-                  <i class="fa-solid fa-location-crosshairs"></i>
-                </div>
-                <div class="min-w-0">
-                  <div class="font-bold text-xs flex items-center gap-2">
-                    <span>โหมดปักหมุดพิกัดเต็มจอ (สามารถเลือกภาพถ่ายดาวเทียมได้ที่ปุ่มมุมขวาบน)</span>
-                  </div>
-                  <div id="minimap-fullscreen-coords" class="text-[11px] text-amber-300 font-mono">
-                    พิกัดปัจจุบัน: Lat -, Lng -
-                  </div>
+          <div id="edit-minimap-slot" class="w-full">
+            <div id="edit-minimap-wrapper" class="p-3 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2 relative transition-all duration-300">
+              <!-- Normal Header -->
+              <div class="flex items-center justify-between flex-wrap gap-1.5">
+                <span class="font-bold text-amber-900 text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-location-crosshairs text-amber-600 text-sm animate-pulse"></i> ปักหมุดและย้ายพิกัดบนแผนที่:
+                </span>
+                <div class="flex items-center gap-2">
+                  <span id="minimap-coords-display" class="text-[11px] text-amber-800 font-mono font-semibold">ลากหมุดสีส้ม หรือคลิกบนแผนที่</span>
+                  <button type="button" id="btn-minimap-fullscreen" onclick="toggleMiniMapFullscreen()" class="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg font-bold text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95" title="ขยายแผนที่เต็มจอ">
+                    <i class="fa-solid fa-expand"></i> ขยายเต็มจอ
+                  </button>
                 </div>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <button type="button" onclick="centerMiniMapOnCurrentPin()" class="px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1 border border-white/20">
-                  <i class="fa-solid fa-crosshairs text-amber-300"></i> เล็งกึ่งกลางหมุด
-                </button>
-                <button type="button" onclick="toggleMiniMapFullscreen()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg">
-                  <i class="fa-solid fa-compress"></i> ย่อกลับ (ESC)
+
+              <!-- Fullscreen Floating Topbar (Only visible when fullscreen) -->
+              <div id="minimap-fullscreen-bar" class="hidden absolute top-4 left-4 right-4 z-[1001] bg-slate-900/90 backdrop-blur-md text-white p-3 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-between gap-3">
+                <div class="flex items-center space-x-3 min-w-0">
+                  <div class="w-9 h-9 rounded-xl bg-amber-500/30 border border-amber-400/50 flex items-center justify-center text-amber-300 text-base shrink-0">
+                    <i class="fa-solid fa-location-crosshairs"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-bold text-xs flex items-center gap-2">
+                      <span>โหมดปักหมุดพิกัดเต็มจอ (สามารถเลือกภาพถ่ายดาวเทียมได้ที่ปุ่มมุมขวาบน)</span>
+                    </div>
+                    <div id="minimap-fullscreen-coords" class="text-[11px] text-amber-300 font-mono">
+                      พิกัดปัจจุบัน: Lat -, Lng -
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button type="button" onclick="centerMiniMapOnCurrentPin()" class="px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1 border border-white/20">
+                    <i class="fa-solid fa-crosshairs text-amber-300"></i> เล็งกึ่งกลางหมุด
+                  </button>
+                  <button type="button" onclick="toggleMiniMapFullscreen()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg">
+                    <i class="fa-solid fa-compress"></i> ย่อกลับ (ESC)
+                  </button>
+                </div>
+              </div>
+
+              <div id="edit-modal-minimap" class="h-52 w-full rounded-xl border border-amber-300 shadow-inner overflow-hidden relative"></div>
+              
+              <div class="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                <span>💡 คลิกบนแผนที่หรือลากหมุดเพื่อเปลี่ยนพิกัดทันที (เลือกดาวเทียมที่มุมขวาบน)</span>
+                <button type="button" onclick="centerMiniMapOnCurrentPin()" class="px-2 py-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-semibold transition flex items-center gap-1 shadow-sm">
+                  <i class="fa-solid fa-crosshairs"></i> เล็งกึ่งกลางหมุด
                 </button>
               </div>
-            </div>
-
-            <div id="edit-modal-minimap" class="h-52 w-full rounded-xl border border-amber-300 shadow-inner overflow-hidden relative"></div>
-            
-            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
-              <span>💡 คลิกบนแผนที่หรือลากหมุดเพื่อเปลี่ยนพิกัดทันที (เลือกดาวเทียมที่มุมขวาบน)</span>
-              <button type="button" onclick="centerMiniMapOnCurrentPin()" class="px-2 py-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-semibold transition flex items-center gap-1 shadow-sm">
-                <i class="fa-solid fa-crosshairs"></i> เล็งกึ่งกลางหมุด
-              </button>
             </div>
           </div>
         </div>
