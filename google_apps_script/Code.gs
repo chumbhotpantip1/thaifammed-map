@@ -259,11 +259,60 @@ function updateDoctorCoordinateInSheet(memberId, lat, lng, workplace, sourceType
   return { success: false, message: 'ไม่พบรหัสสมาชิก ID ' + id };
 }
 
+const DRIVE_FOLDER_ID = '1kG-hz2vQ1hwbw-vX2xs80PyZhAN9ARz6';
+
+/**
+ * จัดการบันทึกรูปภาพลง Google Drive โฟลเดอร์ "ระบบสมาชิก"
+ */
+function processPhotoAndSaveToDrive(member) {
+  if (!member) return;
+  var rawPhoto = member.photoUrl || '';
+  if (rawPhoto.indexOf('data:image') === 0) {
+    try {
+      var folder;
+      try {
+        folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+      } catch (fErr) {
+        folder = DriveApp.getRootFolder();
+      }
+      var parts = rawPhoto.split(',');
+      var meta = parts[0];
+      var base64 = parts[1];
+      var mime = 'image/jpeg';
+      if (meta.indexOf('image/png') !== -1) mime = 'image/png';
+      else if (meta.indexOf('image/webp') !== -1) mime = 'image/webp';
+
+      var ext = mime === 'image/png' ? 'png' : 'jpg';
+      var fileName = 'doctor_' + (member.licenseNo || member.id || Date.now()) + '.' + ext;
+      var blob = Utilities.newBlob(Utilities.base64Decode(base64), mime, fileName);
+      var file = folder.createFile(blob);
+      try {
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (shareErr) {}
+      var fileId = file.getId();
+      member.photoDriveId = fileId;
+      member.photoUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=w500';
+      Logger.log('Saved photo to Drive successfully. ID: ' + fileId);
+    } catch (photoErr) {
+      Logger.log('Failed to save photo to Drive: ' + photoErr);
+    }
+  } else if (rawPhoto && !member.photoDriveId) {
+    var driveMatch = rawPhoto.match(/[-\w]{25,}/);
+    if (driveMatch && (rawPhoto.indexOf('drive.google.com') !== -1 || rawPhoto.indexOf('googleusercontent.com') !== -1)) {
+      member.photoDriveId = driveMatch[0];
+      member.photoUrl = 'https://lh3.googleusercontent.com/d/' + driveMatch[0] + '=w500';
+    }
+  }
+}
+
 /**
  * บันทึกหรือแก้ไขข้อมูลสมาชิกใน Sheet
  */
 function saveMemberInSheet(member) {
   if (!member) return { success: false, message: 'ไม่มีข้อมูลสมาชิก' };
+
+  // ประมวลผลรูปภาพและอัปโหลดขึ้น Google Drive
+  processPhotoAndSaveToDrive(member);
 
   var ss = getActiveSpreadsheet();
   var sheet = ss.getSheetByName('02_สมาชิกอัปเดตแล้ว_Sheet_314') ||
@@ -361,8 +410,17 @@ function saveMemberInSheet(member) {
     if (colMap['โทรศัพท์มือถือ'] && member.mobilePhone) sheet.getRange(targetRow, colMap['โทรศัพท์มือถือ']).setValue(member.mobilePhone);
     if (colMap['อีเมล'] && member.email) sheet.getRange(targetRow, colMap['อีเมล']).setValue(member.email);
     if (colMap['Drive_Photo_ID'] && member.photoDriveId) sheet.getRange(targetRow, colMap['Drive_Photo_ID']).setValue(member.photoDriveId);
+    if (colMap['Drive_Image_URL'] && member.photoUrl) sheet.getRange(targetRow, colMap['Drive_Image_URL']).setValue(member.photoUrl);
     var actualId = sheet.getRange(targetRow, idCol).getValue() || member.id;
-    return { success: true, status: 'updated', id: actualId, row: targetRow, updatedTime: new Date().toISOString() };
+    return {
+      success: true,
+      status: 'updated',
+      id: actualId,
+      row: targetRow,
+      photoDriveId: member.photoDriveId || '',
+      photoUrl: member.photoUrl || '',
+      updatedTime: new Date().toISOString()
+    };
   } else {
     // เพิ่มแถวใหม่ต่อท้าย พร้อมรัน ID ตามลำดับจริง
     var maxId = 0;
@@ -400,6 +458,14 @@ function saveMemberInSheet(member) {
       member.photoDriveId || '',
       member.photoUrl || ''
     ]);
-    return { success: true, status: 'created', id: newId, row: sheet.getLastRow(), updatedTime: new Date().toISOString() };
+    return {
+      success: true,
+      status: 'created',
+      id: newId,
+      row: sheet.getLastRow(),
+      photoDriveId: member.photoDriveId || '',
+      photoUrl: member.photoUrl || '',
+      updatedTime: new Date().toISOString()
+    };
   }
 }

@@ -55,7 +55,7 @@ const STORAGE_KEY_CREDENTIALS = 'MEDICAL_DASHBOARD_CREDENTIALS_V1';
 const STORAGE_KEY_DELEGATES = 'MEDICAL_DASHBOARD_DELEGATES_V1';
 
 // Default GAS Endpoint (realtime Google Apps Script Web App API for Sheet 1PVM2q...)
-const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwni60636sNcnQQkqdphsInDkLJqJudCRpRFDNMo5zcq2Cgz5Fwgv8VJRKkZnFAtQ2DVA/exec';
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyBksJGl_Nzlu4pv2yY63EPRpq9zHWEt_Rwicc7j_9nFBZI1-1TiBRqCErA0lRKWYFa/exec';
 
 function getGasEndpoint() {
   return localStorage.getItem(STORAGE_KEY_GAS_URL) || DEFAULT_GAS_URL || '';
@@ -98,7 +98,8 @@ function cleanMemberPayload(m) {
     lng: (m.lng !== null && !isNaN(Number(m.lng))) ? Number(m.lng) : '',
     mobilePhone: m.mobilePhone || '',
     email: m.email || '',
-    photoDriveId: m.photoDriveId || ''
+    photoDriveId: m.photoDriveId || '',
+    photoUrl: m.photoUrl || ''
   };
 }
 
@@ -160,7 +161,12 @@ async function sendToGasApi(payload) {
     if (payload.action === 'updateCoordinate') {
       getUrl += `${sep}action=updateCoordinate&memberId=${encodeURIComponent(payload.memberId)}&lat=${encodeURIComponent(payload.lat)}&lng=${encodeURIComponent(payload.lng)}&workplace=${encodeURIComponent(payload.workplace || '')}&sourceType=${encodeURIComponent(payload.sourceType || 'sheet')}`;
     } else if (payload.action === 'saveMember') {
-      getUrl += `${sep}action=saveMember&data=${encodeURIComponent(JSON.stringify(cleanPayload.member))}`;
+      // In GET fallback, strip out huge base64 data to avoid URI Too Long (414) error
+      const getMember = { ...cleanPayload.member };
+      if (getMember.photoUrl && getMember.photoUrl.startsWith('data:image')) {
+        delete getMember.photoUrl;
+      }
+      getUrl += `${sep}action=saveMember&data=${encodeURIComponent(JSON.stringify(getMember))}`;
     } else {
       getUrl += `${sep}action=${encodeURIComponent(payload.action)}`;
     }
@@ -177,20 +183,24 @@ async function sendToGasApi(payload) {
 
 /* ================= INITIALIZATION ================= */
 document.addEventListener('DOMContentLoaded', () => {
-  BrandingManager.init();
-  initData();
-  AuthManager.init();
-  populateFilterDropdowns();
-  populateGovHospitalsDatalist();
-  renderDashboard();
-  setupEventListeners();
-  updateStorageStatus();
+  try {
+    BrandingManager.init();
+    initData();
+    AuthManager.init();
+    populateFilterDropdowns();
+    populateGovHospitalsDatalist();
+    renderDashboard();
+    setupEventListeners();
+    updateStorageStatus();
+  } catch (initErr) {
+    console.error('Initialization error in DOMContentLoaded:', initErr);
+  }
 
   // If cloud sync URL is configured, auto-sync latest data in background
   if (getGasEndpoint()) {
     setTimeout(() => {
       syncLiveSheetData(true);
-    }, 1200);
+    }, 400);
   }
 });
 
@@ -511,11 +521,13 @@ function renderDashboard() {
   const workplaceTypeCounts = {};
 
   AppState.members.forEach(m => {
-    if (m.certGroup.includes('Formal') || m.certTypeRaw.includes('แผน ก')) {
+    const cg = String(m.certGroup || '');
+    const ct = String(m.certTypeRaw || '');
+    if (cg.includes('Formal') || ct.includes('แผน ก') || cg.includes('วว.')) {
       formalCount++;
-    } else if (m.certGroup.includes('Inservice') || m.certTypeRaw.includes('แผน ข')) {
+    } else if (cg.includes('Inservice') || ct.includes('แผน ข')) {
       inserviceCount++;
-    } else if (m.certGroup.includes('อนุมัติ') || m.certGroup.includes('อว.')) {
+    } else if (cg.includes('อนุมัติ') || cg.includes('อว.')) {
       auCount++;
     } else {
       formalCount++;
@@ -530,26 +542,34 @@ function renderDashboard() {
       medSchoolCounts[shortSchool] = (medSchoolCounts[shortSchool] || 0) + 1;
     }
 
-    const prov = (m.workplace && m.workplace.province) || (m.homeAddress && m.homeAddress.province) || 'ไม่ระบุ';
+    const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { province: String(m.workplace || ''), type: 'รัฐบาล' };
+    const prov = wp.province || (m.homeAddress && m.homeAddress.province) || 'ไม่ระบุ';
     const cleanProv = prov.replace('จังหวัด', '').trim();
     if (cleanProv) {
       provinceCounts[cleanProv] = (provinceCounts[cleanProv] || 0) + 1;
     }
 
-    const wpType = (m.workplace && m.workplace.type) || 'รัฐบาล';
+    const wpType = wp.type || 'รัฐบาล';
     const cleanType = wpType.includes('รัฐ') ? 'รัฐบาล' : (wpType.includes('เอกชน') ? 'เอกชน' : 'ส่วนตัว/อิสระ');
     workplaceTypeCounts[cleanType] = (workplaceTypeCounts[cleanType] || 0) + 1;
   });
 
   const wwTotal = formalCount + inserviceCount;
 
-  document.getElementById('kpi-total-members').innerText = total;
-  document.getElementById('kpi-ww-total').innerText = wwTotal;
-  document.getElementById('kpi-ww-formal').innerText = formalCount;
-  document.getElementById('kpi-ww-inservice').innerText = inserviceCount;
-  document.getElementById('kpi-au-total').innerText = auCount;
-  document.getElementById('kpi-geocoded-count').innerText = geocodedCount;
-  document.getElementById('kpi-photo-count').innerText = photoCount;
+  const elTotal = document.getElementById('kpi-total-members');
+  if (elTotal) elTotal.innerText = total;
+  const elWwTot = document.getElementById('kpi-ww-total');
+  if (elWwTot) elWwTot.innerText = wwTotal;
+  const elWwF = document.getElementById('kpi-ww-formal');
+  if (elWwF) elWwF.innerText = formalCount;
+  const elWwIns = document.getElementById('kpi-ww-inservice');
+  if (elWwIns) elWwIns.innerText = inserviceCount;
+  const elAuTot = document.getElementById('kpi-au-total');
+  if (elAuTot) elAuTot.innerText = auCount;
+  const elGeo = document.getElementById('kpi-geocoded-count');
+  if (elGeo) elGeo.innerText = geocodedCount;
+  const elPhoto = document.getElementById('kpi-photo-count');
+  if (elPhoto) elPhoto.innerText = photoCount;
 
   const targetWw = 1626;
   const targetAu = 6357;
@@ -581,17 +601,21 @@ function renderDashboard() {
   const bSelf = document.getElementById('badge-wp-self');
   if (bSelf) bSelf.innerText = workplaceTypeCounts['ส่วนตัว/อิสระ'] || 0;
 
-  renderCertDoughnut(formalCount, inserviceCount, auCount);
-  renderHealthZonesBar(AppState.thaifammedStats ? AppState.thaifammedStats.zoneCounts : {});
-  renderMedSchoolBar(medSchoolCounts);
-  renderProvinceBar(provinceCounts);
-  renderWorkplaceDoughnut(workplaceTypeCounts);
+  if (typeof Chart !== 'undefined') {
+    try { renderCertDoughnut(formalCount, inserviceCount, auCount); } catch (e) { console.warn('renderCertDoughnut warning:', e); }
+    try { renderHealthZonesBar(AppState.thaifammedStats ? AppState.thaifammedStats.zoneCounts : {}); } catch (e) { console.warn('renderHealthZonesBar warning:', e); }
+    try { renderMedSchoolBar(medSchoolCounts); } catch (e) { console.warn('renderMedSchoolBar warning:', e); }
+    try { renderProvinceBar(provinceCounts); } catch (e) { console.warn('renderProvinceBar warning:', e); }
+    try { renderWorkplaceDoughnut(workplaceTypeCounts); } catch (e) { console.warn('renderWorkplaceDoughnut warning:', e); }
+  }
 }
 
 function renderCertDoughnut(formal, inservice, au) {
   const ctx = document.getElementById('chart-cert-doughnut');
-  if (!ctx) return;
-  if (AppState.charts.certDoughnut) AppState.charts.certDoughnut.destroy();
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (AppState.charts.certDoughnut) {
+    try { AppState.charts.certDoughnut.destroy(); } catch (e) {}
+  }
 
   AppState.charts.certDoughnut = new Chart(ctx, {
     type: 'doughnut',
@@ -611,7 +635,7 @@ function renderCertDoughnut(formal, inservice, au) {
         legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Prompt', size: 11 } } },
         tooltip: {
           callbacks: {
-            label: (ctx) => ` ${ctx.label}: ${ctx.raw} คน (${((ctx.raw / (formal+inservice+au))*100).toFixed(1)}%)`
+            label: (ctx) => ` ${ctx.label}: ${ctx.raw} คน (${((ctx.raw / ((formal+inservice+au) || 1))*100).toFixed(1)}%)`
           }
         }
       },
@@ -622,14 +646,29 @@ function renderCertDoughnut(formal, inservice, au) {
 
 function renderHealthZonesBar(zoneCounts) {
   const ctx = document.getElementById('chart-health-zones');
-  if (!ctx) return;
-  if (AppState.charts.healthZonesBar) AppState.charts.healthZonesBar.destroy();
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (AppState.charts.healthZonesBar) {
+    try { AppState.charts.healthZonesBar.destroy(); } catch (e) {}
+  }
+
+  let counts = { ...(zoneCounts || {}) };
+  const hasValidCounts = Object.values(counts).some(v => v > 0);
+  if (!hasValidCounts && AppState.thaifammed && AppState.thaifammed.length > 0) {
+    counts = {};
+    AppState.thaifammed.forEach(d => {
+      const z = String(d.healthZone || '').trim();
+      if (z) {
+        const key = z.startsWith('เขต') ? z : `เขต ${z}`;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    });
+  }
 
   const zones = [];
   let totalInZones = 0;
   for (let z = 1; z <= 13; z++) {
     const key = `เขต ${z}`;
-    const count = (zoneCounts && zoneCounts[key]) ? zoneCounts[key] : 0;
+    const count = (counts && counts[key]) ? counts[key] : 0;
     totalInZones += count;
     zones.push({
       label: z === 13 ? 'เขต 13 (กทม.)' : `เขต ${z}`,
@@ -680,8 +719,10 @@ function renderHealthZonesBar(zoneCounts) {
 
 function renderMedSchoolBar(schoolCounts) {
   const ctx = document.getElementById('chart-medschool-bar');
-  if (!ctx) return;
-  if (AppState.charts.medSchoolBar) AppState.charts.medSchoolBar.destroy();
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (AppState.charts.medSchoolBar) {
+    try { AppState.charts.medSchoolBar.destroy(); } catch (e) {}
+  }
 
   const sorted = Object.entries(schoolCounts)
     .sort((a, b) => b[1] - a[1])
@@ -715,8 +756,10 @@ function renderMedSchoolBar(schoolCounts) {
 
 function renderProvinceBar(provinceCounts) {
   const ctx = document.getElementById('chart-province-bar');
-  if (!ctx) return;
-  if (AppState.charts.provinceBar) AppState.charts.provinceBar.destroy();
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (AppState.charts.provinceBar) {
+    try { AppState.charts.provinceBar.destroy(); } catch (e) {}
+  }
 
   const sorted = Object.entries(provinceCounts)
     .sort((a, b) => b[1] - a[1])
@@ -751,8 +794,10 @@ function renderProvinceBar(provinceCounts) {
 
 function renderWorkplaceDoughnut(wpCounts) {
   const ctx = document.getElementById('chart-workplace-doughnut');
-  if (!ctx) return;
-  if (AppState.charts.workplaceDoughnut) AppState.charts.workplaceDoughnut.destroy();
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (AppState.charts.workplaceDoughnut) {
+    try { AppState.charts.workplaceDoughnut.destroy(); } catch (e) {}
+  }
 
   const labels = Object.keys(wpCounts);
   const data = Object.values(wpCounts);
@@ -1022,15 +1067,18 @@ function renderMapMarkers() {
       if (zoneFilter !== 'all' && String(m.healthZone) !== zoneFilter) return;
 
       // Filter Cert
-      if (certFilter !== 'all' && !m.certGroup.includes(certFilter) && !m.certTypeRaw.includes(certFilter)) return;
+      const cg = String(m.certGroup || '');
+      const ct = String(m.certTypeRaw || '');
+      if (certFilter !== 'all' && !cg.includes(certFilter) && !ct.includes(certFilter)) return;
 
       // Filter Province
-      const mProv = (m.workplace && m.workplace.province) || '';
+      const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || ''), province: '' };
+      const mProv = wp.province || '';
       if (provFilter !== 'all' && !mProv.includes(provFilter)) return;
 
       // Filter Search
       if (searchQuery) {
-        const queryTarget = `${m.fullNameTh} ${m.fullNameEn} ${m.licenseNo} ${m.workplace.name} ${m.workplace.province}`.toLowerCase();
+        const queryTarget = `${m.fullNameTh || ''} ${m.fullNameEn || ''} ${m.licenseNo || ''} ${wp.name || ''} ${mProv}`.toLowerCase();
         if (!queryTarget.includes(searchQuery)) return;
       }
 
@@ -1058,9 +1106,9 @@ function renderMapMarkers() {
         name: m.fullNameTh,
         nameEn: m.fullNameEn,
         licenseNo: m.licenseNo,
-        certGroup: m.certGroup,
-        workplace: (m.workplace && m.workplace.name) || '',
-        province: (m.workplace && m.workplace.province) || '',
+        certGroup: cg,
+        workplace: wp.name || '',
+        province: mProv,
         zone: m.healthZone || '',
         photoUrl: photoSrc,
         driveId: driveId,
@@ -1070,6 +1118,8 @@ function renderMapMarkers() {
         email: m.email || ''
       };
 
+      const certBadgeClass = cg.includes('Inservice') ? 'bg-emerald-100 text-emerald-800' : (cg.includes('อนุมัติ') || cg.includes('อว.') ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800');
+
       const popupHtml = `
         <div class="p-4 space-y-3 font-sans">
           <div class="flex items-center space-x-3">
@@ -1077,15 +1127,15 @@ function renderMapMarkers() {
               <img src="${photoSrc}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
             </div>
             <div class="min-w-0 flex-1">
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${m.certGroup.includes('Formal') ? 'bg-sky-100 text-sky-800' : (m.certGroup.includes('Inservice') ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800')}">${m.certGroup}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${certBadgeClass}">${escapeHtml(cg || 'วุฒิบัตร')}</span>
               <h5 class="text-sm font-bold text-slate-900 truncate mt-1">${escapeHtml(m.fullNameTh)}</h5>
-              <p class="text-[11px] text-slate-500 font-mono">${m.licenseNo ? 'ว. ' + m.licenseNo : 'ไม่ระบุเลข ว.'}</p>
+              <p class="text-[11px] text-slate-500 font-mono">${m.licenseNo ? 'ว. ' + escapeHtml(m.licenseNo) : 'ไม่ระบุเลข ว.'}</p>
             </div>
           </div>
           <div class="pt-2 border-t border-slate-100 space-y-1 text-xs text-slate-600">
-            <div><i class="fa-solid fa-hospital text-sky-600 mr-1.5"></i> ${escapeHtml(m.workplace.name || '-')}</div>
-            <div><i class="fa-solid fa-location-dot text-rose-500 mr-1.5"></i> จ.${escapeHtml(m.workplace.province || '-')} (เขตสุขภาพ ${escapeHtml(m.healthZone || '-')})</div>
-            ${m.mobilePhone ? `<div><i class="fa-solid fa-phone text-emerald-600 mr-1.5"></i> ${m.mobilePhone}</div>` : ''}
+            <div><i class="fa-solid fa-hospital text-sky-600 mr-1.5"></i> ${escapeHtml(wp.name || '-')}</div>
+            <div><i class="fa-solid fa-location-dot text-rose-500 mr-1.5"></i> จ.${escapeHtml(mProv || '-')} (เขตสุขภาพ ${escapeHtml(m.healthZone || '-')})</div>
+            ${m.mobilePhone ? `<div><i class="fa-solid fa-phone text-emerald-600 mr-1.5"></i> ${escapeHtml(m.mobilePhone)}</div>` : ''}
           </div>
           <div class="pt-2 flex items-center space-x-2">
             <button onclick="openMemberDetailModal(${m.id})" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
@@ -1941,18 +1991,23 @@ function handleDirectoryFilter() {
   const sortBy = document.getElementById('dir-sort-by')?.value || 'name_asc';
 
   AppState.filteredMembers = AppState.members.filter(m => {
+    const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || ''), province: '' };
+    const wpName = wp.name || '';
+    const wpProv = wp.province || (m.homeAddress && m.homeAddress.province) || '';
+
     if (searchQuery) {
-      const targetStr = `${m.fullNameTh} ${m.fullNameEn} ${m.licenseNo} ${m.workplace.name} ${m.workplace.province} ${m.mobilePhone} ${m.email} ${m.medSchool}`.toLowerCase();
+      const targetStr = `${m.fullNameTh || ''} ${m.fullNameEn || ''} ${m.licenseNo || ''} ${wpName} ${wpProv} ${m.mobilePhone || ''} ${m.email || ''} ${m.medSchool || ''}`.toLowerCase();
       if (!targetStr.includes(searchQuery)) return false;
     }
 
     if (certFilter !== 'all') {
-      if (!m.certGroup.includes(certFilter) && !m.certTypeRaw.includes(certFilter)) return false;
+      const cg = String(m.certGroup || '');
+      const ct = String(m.certTypeRaw || '');
+      if (!cg.includes(certFilter) && !ct.includes(certFilter)) return false;
     }
 
     if (provFilter !== 'all') {
-      const p = (m.workplace && m.workplace.province) || '';
-      if (!p.includes(provFilter)) return false;
+      if (!wpProv.includes(provFilter)) return false;
     }
 
     const hasPhoto = Boolean(m.photoUrl || m.photoDriveId);
@@ -1963,13 +2018,15 @@ function handleDirectoryFilter() {
   });
 
   AppState.filteredMembers.sort((a, b) => {
-    if (sortBy === 'name_asc') return a.fullNameTh.localeCompare(b.fullNameTh, 'th');
-    if (sortBy === 'name_desc') return b.fullNameTh.localeCompare(a.fullNameTh, 'th');
+    const nameA = a.fullNameTh || '';
+    const nameB = b.fullNameTh || '';
+    if (sortBy === 'name_asc') return nameA.localeCompare(nameB, 'th');
+    if (sortBy === 'name_desc') return nameB.localeCompare(nameA, 'th');
     if (sortBy === 'license_asc') return (parseInt(a.licenseNo) || 0) - (parseInt(b.licenseNo) || 0);
     if (sortBy === 'license_desc') return (parseInt(b.licenseNo) || 0) - (parseInt(a.licenseNo) || 0);
     if (sortBy === 'province_asc') {
-      const pA = a.workplace.province || '';
-      const pB = b.workplace.province || '';
+      const pA = (typeof a.workplace === 'object' && a.workplace && a.workplace.province) ? a.workplace.province : String(a.workplace || '');
+      const pB = (typeof b.workplace === 'object' && b.workplace && b.workplace.province) ? b.workplace.province : String(b.workplace || '');
       return pA.localeCompare(pB, 'th');
     }
     return 0;
@@ -1988,14 +2045,14 @@ function setDirectoryLayout(layout) {
 
   if (layout === 'grid') {
     btnGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-sky-600 shadow-sm transition flex items-center gap-1.5';
-    btnTable.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
+    btnTable.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5';
     gridContainer.classList.remove('hidden');
     tableContainer.classList.add('hidden');
   } else {
     btnTable.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-sky-600 shadow-sm transition flex items-center gap-1.5';
-    btnGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
-    gridContainer.classList.add('hidden');
+    btnGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5';
     tableContainer.classList.remove('hidden');
+    gridContainer.classList.add('hidden');
   }
   renderDirectory();
 }
@@ -2083,9 +2140,13 @@ function renderDirectoryCards(members) {
     const isAdmin = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
     const isRecentlyUpdated = (m.id === AppState.lastUpdatedMemberId);
 
+    const cg = String(m.certGroup || '');
     let certBadgeClass = 'bg-sky-50 text-sky-700 border-sky-200';
-    if (m.certGroup.includes('Inservice')) certBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (m.certGroup.includes('อนุมัติ')) certBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+    if (cg.includes('Inservice')) certBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (cg.includes('อนุมัติ') || cg.includes('อว.')) certBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+
+    const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || ''), province: '' };
+    const wpProv = wp.province || (m.homeAddress && m.homeAddress.province) || '-';
 
     return `
       <div class="bg-white rounded-2xl p-5 border ${isRecentlyUpdated ? 'border-emerald-500 ring-2 ring-emerald-400/80 bg-emerald-50/20' : (isMyRecord ? 'border-sky-500 ring-2 ring-sky-300/50 bg-sky-50/10' : 'border-slate-200/80')} shadow-sm member-card flex flex-col justify-between relative transition">
@@ -2102,14 +2163,14 @@ function renderDirectoryCards(members) {
           <!-- Header with Avatar & Badge -->
           <div class="flex items-start space-x-3.5 mb-3.5">
             <div class="relative w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-              <img src="${photoSrc}" alt="${m.fullNameTh}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover avatar-img" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
+              <img src="${photoSrc}" alt="${escapeHtml(m.fullNameTh)}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover avatar-img" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
             </div>
             <div class="min-w-0 flex-1">
               <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${certBadgeClass} mb-1">
-                ${m.certGroup}
+                ${escapeHtml(cg || 'วุฒิบัตร')}
               </span>
-              <h4 class="font-bold text-slate-900 text-sm leading-snug truncate">${m.fullNameTh}</h4>
-              <p class="text-[11px] text-slate-400 font-mono">${m.licenseNo ? 'ว. ' + m.licenseNo : 'ไม่ระบุเลข ว.'}</p>
+              <h4 class="font-bold text-slate-900 text-sm leading-snug truncate">${escapeHtml(m.fullNameTh)}</h4>
+              <p class="text-[11px] text-slate-400 font-mono">${m.licenseNo ? 'ว. ' + escapeHtml(m.licenseNo) : 'ไม่ระบุเลข ว.'}</p>
             </div>
           </div>
 
@@ -2117,16 +2178,16 @@ function renderDirectoryCards(members) {
           <div class="space-y-1.5 text-xs text-slate-600 mb-4">
             <div class="flex items-center gap-2 text-slate-700 font-medium truncate">
               <i class="fa-solid fa-hospital text-sky-600 w-4 text-center"></i>
-              <span class="truncate">${m.workplace.name || 'ไม่ระบุสถานที่ทำงาน'}</span>
+              <span class="truncate">${escapeHtml(wp.name || 'ไม่ระบุสถานที่ทำงาน')}</span>
             </div>
             <div class="flex items-center gap-2 text-slate-500">
               <i class="fa-solid fa-location-dot text-rose-500 w-4 text-center"></i>
-              <span>${m.workplace.province || m.homeAddress.province || '-'}</span>
+              <span>${escapeHtml(wpProv)}</span>
             </div>
             ${m.mobilePhone ? `
               <div class="flex items-center gap-2 text-slate-500">
                 <i class="fa-solid fa-phone text-emerald-600 w-4 text-center"></i>
-                <span class="font-mono text-[11px]">${m.mobilePhone}</span>
+                <span class="font-mono text-[11px]">${escapeHtml(m.mobilePhone)}</span>
               </div>
             ` : ''}
           </div>
@@ -2205,6 +2266,12 @@ function renderDirectoryTable(members) {
     const isAdmin = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
     const isRecentlyUpdated = (m.id === AppState.lastUpdatedMemberId);
 
+    const cg = String(m.certGroup || '');
+    const certBadgeClass = cg.includes('Inservice') ? 'bg-emerald-100 text-emerald-800' : (cg.includes('อนุมัติ') || cg.includes('อว.') ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800');
+
+    const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || ''), province: '' };
+    const wpProv = wp.province || (m.homeAddress && m.homeAddress.province) || '-';
+
     return `
       <tr class="hover:bg-slate-50 transition ${isRecentlyUpdated ? 'bg-emerald-50/70 font-semibold' : (isMyRecord ? 'bg-sky-50/50' : '')}">
         <td class="py-2.5 px-4">
@@ -2214,21 +2281,21 @@ function renderDirectoryTable(members) {
         </td>
         <td class="py-2.5 px-4">
           <div class="font-bold text-slate-900 flex items-center gap-1.5">
-            ${m.fullNameTh}
+            ${escapeHtml(m.fullNameTh)}
             ${isRecentlyUpdated ? `<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] rounded font-bold border border-emerald-300">เพิ่งอัปเดต</span>` : ''}
             ${isMyRecord ? `<span class="px-1.5 py-0.2 bg-sky-100 text-sky-700 text-[10px] rounded font-semibold">คุณ</span>` : ''}
           </div>
-          <div class="text-[11px] text-slate-400">${m.fullNameEn || '-'}</div>
+          <div class="text-[11px] text-slate-400">${escapeHtml(m.fullNameEn || '-')}</div>
         </td>
-        <td class="py-2.5 px-4 font-mono font-medium">${m.licenseNo ? 'ว. ' + m.licenseNo : '-'}</td>
+        <td class="py-2.5 px-4 font-mono font-medium">${m.licenseNo ? 'ว. ' + escapeHtml(m.licenseNo) : '-'}</td>
         <td class="py-2.5 px-4">
-          <span class="px-2 py-0.5 rounded text-[11px] font-medium ${m.certGroup.includes('Formal') ? 'bg-sky-100 text-sky-800' : (m.certGroup.includes('Inservice') ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800')}">
-            ${m.certGroup}
+          <span class="px-2 py-0.5 rounded text-[11px] font-medium ${certBadgeClass}">
+            ${escapeHtml(cg || 'วุฒิบัตร')}
           </span>
         </td>
-        <td class="py-2.5 px-4 max-w-[200px] truncate">${m.workplace.name || '-'}</td>
-        <td class="py-2.5 px-4">${m.workplace.province || '-'}</td>
-        <td class="py-2.5 px-4 font-mono text-[11px]">${m.mobilePhone || m.email || '-'}</td>
+        <td class="py-2.5 px-4 max-w-[200px] truncate">${escapeHtml(wp.name || '-')}</td>
+        <td class="py-2.5 px-4">${escapeHtml(wpProv)}</td>
+        <td class="py-2.5 px-4 font-mono text-[11px]">${escapeHtml(m.mobilePhone || m.email || '-')}</td>
         <td class="py-2.5 px-4 text-center">
           <div class="flex items-center justify-center space-x-1">
             <button onclick="openMemberDetailModal(${m.id})" class="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg" title="ดูข้อมูล">
@@ -2425,7 +2492,7 @@ function openMemberDetailModal(id) {
     const formattedName = (tfName.startsWith('นพ.') || tfName.startsWith('พญ.') || tfName.startsWith('นายแพทย์') || tfName.startsWith('แพทย์หญิง')) ? tfName : `นพ. ${tfName}`;
     const tfWpName = (typeof tfDoc.workplace === 'object' && tfDoc.workplace) ? (tfDoc.workplace.name || '') : (tfDoc.workplace || '-');
     m = {
-      id: tfDoc.id,
+      id: tfDoc.matchedMemberId || tfDoc.id,
       fullNameTh: formattedName,
       fullNameEn: '',
       licenseNo: tfDoc.gpNo || '',
@@ -2472,31 +2539,46 @@ function openMemberDetailModal(id) {
     photoImg.src = photoSrc;
   }
 
-  document.getElementById('detail-name-th').innerText = m.fullNameTh || '-';
-  document.getElementById('detail-name-en').innerText = m.fullNameEn || '-';
-  document.getElementById('detail-license').innerText = m.licenseNo ? `ว. ${m.licenseNo}` : (m.fpNo ? `FP: ${m.fpNo}` : 'ไม่ระบุเลข ว.');
-  document.getElementById('detail-cert-badge').innerText = m.certGroup || 'วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว';
+  const elNameTh = document.getElementById('detail-name-th');
+  if (elNameTh) elNameTh.innerText = m.fullNameTh || '-';
+  const elNameEn = document.getElementById('detail-name-en');
+  if (elNameEn) elNameEn.innerText = m.fullNameEn || '-';
+  const elLic = document.getElementById('detail-license');
+  if (elLic) elLic.innerText = m.licenseNo ? `ว. ${m.licenseNo}` : (m.fpNo ? `FP: ${m.fpNo}` : 'ไม่ระบุเลข ว.');
+  const elCert = document.getElementById('detail-cert-badge');
+  if (elCert) elCert.innerText = m.certGroup || 'วุฒิบัตร/อนุมัติ เวชศาสตร์ครอบครัว';
 
   const wp = (typeof m.workplace === 'object' && m.workplace) ? m.workplace : { name: String(m.workplace || '-') };
   const wpName = wp.name || String(m.workplace || '-');
   const wpType = wp.type || 'รัฐบาล';
   const wpAddress = `${wp.address || ''} ${wp.tambon || ''} ${wp.amphoe || ''} ${wp.province || ''} ${wp.zipcode || ''}`.trim() || wp.province || wpName || '-';
 
-  document.getElementById('detail-workplace-name').innerText = wpName;
-  document.getElementById('detail-workplace-type').innerText = wpType;
-  document.getElementById('detail-workplace-address').innerText = wpAddress;
+  const elWpName = document.getElementById('detail-workplace-name');
+  if (elWpName) elWpName.innerText = wpName;
+  const elWpType = document.getElementById('detail-workplace-type');
+  if (elWpType) elWpType.innerText = wpType;
+  const elWpAddr = document.getElementById('detail-workplace-address');
+  if (elWpAddr) elWpAddr.innerText = wpAddress;
 
   const hasCoord = (m.lat && m.lng && !isNaN(Number(m.lat)) && !isNaN(Number(m.lng)));
-  document.getElementById('detail-coordinates').innerText = hasCoord ? `${Number(m.lat).toFixed(5)}, ${Number(m.lng).toFixed(5)}` : 'ยังไม่มีพิกัด';
+  const elCoord = document.getElementById('detail-coordinates');
+  if (elCoord) elCoord.innerText = hasCoord ? `${Number(m.lat).toFixed(5)}, ${Number(m.lng).toFixed(5)}` : 'ยังไม่มีพิกัด';
 
-  document.getElementById('detail-medschool').innerText = m.medSchool || m.institute || '-';
-  document.getElementById('detail-training-inst').innerText = m.trainingInstitute || m.practiceInstitute || '-';
-  document.getElementById('detail-cert-year').innerText = m.certYear ? `พ.ศ. ${m.certYear}` : '-';
-  document.getElementById('detail-other-degree').innerText = m.otherDegree || '-';
+  const elSchool = document.getElementById('detail-medschool');
+  if (elSchool) elSchool.innerText = m.medSchool || m.institute || '-';
+  const elTrain = document.getElementById('detail-training-inst');
+  if (elTrain) elTrain.innerText = m.trainingInstitute || m.practiceInstitute || '-';
+  const elYear = document.getElementById('detail-cert-year');
+  if (elYear) elYear.innerText = m.certYear ? `พ.ศ. ${m.certYear}` : '-';
+  const elDegree = document.getElementById('detail-other-degree');
+  if (elDegree) elDegree.innerText = m.otherDegree || '-';
 
-  document.getElementById('detail-mobile').innerText = m.mobilePhone || '-';
-  document.getElementById('detail-email').innerText = m.email || '-';
-  document.getElementById('detail-channels').innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
+  const elMobile = document.getElementById('detail-mobile');
+  if (elMobile) elMobile.innerText = m.mobilePhone || '-';
+  const elEmail = document.getElementById('detail-email');
+  if (elEmail) elEmail.innerText = m.email || '-';
+  const elChan = document.getElementById('detail-channels');
+  if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
 
   // Drive link & Google Maps navigation link
   const driveBtn = document.getElementById('detail-drive-link');
@@ -2504,9 +2586,17 @@ function openMemberDetailModal(id) {
     if (driveId) {
       driveBtn.href = `https://drive.google.com/file/d/${driveId}/view`;
       driveBtn.classList.remove('hidden');
+    } else if (m.photoUrl && m.photoUrl.startsWith('http') && !m.photoUrl.includes('ui-avatars')) {
+      driveBtn.href = m.photoUrl;
+      driveBtn.classList.remove('hidden');
     } else {
       driveBtn.classList.add('hidden');
     }
+  }
+
+  const sheetBtn = document.getElementById('detail-sheet-link');
+  if (sheetBtn) {
+    sheetBtn.href = ACTIVE_SPREADSHEET_URL;
   }
 
   const gmapLink = document.getElementById('detail-google-maps-link');
@@ -2551,32 +2641,40 @@ function openMemberDetailModal(id) {
 // 100% Free OpenStreetMap Mini Map (No API Required)
 function initMiniMap(lat, lng, label) {
   const container = document.getElementById('detail-mini-map');
-  if (!container) return;
+  if (!container || typeof L === 'undefined') return;
 
-  if (AppState.miniMap) {
-    AppState.miniMap.remove();
-    AppState.miniMap = null;
-  }
+  try {
+    if (AppState.miniMap) {
+      try { AppState.miniMap.remove(); } catch (e) {}
+      AppState.miniMap = null;
+    }
+    if (container._leaflet_id) {
+      delete container._leaflet_id;
+    }
 
-  const defaultLat = lat || 13.736717;
-  const defaultLng = lng || 100.523186;
-  const zoom = (lat && lng) ? 14 : 5;
+    const hasCoord = (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng)));
+    const defaultLat = hasCoord ? Number(lat) : 13.736717;
+    const defaultLng = hasCoord ? Number(lng) : 100.523186;
+    const zoom = hasCoord ? 14 : 5;
 
-  AppState.miniMap = L.map('detail-mini-map', {
-    center: [defaultLat, defaultLng],
-    zoom: zoom,
-    zoomControl: false
-  });
+    AppState.miniMap = L.map('detail-mini-map', {
+      center: [defaultLat, defaultLng],
+      zoom: zoom,
+      zoomControl: false
+    });
 
-  // OpenStreetMap Standard - No API Required
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 18
-  }).addTo(AppState.miniMap);
+    // OpenStreetMap Standard - No API Required
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 18
+    }).addTo(AppState.miniMap);
 
-  if (lat && lng) {
-    AppState.miniMarker = L.marker([lat, lng]).addTo(AppState.miniMap);
-    AppState.miniMarker.bindPopup(`<div class="text-xs font-medium p-1">${label}</div>`).openPopup();
+    if (hasCoord) {
+      AppState.miniMarker = L.marker([defaultLat, defaultLng]).addTo(AppState.miniMap);
+      AppState.miniMarker.bindPopup(`<div class="text-xs font-medium p-1">${label}</div>`).openPopup();
+    }
+  } catch (err) {
+    console.warn('initMiniMap error:', err);
   }
 }
 
@@ -2661,9 +2759,9 @@ function openUpdateDoctorModal(type, id) {
 function openEditMemberModal(id) {
   let m = AppState.members.find(item => item.id == id);
   if (!m) {
-    const tf = AppState.thaifammed.find(item => item.id == id);
+    const tf = AppState.thaifammed.find(item => item.id == id || item.matchedMemberId == id);
     if (tf) {
-      openUpdateDoctorModal('thaifammed', id);
+      openUpdateDoctorModal('thaifammed', tf.id);
       return;
     }
     showToast('ไม่พบข้อมูลสมาชิกในระบบ', 'error');
@@ -3141,14 +3239,32 @@ function handleSaveMember(e) {
   }
   AppState.pendingThaifammedImportId = null;
 
-  // 2. บันทึกลง LocalStorage และรีเฟรชหน้าจอทั้งหมด
+  // 2. บันทึกลง LocalStorage
   saveMembersToStorage();
   AppState.lastUpdatedMemberId = memberId;
-  renderDashboard();
-  if (AppState.map) renderMapMarkers();
-  if (typeof renderThaifammed === 'function') renderThaifammed();
 
-  // 3. ซิงค์พิกัดข้ามเมนู (ถ้ามีพิกัดที่ถูกต้อง)
+  // 3. ปิดหน้าต่าง Popup ทันที และแจ้งเตือนผู้ใช้งานทันที ไม่ให้ผู้ใช้สับสน
+  closeModal('memberEditModal');
+  showToast(`💾 บันทึกข้อมูล ${memberObj.fullNameTh} แล้ว กำลังส่งข้อมูลขึ้น Google Sheet...`, 'info');
+
+  // 4. รีเฟรชหน้าจอทั้งหมดอย่างปลอดภัย (Safe Rendering)
+  try {
+    renderDashboard();
+  } catch (dErr) {
+    console.warn('renderDashboard warning in handleSaveMember:', dErr);
+  }
+  try {
+    if (AppState.map) renderMapMarkers();
+  } catch (mErr) {
+    console.warn('renderMapMarkers warning in handleSaveMember:', mErr);
+  }
+  try {
+    if (typeof renderThaifammed === 'function') renderThaifammed();
+  } catch (tErr) {
+    console.warn('renderThaifammed warning in handleSaveMember:', tErr);
+  }
+
+  // 5. ซิงค์พิกัดข้ามเมนู (ถ้ามีพิกัดที่ถูกต้อง)
   if (lat !== null && !isNaN(lat) && lng !== null && !isNaN(lng)) {
     try {
       syncDoctorCoordinates({
@@ -3156,9 +3272,9 @@ function handleSaveMember(e) {
         id: memberId,
         lat: lat,
         lng: lng,
-        workplaceName: memberObj.workplace.name,
-        province: memberObj.workplace.province,
-        amphoe: memberObj.workplace.amphoe,
+        workplaceName: (memberObj.workplace && memberObj.workplace.name) || '',
+        province: (memberObj.workplace && memberObj.workplace.province) || '',
+        amphoe: (memberObj.workplace && memberObj.workplace.amphoe) || '',
         healthZone: memberObj.healthZone,
         memberObj: memberObj
       });
@@ -3167,38 +3283,50 @@ function handleSaveMember(e) {
     }
   }
 
-  // 4. สลับมุมมองไปยัง "รายชื่อสมาชิกที่ Update ข้อมูล" (view-directory) ให้ผู้ใช้เห็นทันที
+  // 6. สลับมุมมองไปยัง "รายชื่อสมาชิกที่ Update ข้อมูล" (view-directory) ให้ผู้ใช้เห็นทันที
   switchView('directory');
   const dirSearchInput = document.getElementById('dir-search');
   if (dirSearchInput) {
     dirSearchInput.value = '';
   }
-  handleDirectoryFilter();
+  try {
+    handleDirectoryFilter();
+  } catch (fErr) {
+    console.warn('handleDirectoryFilter warning:', fErr);
+  }
 
-  // 5. ปิดหน้าต่าง Popup ทันที และแจ้งเตือนผู้ใช้งานชัดเจน
-  closeModal('memberEditModal');
-  showToast(`✅ อัปเดตข้อมูล ${memberObj.fullNameTh} สำเร็จ และแสดงในรายการ Update แล้ว`, 'success');
-
-  // 6. ซิงค์ข้อมูลขึ้น Google Sheet Master DB แบบ Dual-Engine (Realtime Cloud)
+  // 7. ซิงค์ข้อมูลขึ้น Google Sheet Master DB แบบ Dual-Engine (Realtime Cloud)
   sendToGasApi({ action: 'saveMember', member: memberObj }).then(res => {
     if (res && (res.status === 'success' || (res.result && res.result.success))) {
-      const assignedId = (res.result && res.result.id) ? res.result.id : memberObj.id;
-      if (assignedId && memberObj.id !== assignedId) {
-        const oldId = memberObj.id;
-        memberObj.id = assignedId;
-        const idx = AppState.members.findIndex(m => m.id == oldId);
-        if (idx !== -1) AppState.members[idx].id = assignedId;
+      const resData = res.result || res;
+      const assignedId = resData.id || memberObj.id;
+      const rowNum = resData.row;
+      const drivePhotoId = resData.photoDriveId;
+      const driveUrl = resData.photoUrl;
+
+      if (drivePhotoId) memberObj.photoDriveId = drivePhotoId;
+      if (driveUrl) memberObj.photoUrl = driveUrl;
+
+      const idx = AppState.members.findIndex(m => m.id == memberId || m.id == assignedId);
+      if (idx !== -1) {
+        if (assignedId && memberObj.id !== assignedId) {
+          memberObj.id = assignedId;
+        }
+        AppState.members[idx] = { ...AppState.members[idx], ...memberObj };
         if (tfDoc) tfDoc.matchedMemberId = assignedId;
         saveMembersToStorage();
         saveThaifammedOverrides();
+        try { handleDirectoryFilter(); } catch (e) {}
       }
-      showToast('✅ ข้อมูลบันทึกลง Google Sheet สำเร็จ (Realtime Cloud)', 'success');
+
+      const rowMsg = rowNum ? ` (แถวที่ ${rowNum})` : '';
+      showToast(`✅ ข้อมูล ${memberObj.fullNameTh} บันทึกลง Google Sheet${rowMsg} และ Google Drive เรียบร้อยแล้ว`, 'success');
     } else {
-      showToast('บันทึกลงระบบเรียบร้อย (ระบบจะซิงค์ให้อัตโนมัติ)', 'success');
+      showToast(`บันทึกข้อมูล ${memberObj.fullNameTh} ในระบบเรียบร้อย (ระบบจะซิงค์ให้อัตโนมัติ)`, 'info');
     }
   }).catch(err => {
     console.warn('Cloud sync error:', err);
-    showToast('บันทึกในเครื่องเรียบร้อยแล้ว', 'success');
+    showToast('บันทึกในเครื่องเรียบร้อยแล้ว', 'info');
   });
 }
 
@@ -3341,22 +3469,24 @@ async function syncLiveSheetData(isSilent = false) {
     try {
       const response = await fetch(`${gasEndpoint}?action=getMembers`);
       const data = await response.json();
-      if (data && data.members && Array.isArray(data.members)) {
-        AppState.members = data.members;
+      const sheetMembers = (data && Array.isArray(data.members)) ? data.members :
+                           (data && data.data && Array.isArray(data.data.members)) ? data.data.members : null;
+      if (sheetMembers && sheetMembers.length > 0) {
+        AppState.members = sheetMembers;
         localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
         syncThaifammedWithMembers();
-        handleDirectoryFilter();
-        renderDashboard();
-        if (AppState.map) renderMapMarkers();
-        if (typeof renderThaifammed === 'function') renderThaifammed();
+        try { handleDirectoryFilter(); } catch (e) {}
+        try { renderDashboard(); } catch (e) {}
+        if (AppState.map) { try { renderMapMarkers(); } catch (e) {} }
+        if (typeof renderThaifammed === 'function') { try { renderThaifammed(); } catch (e) {} }
         const nowStr = new Date().toLocaleTimeString('th-TH');
-        if (statusEl) statusEl.innerHTML = `ซิงค์ผ่าน GAS Web App Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">1PVM2qdb...</a>) สำเร็จเมื่อ ${nowStr}`;
+        if (statusEl) statusEl.innerHTML = `ซิงค์ผ่าน Master DB (<a href="${ACTIVE_SPREADSHEET_URL}" target="_blank" class="underline text-emerald-300 font-bold">1PVM2qdb...</a>) สำเร็จเมื่อ ${nowStr} (${AppState.members.length} สมาชิก)`;
         if (btnHeader) {
           btnHeader.disabled = false;
           btnHeader.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="hidden md:inline">ซิงค์ Google Drive</span>`;
         }
         if (!isSilent) {
-          showToast(`ซิงค์ข้อมูลสดกับ Google Drive สำเร็จ (${AppState.members.length} คน)`, 'success');
+          showToast(`ซิงค์ข้อมูลสดกับ Google Sheet สำเร็จ (${AppState.members.length} คน)`, 'success');
         }
         return;
       }
