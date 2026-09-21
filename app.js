@@ -1002,7 +1002,7 @@ function autoFillHospitalDetails(query) {
 }
 
 /* ================= INTERACTIVE MAP & MARKER RENDERING ================= */
-function getMarkerIcon(type, certGroup, isRelocating = false) {
+function getMarkerIcon(type, certGroup, isRelocating = false, isUpdated = false) {
   if (isRelocating) {
     return L.divIcon({
       className: 'custom-div-icon',
@@ -1014,9 +1014,10 @@ function getMarkerIcon(type, certGroup, isRelocating = false) {
   }
 
   if (type === 'thaifammed') {
+    const updatedBadge = isUpdated ? `<span class="marker-updated-badge"><i class="fa-solid fa-check text-[7px]"></i></span>` : '';
     return L.divIcon({
       className: 'custom-div-icon',
-      html: `<div class="custom-pin pin-thaifammed w-7 h-7"><i class="fa-solid fa-user-doctor text-[11px]"></i></div>`,
+      html: `<div class="custom-pin pin-thaifammed w-7 h-7" style="position:relative"><i class="fa-solid fa-user-doctor text-[11px]"></i>${updatedBadge}</div>`,
       iconSize: [28, 28],
       iconAnchor: [14, 14],
       popupAnchor: [0, -14]
@@ -1034,9 +1035,10 @@ function getMarkerIcon(type, certGroup, isRelocating = false) {
     iconClass = 'fa-award';
   }
 
+  const updatedBadge = isUpdated ? `<span class="marker-updated-badge"><i class="fa-solid fa-check text-[7px]"></i></span>` : '';
   return L.divIcon({
     className: 'custom-div-icon',
-    html: `<div class="custom-pin ${pinClass} w-8 h-8"><i class="fa-solid ${iconClass} text-xs"></i></div>`,
+    html: `<div class="custom-pin ${pinClass} w-8 h-8" style="position:relative"><i class="fa-solid ${iconClass} text-xs"></i>${updatedBadge}</div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 16],
     popupAnchor: [0, -16]
@@ -1057,6 +1059,21 @@ function renderMapMarkers() {
   const searchQuery = (document.getElementById('map-search')?.value || '').trim().toLowerCase();
 
   let count = 0;
+
+  // Build a Set of member IDs that have been matched & updated from Thaifammed
+  // to avoid duplicate markers and to show "updated" badge
+  const updatedMemberIds = new Set();
+  const matchedMemberIds = new Set();
+  if (AppState.thaifammed) {
+    AppState.thaifammed.forEach(d => {
+      if (d.matchedMemberId) {
+        matchedMemberIds.add(String(d.matchedMemberId));
+        if (d.isUpdated) {
+          updatedMemberIds.add(String(d.matchedMemberId));
+        }
+      }
+    });
+  }
 
   // 1. Render Sheet Members
   if (sourceFilter === 'sheet' || sourceFilter === 'all') {
@@ -1084,7 +1101,8 @@ function renderMapMarkers() {
 
       count++;
 
-      const icon = getMarkerIcon('sheet', m.certGroup);
+      const memberIsUpdated = updatedMemberIds.has(String(m.id));
+      const icon = getMarkerIcon('sheet', m.certGroup, false, memberIsUpdated);
       const marker = L.marker([m.lat, m.lng], { icon: icon });
 
       // แสดงชื่อแพทย์บนหมุดพิกัด (Requirement: แสดงชื่อบนหมุดเพื่อให้ทราบว่าเป็นหมุดพิกัดของใคร)
@@ -1169,6 +1187,12 @@ function renderMapMarkers() {
     AppState.thaifammed.forEach(d => {
       if (!d.lat || !d.lng) return;
 
+      // Skip duplicate: if this doctor already has a Sheet member marker with coordinates
+      if (sourceFilter === 'all' && d.matchedMemberId) {
+        const matchedMember = AppState.members && AppState.members.find(m => String(m.id) === String(d.matchedMemberId));
+        if (matchedMember && matchedMember.lat && matchedMember.lng) return;
+      }
+
       // Filter Zone
       if (zoneFilter !== 'all' && String(d.healthZone) !== zoneFilter) return;
 
@@ -1184,7 +1208,7 @@ function renderMapMarkers() {
 
       count++;
 
-      const icon = getMarkerIcon('thaifammed');
+      const icon = getMarkerIcon('thaifammed', null, false, d.isUpdated);
       const marker = L.marker([d.lat, d.lng], { icon: icon });
 
       // แสดงชื่อแพทย์บนหมุดพิกัด (Requirement: แสดงชื่อบนหมุดเพื่อให้ทราบว่าเป็นหมุดพิกัดของใคร)
@@ -2580,13 +2604,14 @@ function openMemberDetailModal(id) {
   const elChan = document.getElementById('detail-channels');
   if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
 
-  // Drive link & Google Maps navigation link
+  // Drive link & Google Maps navigation link (Admin only)
+  const isAdminForLinks = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
   const driveBtn = document.getElementById('detail-drive-link');
   if (driveBtn) {
-    if (driveId) {
+    if (isAdminForLinks && driveId) {
       driveBtn.href = `https://drive.google.com/file/d/${driveId}/view`;
       driveBtn.classList.remove('hidden');
-    } else if (m.photoUrl && m.photoUrl.startsWith('http') && !m.photoUrl.includes('ui-avatars')) {
+    } else if (isAdminForLinks && m.photoUrl && m.photoUrl.startsWith('http') && !m.photoUrl.includes('ui-avatars')) {
       driveBtn.href = m.photoUrl;
       driveBtn.classList.remove('hidden');
     } else {
@@ -2596,7 +2621,12 @@ function openMemberDetailModal(id) {
 
   const sheetBtn = document.getElementById('detail-sheet-link');
   if (sheetBtn) {
-    sheetBtn.href = ACTIVE_SPREADSHEET_URL;
+    if (isAdminForLinks) {
+      sheetBtn.href = ACTIVE_SPREADSHEET_URL;
+      sheetBtn.classList.remove('hidden');
+    } else {
+      sheetBtn.classList.add('hidden');
+    }
   }
 
   const gmapLink = document.getElementById('detail-google-maps-link');

@@ -223,19 +223,180 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   user-select: none;
 }
 
-/* Print Stylesheet */
+/* Print Stylesheet — Clean A4 Profile Layout */
 @media print {
-  .no-print {
+  /* Hide everything except the profile modal content */
+  .no-print,
+  nav, aside, header, footer,
+  #sidebar, #mobile-menu, #map-container,
+  .leaflet-container, .toast-container,
+  .user-dropdown-menu, .auth-avatar-pill,
+  #memberEditModal, #updateDoctorModal, #brandSettingsModal,
+  #detail-mini-map,
+  button, a.px-3 {
     display: none !important;
   }
-  body {
-    background: white;
+
+  /* Reset page background */
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
+
+  html, body {
+    background: white !important;
+    color: #000 !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Show and format the detail modal */
   #memberDetailModal {
-    position: static;
     display: block !important;
-    background: white;
+    position: static !important;
+    background: white !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    z-index: auto !important;
+    overflow: visible !important;
   }
+
+  #memberDetailModal > div {
+    max-width: 100% !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Header — profile banner */
+  #memberDetailModal .bg-gradient-to-r {
+    background: #0c4a6e !important;
+    color: white !important;
+    padding: 20pt 24pt !important;
+    border-radius: 0 !important;
+    page-break-after: avoid !important;
+  }
+
+  #memberDetailModal .bg-gradient-to-r button {
+    display: none !important;
+  }
+
+  /* Photo */
+  #detail-photo-container {
+    width: 70pt !important;
+    height: 70pt !important;
+    border-radius: 8pt !important;
+    border: 2pt solid rgba(255,255,255,0.5) !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+  }
+
+  #detail-photo {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  /* Body content */
+  #memberDetailModal .overflow-y-auto {
+    overflow: visible !important;
+    padding: 16pt 24pt !important;
+  }
+
+  /* Info sections */
+  #memberDetailModal .rounded-2xl {
+    border: 0.5pt solid #cbd5e1 !important;
+    border-radius: 6pt !important;
+    padding: 12pt !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 8pt !important;
+  }
+
+  /* Grid layout for print */
+  #memberDetailModal .grid {
+    display: grid !important;
+    gap: 6pt !important;
+  }
+
+  #memberDetailModal .grid.grid-cols-1.sm\\:grid-cols-3,
+  #memberDetailModal .grid.grid-cols-1.md\\:grid-cols-2 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Section headers */
+  #memberDetailModal h4 {
+    font-size: 10pt !important;
+    font-weight: 700 !important;
+    margin-bottom: 6pt !important;
+    color: #0c4a6e !important;
+  }
+
+  /* Labels */
+  #memberDetailModal .text-slate-400,
+  #memberDetailModal .text-sky-700 {
+    font-size: 8pt !important;
+    color: #64748b !important;
+  }
+
+  /* Values */
+  #memberDetailModal .text-slate-700,
+  #memberDetailModal .text-slate-800,
+  #memberDetailModal .text-slate-900,
+  #memberDetailModal strong {
+    font-size: 10pt !important;
+    color: #1e293b !important;
+  }
+
+  /* Hide modal footer entirely */
+  #memberDetailModal .bg-slate-50.border-t {
+    display: none !important;
+  }
+
+  /* Print footer info */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  /* Hide main content area behind modal */
+  main, #main-content, .flex.min-h-screen {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  main > *:not(#memberDetailModal),
+  .flex.min-h-screen > *:not(#memberDetailModal) {
+    display: none !important;
+  }
+}
+
+/* ================= MARKER UPDATED BADGE ================= */
+.marker-updated-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 7px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  pointer-events: none;
 }
 
 /* Custom Branding & Logo Styles */
