@@ -469,3 +469,67 @@ function saveMemberInSheet(member) {
     };
   }
 }
+
+/**
+ * =========================================================================
+ * BACKUP SYSTEM
+ * =========================================================================
+ */
+const BACKUP_FOLDER_ID = '1toJRwIIqLfqwrM5_UGKoSb56GtXVidub'; // โฟลเดอร์ Backup
+
+/**
+ * ฟังก์ชันสำหรับคัดลอกไฟล์ Sheet เพื่อสำรองข้อมูล
+ * จะถูกเรียกใช้อัตโนมัติทุกวันผ่าน Trigger
+ */
+function autoBackupDatabase() {
+  var sourceDbId = SPREADSHEET_ID; 
+  var sourceFile = DriveApp.getFileById(sourceDbId);
+  var backupFolder = DriveApp.getFolderById(BACKUP_FOLDER_ID);
+  
+  // 1. สร้างไฟล์ Backup ใหม่ พร้อมวันที่-เวลา
+  var dateString = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd_HH-mm");
+  var backupFileName = "Backup_MemberDB_" + dateString;
+  
+  var copiedFile = sourceFile.makeCopy(backupFileName, backupFolder);
+  Logger.log('Created backup: ' + copiedFile.getUrl());
+  
+  // 2. ตรวจสอบและลบไฟล์ Backup ที่เก่ากว่า 30 วัน (Rolling Backup)
+  var cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - 30); // ย้อนหลัง 30 วัน
+  
+  var files = backupFolder.getFiles();
+  var deletedCount = 0;
+  while (files.hasNext()) {
+    var file = files.next();
+    // เช็คว่าเป็นไฟล์ Backup ของเราและสร้างไว้นานกว่า 30 วัน
+    if (file.getName().indexOf("Backup_MemberDB_") === 0) {
+      if (file.getDateCreated() < cutoffDate) {
+        file.setTrashed(true); // ย้ายไปถังขยะ
+        deletedCount++;
+      }
+    }
+  }
+  Logger.log('Deleted old backups: ' + deletedCount + ' files.');
+}
+
+/**
+ * ฟังก์ชันสำหรับติดตั้ง Trigger อัตโนมัติ (รันแค่ครั้งเดียวเพื่อตั้งเวลา)
+ */
+function setupBackupTrigger() {
+  // ลบ Trigger เดิมที่มีอยู่ก่อน (เพื่อป้องกันการทำงานซ้ำซ้อน)
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'autoBackupDatabase') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  
+  // สร้าง Trigger ใหม่ ให้รันทุกวัน เวลาประมาณตี 2
+  ScriptApp.newTrigger('autoBackupDatabase')
+    .timeBased()
+    .everyDays(1)
+    .atHour(2)
+    .create();
+    
+  Logger.log('ตั้งค่า Trigger สำเร็จ: สำรองข้อมูลอัตโนมัติทุกวันเวลาตี 2');
+}
