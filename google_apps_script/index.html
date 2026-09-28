@@ -2114,7 +2114,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
         <div class="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 space-y-2 relative">
           <h4 class="font-bold text-sky-950 text-sm flex items-center justify-between border-b border-sky-200/60 pb-2">
             <span class="flex items-center gap-2"><i class="fa-solid fa-phone text-sky-600"></i> ข้อมูลการติดต่อ</span>
-            <button type="button" onclick="toggleContactVisibility()" class="text-sky-600 hover:text-sky-800 text-[10px] bg-sky-100 hover:bg-sky-200 px-2.5 py-1 rounded-lg transition font-medium flex items-center gap-1.5 no-print">
+            <button type="button" id="contact-toggle-btn" onclick="toggleContactVisibility()" class="text-sky-600 hover:text-sky-800 text-[10px] bg-sky-100 hover:bg-sky-200 px-2.5 py-1 rounded-lg transition font-medium flex items-center gap-1.5 no-print">
               <i class="fa-solid fa-eye" id="contact-toggle-icon"></i> <span id="contact-toggle-text">แสดงข้อมูล</span>
             </button>
           </h4>
@@ -91799,20 +91799,53 @@ function openMemberDetailModal(id) {
   }
 
   const elMobile = document.getElementById('detail-mobile');
-  if (elMobile) elMobile.innerText = m.mobilePhone || '-';
   const elEmail = document.getElementById('detail-email');
-  if (elEmail) elEmail.innerText = m.email || '-';
   const elChan = document.getElementById('detail-channels');
   if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
 
-  // Reset Contact Visibility
-  contactInfoVisible = false;
+  // Contact Privacy Logic
+  const canViewContact = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord('sheet', m.id));
+  const toggleBtn = document.getElementById('contact-toggle-btn');
   const cIcon = document.getElementById('contact-toggle-icon');
   const cText = document.getElementById('contact-toggle-text');
+  
+  contactInfoVisible = false;
   if (cIcon) cIcon.className = 'fa-solid fa-eye';
   if (cText) cText.innerText = 'แสดงข้อมูล';
-  if (elMobile) elMobile.classList.add('blur-sm', 'select-none');
-  if (elEmail) elEmail.classList.add('blur-sm', 'select-none');
+
+  if (canViewContact) {
+    if (toggleBtn) toggleBtn.style.display = 'flex';
+    if (elMobile) {
+      elMobile.dataset.real = m.mobilePhone || '-';
+      elMobile.innerText = m.mobilePhone || '-';
+      elMobile.classList.add('blur-sm', 'select-none');
+    }
+    if (elEmail) {
+      elEmail.dataset.real = m.email || '-';
+      elEmail.innerText = m.email || '-';
+      elEmail.classList.add('blur-sm', 'select-none');
+    }
+  } else {
+    if (toggleBtn) toggleBtn.style.display = 'none';
+    if (elMobile) {
+      let p = m.mobilePhone || '-';
+      if (p.length >= 9) p = p.substring(0, 3) + '-XXX-XXXX';
+      elMobile.innerText = p;
+      elMobile.classList.remove('blur-sm', 'select-none');
+    }
+    if (elEmail) {
+      let e = m.email || '-';
+      if (e.includes('@')) {
+        let parts = e.split('@');
+        let n = parts[0];
+        if (n.length > 2) n = n.substring(0, 2) + '***';
+        else n = '***';
+        e = n + '@***';
+      }
+      elEmail.innerText = e;
+      elEmail.classList.remove('blur-sm', 'select-none');
+    }
+  }
 
   // Drive link & Google Maps navigation link (Admin only)
   const isAdminForLinks = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
