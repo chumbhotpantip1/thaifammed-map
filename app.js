@@ -2597,12 +2597,43 @@ function openMemberDetailModal(id) {
   const elDegree = document.getElementById('detail-other-degree');
   if (elDegree) elDegree.innerText = m.otherDegree || '-';
 
+  // FP and GP (Assoc) numbers
+  const elFp = document.getElementById('detail-fp-no');
+  if (elFp) {
+    if (m.fpNo) {
+      elFp.innerText = `FP: ${m.fpNo}`;
+      elFp.classList.remove('hidden');
+    } else {
+      elFp.classList.add('hidden');
+    }
+  }
+  const elGp = document.getElementById('detail-gp-no');
+  if (elGp) {
+    // Determine gpNo from Thaifammed fallback if available, else from m if it has one
+    const gpNo = tfDoc ? tfDoc.gpNo : (m.gpNo || '');
+    if (gpNo) {
+      elGp.innerText = `เลขที่ สมาคม: ${gpNo}`;
+      elGp.classList.remove('hidden');
+    } else {
+      elGp.classList.add('hidden');
+    }
+  }
+
   const elMobile = document.getElementById('detail-mobile');
   if (elMobile) elMobile.innerText = m.mobilePhone || '-';
   const elEmail = document.getElementById('detail-email');
   if (elEmail) elEmail.innerText = m.email || '-';
   const elChan = document.getElementById('detail-channels');
   if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
+
+  // Reset Contact Visibility
+  contactInfoVisible = false;
+  const cIcon = document.getElementById('contact-toggle-icon');
+  const cText = document.getElementById('contact-toggle-text');
+  if (cIcon) cIcon.className = 'fa-solid fa-eye';
+  if (cText) cText.innerText = 'แสดงข้อมูล';
+  if (elMobile) elMobile.classList.add('blur-sm', 'select-none');
+  if (elEmail) elEmail.classList.add('blur-sm', 'select-none');
 
   // Drive link & Google Maps navigation link (Admin only)
   const isAdminForLinks = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
@@ -2719,6 +2750,10 @@ function openAddMemberModal() {
 }
 
 function openUpdateDoctorModal(type, id) {
+  if (typeof AuthManager !== 'undefined' && !AuthManager.requireEditPermission(type, id)) {
+    return;
+  }
+  
   if (type === 'sheet') {
     openEditMemberModal(id);
     return;
@@ -2787,6 +2822,9 @@ function openUpdateDoctorModal(type, id) {
 }
 
 function openEditMemberModal(id) {
+  if (typeof AuthManager !== 'undefined' && !AuthManager.requireEditPermission('sheet', id)) {
+    return;
+  }
   let m = AppState.members.find(item => item.id == id);
   if (!m) {
     const tf = AppState.thaifammed.find(item => item.id == id || item.matchedMemberId == id);
@@ -3929,14 +3967,24 @@ function renderThaifammed() {
     const isAdminUser = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
     const isMyTf = typeof AuthManager !== 'undefined' && AuthManager.isMyRecord('thaifammed', d.id);
 
+    let avatarHtml = `<div class="w-8 h-8 rounded-full ${isUpdated ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'} flex items-center justify-center font-bold text-xs shrink-0 shadow-sm border border-slate-200/60"><i class="fa-solid ${isUpdated ? 'fa-user-check' : 'fa-user-doctor'}"></i></div>`;
+    
+    if (isUpdated && d.matchedMemberId) {
+      const matchedMember = AppState.members && AppState.members.find(m => String(m.id) === String(d.matchedMemberId));
+      if (matchedMember) {
+        const photoSrc = getDoctorPrimaryImage(matchedMember);
+        if (photoSrc) {
+          avatarHtml = `<img src="${photoSrc}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0 shadow-sm" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs shrink-0\\'><i class=\\'fa-solid fa-user-check\\'></i></div>'">`;
+        }
+      }
+    }
+
     html += `
       <tr class="hover:bg-slate-50 transition border-b border-slate-100 ${isMyTf ? 'bg-sky-50/50' : ''}">
         <td class="py-3 px-4 text-center text-slate-400 font-mono text-[11px]">${globalIdx}</td>
         <td class="py-3 px-4">
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-full ${isUpdated ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'} flex items-center justify-center font-bold text-xs shrink-0">
-              <i class="fa-solid ${isUpdated ? 'fa-user-check' : 'fa-user-doctor'}"></i>
-            </div>
+            ${avatarHtml}
             <div>
               <div class="font-medium text-slate-900 flex items-center gap-1.5">
                 ${escapeHtml(d.name)}
@@ -4636,15 +4684,25 @@ const AuthManager = {
   },
 
   canEdit(type, id) {
-    return true; // Allow self-service updating and editing for all doctors
+    if (this.isAdmin()) return true;
+    if (this.isMyRecord(type, id)) return true;
+    return false;
   },
 
   requireEditPermission(type, id) {
+    if (this.isGuest()) {
+      showToast('กรุณาเข้าสู่ระบบก่อนทำรายการ', 'error');
+      this.openLoginModal();
+      return false;
+    }
+    if (!this.canEdit(type, id)) {
+      showToast('คุณไม่มีสิทธิ์แก้ไขข้อมูลของสมาชิกท่านนี้', 'error');
+      return false;
+    }
     return true;
   },
 
   openLoginModal() {
-    this.populateDemoDoctors();
     openModal('loginModal');
   },
 
@@ -5144,3 +5202,25 @@ const AuthManager = {
 };
 
 
+
+/* ================= CONTACT VISIBILITY TOGGLE ================= */
+let contactInfoVisible = false;
+function toggleContactVisibility() {
+  contactInfoVisible = !contactInfoVisible;
+  const icon = document.getElementById('contact-toggle-icon');
+  const text = document.getElementById('contact-toggle-text');
+  const mobile = document.getElementById('detail-mobile');
+  const email = document.getElementById('detail-email');
+  
+  if (contactInfoVisible) {
+    if (icon) icon.className = 'fa-solid fa-eye-slash';
+    if (text) text.innerText = 'ซ่อนข้อมูล';
+    if (mobile) mobile.classList.remove('blur-sm', 'select-none');
+    if (email) email.classList.remove('blur-sm', 'select-none');
+  } else {
+    if (icon) icon.className = 'fa-solid fa-eye';
+    if (text) text.innerText = 'แสดงข้อมูล';
+    if (mobile) mobile.classList.add('blur-sm', 'select-none');
+    if (email) email.classList.add('blur-sm', 'select-none');
+  }
+}
