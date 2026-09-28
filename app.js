@@ -100,7 +100,8 @@ function cleanMemberPayload(m) {
     email: m.email || '',
     photoDriveId: m.photoDriveId || '',
     photoUrl: m.photoUrl || '',
-    isContactPublic: !!m.isContactPublic
+    isPhonePublic: !!m.isPhonePublic,
+    isEmailPublic: !!m.isEmailPublic
   };
 }
 
@@ -2627,7 +2628,8 @@ function openMemberDetailModal(id) {
 
   // Contact Privacy Logic
   const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord('sheet', m.id));
-  const isPublic = m.isContactPublic === true || m.isContactPublic === 'TRUE';
+  const isPhonePublic = m.isPhonePublic === true || m.isPhonePublic === 'TRUE';
+  const isEmailPublic = m.isEmailPublic === true || m.isEmailPublic === 'TRUE';
   
   const toggleBtn = document.getElementById('contact-toggle-btn');
   const cIcon = document.getElementById('contact-toggle-icon');
@@ -2637,34 +2639,42 @@ function openMemberDetailModal(id) {
   if (cIcon) cIcon.className = 'fa-solid fa-eye';
   if (cText) cText.innerText = 'แสดงข้อมูล';
 
-  if (isPublic) {
-    if (toggleBtn) toggleBtn.style.display = 'none'; // No need for toggle if public
+  if (isOwnerOrAdmin && (!isPhonePublic || !isEmailPublic)) {
+    if (toggleBtn) toggleBtn.style.display = 'flex';
+  } else {
+    if (toggleBtn) toggleBtn.style.display = 'none';
+  }
+
+  if (isPhonePublic) {
     if (elMobile) {
       elMobile.innerText = m.mobilePhone || '-';
       elMobile.classList.remove('blur-sm', 'select-none');
     }
-    if (elEmail) {
-      elEmail.innerText = m.email || '-';
-      elEmail.classList.remove('blur-sm', 'select-none');
-    }
   } else if (isOwnerOrAdmin) {
-    if (toggleBtn) toggleBtn.style.display = 'flex';
     if (elMobile) {
       elMobile.innerText = m.mobilePhone || '-';
       elMobile.classList.add('blur-sm', 'select-none');
     }
-    if (elEmail) {
-      elEmail.innerText = m.email || '-';
-      elEmail.classList.add('blur-sm', 'select-none');
-    }
   } else {
-    if (toggleBtn) toggleBtn.style.display = 'none';
     if (elMobile) {
       let p = m.mobilePhone || '-';
       if (p.length >= 9) p = p.substring(0, 3) + '-XXX-XXXX';
       elMobile.innerText = p;
       elMobile.classList.remove('blur-sm', 'select-none');
     }
+  }
+
+  if (isEmailPublic) {
+    if (elEmail) {
+      elEmail.innerText = m.email || '-';
+      elEmail.classList.remove('blur-sm', 'select-none');
+    }
+  } else if (isOwnerOrAdmin) {
+    if (elEmail) {
+      elEmail.innerText = m.email || '-';
+      elEmail.classList.add('blur-sm', 'select-none');
+    }
+  } else {
     if (elEmail) {
       let e = m.email || '-';
       if (e.includes('@')) {
@@ -2928,8 +2938,10 @@ function openEditMemberModal(id) {
 
   document.getElementById('form-mobile').value = m.mobilePhone || '';
   document.getElementById('form-email').value = m.email || '';
-  const pubChk = document.getElementById('form-is-contact-public');
-  if (pubChk) pubChk.checked = (m.isContactPublic === true || m.isContactPublic === 'TRUE' || m.isContactPublic === 'TRUE');
+  const phonePubChk = document.getElementById('form-is-phone-public');
+  if (phonePubChk) phonePubChk.checked = (m.isPhonePublic === true || m.isPhonePublic === 'TRUE');
+  const emailPubChk = document.getElementById('form-is-email-public');
+  if (emailPubChk) emailPubChk.checked = (m.isEmailPublic === true || m.isEmailPublic === 'TRUE');
 
   openModal('memberEditModal');
   setTimeout(() => initEditModalMiniMap(m.lat, m.lng), 250);
@@ -3272,13 +3284,15 @@ function handleSaveMember(e) {
   const lat = parseFloat(document.getElementById('form-lat').value) || null;
   const lng = parseFloat(document.getElementById('form-lng').value) || null;
 
-  const pubChk = document.getElementById('form-is-contact-public');
+  const phonePubChk = document.getElementById('form-is-phone-public');
+  const emailPubChk = document.getElementById('form-is-email-public');
   const memberObj = {
     id: memberId,
     timestamp: new Date().toLocaleString('th-TH'),
     regType: 'ปรับปรุงข้อมูลสมาชิก',
     email: document.getElementById('form-email').value.trim(),
-    isContactPublic: pubChk ? pubChk.checked : false,
+    isPhonePublic: phonePubChk ? phonePubChk.checked : false,
+    isEmailPublic: emailPubChk ? emailPubChk.checked : false,
     titleTh: titleTh,
     firstNameTh: firstNameTh,
     middleNameTh: '',

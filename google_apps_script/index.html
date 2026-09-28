@@ -2419,6 +2419,16 @@ h1, h2, h3, h4, h5, h6, .font-heading {
               <label class="block text-slate-600 font-medium mb-1">อีเมล:</label>
               <input type="email" id="form-email" placeholder="example@mail.com" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
             </div>
+            <div class="sm:col-span-2 space-y-2 mt-1">
+              <label class="flex items-center gap-2 cursor-pointer bg-amber-50/50 p-2.5 rounded-xl border border-amber-100 hover:bg-amber-50 transition">
+                <input type="checkbox" id="form-is-phone-public" class="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500">
+                <span class="text-xs text-slate-700 font-medium">อนุญาตให้แสดงเบอร์โทรศัพท์สาธารณะ (เห็นได้โดยไม่ต้องกดปุ่มเบลอ)</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer bg-amber-50/50 p-2.5 rounded-xl border border-amber-100 hover:bg-amber-50 transition">
+                <input type="checkbox" id="form-is-email-public" class="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500">
+                <span class="text-xs text-slate-700 font-medium">อนุญาตให้แสดงอีเมลสาธารณะ (เห็นได้โดยไม่ต้องกดปุ่มเบลอ)</span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -89278,7 +89288,9 @@ function cleanMemberPayload(m) {
     mobilePhone: m.mobilePhone || '',
     email: m.email || '',
     photoDriveId: m.photoDriveId || '',
-    photoUrl: m.photoUrl || ''
+    photoUrl: m.photoUrl || '',
+    isPhonePublic: !!m.isPhonePublic,
+    isEmailPublic: !!m.isEmailPublic
   };
 }
 
@@ -91804,7 +91816,10 @@ function openMemberDetailModal(id) {
   if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
 
   // Contact Privacy Logic
-  const canViewContact = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord('sheet', m.id));
+  const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord('sheet', m.id));
+  const isPhonePublic = m.isPhonePublic === true || m.isPhonePublic === 'TRUE';
+  const isEmailPublic = m.isEmailPublic === true || m.isEmailPublic === 'TRUE';
+  
   const toggleBtn = document.getElementById('contact-toggle-btn');
   const cIcon = document.getElementById('contact-toggle-icon');
   const cText = document.getElementById('contact-toggle-text');
@@ -91813,26 +91828,42 @@ function openMemberDetailModal(id) {
   if (cIcon) cIcon.className = 'fa-solid fa-eye';
   if (cText) cText.innerText = 'แสดงข้อมูล';
 
-  if (canViewContact) {
+  if (isOwnerOrAdmin && (!isPhonePublic || !isEmailPublic)) {
     if (toggleBtn) toggleBtn.style.display = 'flex';
+  } else {
+    if (toggleBtn) toggleBtn.style.display = 'none';
+  }
+
+  if (isPhonePublic) {
     if (elMobile) {
-      elMobile.dataset.real = m.mobilePhone || '-';
+      elMobile.innerText = m.mobilePhone || '-';
+      elMobile.classList.remove('blur-sm', 'select-none');
+    }
+  } else if (isOwnerOrAdmin) {
+    if (elMobile) {
       elMobile.innerText = m.mobilePhone || '-';
       elMobile.classList.add('blur-sm', 'select-none');
     }
-    if (elEmail) {
-      elEmail.dataset.real = m.email || '-';
-      elEmail.innerText = m.email || '-';
-      elEmail.classList.add('blur-sm', 'select-none');
-    }
   } else {
-    if (toggleBtn) toggleBtn.style.display = 'none';
     if (elMobile) {
       let p = m.mobilePhone || '-';
       if (p.length >= 9) p = p.substring(0, 3) + '-XXX-XXXX';
       elMobile.innerText = p;
       elMobile.classList.remove('blur-sm', 'select-none');
     }
+  }
+
+  if (isEmailPublic) {
+    if (elEmail) {
+      elEmail.innerText = m.email || '-';
+      elEmail.classList.remove('blur-sm', 'select-none');
+    }
+  } else if (isOwnerOrAdmin) {
+    if (elEmail) {
+      elEmail.innerText = m.email || '-';
+      elEmail.classList.add('blur-sm', 'select-none');
+    }
+  } else {
     if (elEmail) {
       let e = m.email || '-';
       if (e.includes('@')) {
@@ -92096,6 +92127,10 @@ function openEditMemberModal(id) {
 
   document.getElementById('form-mobile').value = m.mobilePhone || '';
   document.getElementById('form-email').value = m.email || '';
+  const phonePubChk = document.getElementById('form-is-phone-public');
+  if (phonePubChk) phonePubChk.checked = (m.isPhonePublic === true || m.isPhonePublic === 'TRUE');
+  const emailPubChk = document.getElementById('form-is-email-public');
+  if (emailPubChk) emailPubChk.checked = (m.isEmailPublic === true || m.isEmailPublic === 'TRUE');
 
   openModal('memberEditModal');
   setTimeout(() => initEditModalMiniMap(m.lat, m.lng), 250);
@@ -92438,11 +92473,15 @@ function handleSaveMember(e) {
   const lat = parseFloat(document.getElementById('form-lat').value) || null;
   const lng = parseFloat(document.getElementById('form-lng').value) || null;
 
+  const phonePubChk = document.getElementById('form-is-phone-public');
+  const emailPubChk = document.getElementById('form-is-email-public');
   const memberObj = {
     id: memberId,
     timestamp: new Date().toLocaleString('th-TH'),
     regType: 'ปรับปรุงข้อมูลสมาชิก',
     email: document.getElementById('form-email').value.trim(),
+    isPhonePublic: phonePubChk ? phonePubChk.checked : false,
+    isEmailPublic: emailPubChk ? emailPubChk.checked : false,
     titleTh: titleTh,
     firstNameTh: firstNameTh,
     middleNameTh: '',

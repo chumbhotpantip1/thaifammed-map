@@ -410,7 +410,8 @@ function saveMemberInSheet(member) {
     if (colMap['โทรศัพท์มือถือ'] && member.mobilePhone !== undefined) sheet.getRange(targetRow, colMap['โทรศัพท์มือถือ']).setValue(member.mobilePhone);
     if (colMap['อีเมล'] && member.email !== undefined) sheet.getRange(targetRow, colMap['อีเมล']).setValue(member.email);
     if (colMap['ปริญญาอื่นๆ'] && member.otherDegree !== undefined) sheet.getRange(targetRow, colMap['ปริญญาอื่นๆ']).setValue(member.otherDegree);
-    if (colMap['เปิดเผยข้อมูลติดต่อ'] && member.isContactPublic !== undefined) sheet.getRange(targetRow, colMap['เปิดเผยข้อมูลติดต่อ']).setValue(member.isContactPublic ? 'TRUE' : 'FALSE');
+    if (colMap['เปิดเผยเบอร์โทรศัพท์'] && member.isPhonePublic !== undefined) sheet.getRange(targetRow, colMap['เปิดเผยเบอร์โทรศัพท์']).setValue(member.isPhonePublic ? 'TRUE' : 'FALSE');
+    if (colMap['เปิดเผยอีเมล'] && member.isEmailPublic !== undefined) sheet.getRange(targetRow, colMap['เปิดเผยอีเมล']).setValue(member.isEmailPublic ? 'TRUE' : 'FALSE');
     if (colMap['Drive_Photo_ID'] && member.photoDriveId !== undefined) sheet.getRange(targetRow, colMap['Drive_Photo_ID']).setValue(member.photoDriveId);
     if (colMap['Drive_Image_URL'] && member.photoUrl !== undefined) sheet.getRange(targetRow, colMap['Drive_Image_URL']).setValue(member.photoUrl);
     var actualId = sheet.getRange(targetRow, idCol).getValue() || member.id;
@@ -463,7 +464,8 @@ function saveMemberInSheet(member) {
     
     var newRow = sheet.getLastRow();
     if (colMap['ปริญญาอื่นๆ'] && member.otherDegree !== undefined) sheet.getRange(newRow, colMap['ปริญญาอื่นๆ']).setValue(member.otherDegree);
-    if (colMap['เปิดเผยข้อมูลติดต่อ'] && member.isContactPublic !== undefined) sheet.getRange(newRow, colMap['เปิดเผยข้อมูลติดต่อ']).setValue(member.isContactPublic ? 'TRUE' : 'FALSE');
+    if (colMap['เปิดเผยเบอร์โทรศัพท์'] && member.isPhonePublic !== undefined) sheet.getRange(newRow, colMap['เปิดเผยเบอร์โทรศัพท์']).setValue(member.isPhonePublic ? 'TRUE' : 'FALSE');
+    if (colMap['เปิดเผยอีเมล'] && member.isEmailPublic !== undefined) sheet.getRange(newRow, colMap['เปิดเผยอีเมล']).setValue(member.isEmailPublic ? 'TRUE' : 'FALSE');
     return {
       success: true,
       status: 'created',
