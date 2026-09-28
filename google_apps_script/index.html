@@ -89492,6 +89492,12 @@ function syncThaifammedWithMembers() {
   if (!AppState.members || !AppState.thaifammed) return 0;
   let matchCount = 0;
 
+  // Clear previous matching cache to prevent ghost links from old local storage
+  AppState.thaifammed.forEach(d => {
+    d.matchedMemberId = null;
+    d.isUpdated = false;
+  });
+
   AppState.members.forEach(m => {
     if (!m) return;
     let tfDoc = null;
