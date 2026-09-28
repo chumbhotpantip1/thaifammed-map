@@ -89496,19 +89496,8 @@ function syncThaifammedWithMembers() {
     if (!m) return;
     let tfDoc = null;
 
-    // Match 1: By License No (ว.)
-    if (m.licenseNo) {
-      const cleanLic = String(m.licenseNo).replace(/[^0-9]/g, '').trim();
-      if (cleanLic) {
-        tfDoc = AppState.thaifammed.find(d => {
-          const tfLic = String(d.gpNo || '').replace(/[^0-9]/g, '').trim();
-          return tfLic && tfLic === cleanLic;
-        });
-      }
-    }
-
-    // Match 2: By Name
-    if (!tfDoc && m.fullNameTh) {
+    // Match 1: By Name Only (since Thaifammed does not have licenseNo)
+    if (m.fullNameTh) {
       const cleanName = m.fullNameTh.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').trim();
       if (cleanName.length >= 3) {
         tfDoc = AppState.thaifammed.find(d => {
@@ -91719,11 +91708,10 @@ function openMemberDetailModal(id) {
     );
   }
 
-  // 4. Fallback: Search by License Number or Name in AppState.thaifammed
+  // 4. Fallback: Search by Name in AppState.thaifammed
   if (!m && !tfDoc && AppState.thaifammed) {
     const searchStr = String(id).trim();
     tfDoc = AppState.thaifammed.find(item =>
-      (item.gpNo && String(item.gpNo).trim() === searchStr) ||
       (item.name && item.name.includes(searchStr))
     );
     if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
