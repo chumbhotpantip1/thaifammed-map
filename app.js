@@ -1155,7 +1155,7 @@ function renderMapMarkers() {
           <div class="pt-2 border-t border-slate-100 space-y-1 text-xs text-slate-600">
             <div><i class="fa-solid fa-hospital text-sky-600 mr-1.5"></i> ${escapeHtml(wp.name || '-')}</div>
             <div><i class="fa-solid fa-location-dot text-rose-500 mr-1.5"></i> จ.${escapeHtml(mProv || '-')} (เขตสุขภาพ ${escapeHtml(m.healthZone || '-')})</div>
-            ${m.mobilePhone ? `<div><i class="fa-solid fa-phone text-emerald-600 mr-1.5"></i> ${escapeHtml(m.mobilePhone)}</div>` : ''}
+            ${m.mobilePhone ? `<div><i class="fa-solid fa-phone text-emerald-600 mr-1.5"></i> <span class="font-mono text-[11px]">${escapeHtml(getDisplayPhone(m))}</span></div>` : ''}
           </div>
           <div class="pt-2 flex items-center space-x-2">
             <button onclick="openMemberDetailModal(${m.id})" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
@@ -2213,7 +2213,7 @@ function renderDirectoryCards(members) {
             ${m.mobilePhone ? `
               <div class="flex items-center gap-2 text-slate-500">
                 <i class="fa-solid fa-phone text-emerald-600 w-4 text-center"></i>
-                <span class="font-mono text-[11px]">${escapeHtml(m.mobilePhone)}</span>
+                <span class="font-mono text-[11px]">${escapeHtml(getDisplayPhone(m))}</span>
               </div>
             ` : ''}
           </div>
@@ -2321,7 +2321,7 @@ function renderDirectoryTable(members) {
         </td>
         <td class="py-2.5 px-4 max-w-[200px] truncate">${escapeHtml(wp.name || '-')}</td>
         <td class="py-2.5 px-4">${escapeHtml(wpProv)}</td>
-        <td class="py-2.5 px-4 font-mono text-[11px]">${escapeHtml(m.mobilePhone || m.email || '-')}</td>
+        <td class="py-2.5 px-4 font-mono text-[11px]">${escapeHtml(getDisplayPhone(m) || getDisplayEmail(m) || '-')}</td>
         <td class="py-2.5 px-4 text-center">
           <div class="flex items-center justify-center space-x-1">
             <button onclick="openMemberDetailModal(${m.id})" class="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg" title="ดูข้อมูล">
@@ -2474,6 +2474,30 @@ function focusOnMap(lat, lng, label) {
 }
 
 /* ================= MODALS & CRUD OPERATIONS ================= */
+function getDisplayPhone(m, mType = 'sheet') {
+  const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord(mType, m.id));
+  const isPublic = m.isPhonePublic === true || m.isPhonePublic === 'TRUE';
+  if (isPublic || isOwnerOrAdmin) return m.mobilePhone || '';
+  let p = m.mobilePhone || '';
+  if (p.length >= 9) return p.substring(0, 3) + '-XXX-XXXX';
+  return p ? '***' : '';
+}
+
+function getDisplayEmail(m, mType = 'sheet') {
+  const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord(mType, m.id));
+  const isPublic = m.isEmailPublic === true || m.isEmailPublic === 'TRUE';
+  if (isPublic || isOwnerOrAdmin) return m.email || '';
+  let e = m.email || '';
+  if (e.includes('@')) {
+    let parts = e.split('@');
+    let n = parts[0];
+    if (n.length > 2) n = n.substring(0, 2) + '***';
+    else n = '***';
+    return n + '@***';
+  }
+  return e ? '***' : '';
+}
+
 function openMemberDetailModal(id) {
   let m = null;
   let tfDoc = null;
