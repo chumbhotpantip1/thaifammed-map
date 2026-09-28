@@ -3576,6 +3576,19 @@ function confirmResetInitialData() {
   }
 }
 
+function confirmClearPasswords() {
+  if (confirm('คุณต้องการล้าง "รหัสผ่านที่ตั้งใหม่ทั้งหมด" ที่บันทึกไว้ในเบราว์เซอร์นี้ใช่หรือไม่?\n\n(การทำเช่นนี้จะทำให้ทุกคนในเครื่องนี้กลับไปใช้รหัสผ่านเริ่มต้น เช่น 1234 หรือเลข 4 ตัวท้ายเบอร์โทร)')) {
+    localStorage.removeItem(STORAGE_KEY_CREDENTIALS);
+    localStorage.removeItem(STORAGE_KEY_AUTH_USER);
+    if (typeof AuthManager !== 'undefined') {
+      AuthManager.currentUser = { role: 'guest' };
+      AuthManager.updateAuthUI();
+      AuthManager.refreshActiveViews();
+    }
+    showToast('ล้างรหัสผ่านและออกจากระบบเรียบร้อยแล้ว', 'success');
+  }
+}
+
 function resetToInitialData() {
   localStorage.removeItem(STORAGE_KEY_MEMBERS);
   localStorage.removeItem(STORAGE_KEY_TF_OVERRIDES);

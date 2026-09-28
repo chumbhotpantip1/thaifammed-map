@@ -1995,7 +1995,10 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                   <p class="text-xs text-rose-800 mt-1">ล้างการแก้ไขที่จัดเก็บในเบราว์เซอร์ แล้วกลับไปใช้ข้อมูลต้นฉบับจาก Google Sheet</p>
                 </div>
                 <button onclick="confirmResetInitialData()" class="mt-4 w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs transition shadow-sm">
-                  <i class="fa-solid fa-rotate-left mr-1.5"></i> รีเซ็ตข้อมูลตั้งต้น
+                  <i class="fa-solid fa-rotate-left mr-1.5"></i> รีเซ็ตข้อมูลรายชื่อ
+                </button>
+                <button onclick="confirmClearPasswords()" class="mt-2 w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-xl text-xs transition shadow-sm" title="ล้างรหัสผ่านที่จำไว้ในเครื่องนี้ทั้งหมด">
+                  <i class="fa-solid fa-key mr-1.5"></i> ล้างรหัสผ่านทั้งหมด (รีเซ็ต Login)
                 </button>
               </div>
             </div>
@@ -92762,6 +92765,19 @@ function saveThaifammedOverrides() {
 function confirmResetInitialData() {
   if (confirm('คุณต้องการรีเซ็ตข้อมูลทั้งหมดกลับสู่ข้อมูลตั้งต้นจาก Google Sheet ใช่หรือไม่? การแก้ไขทั้งหมดจะถูกยกเลิก')) {
     resetToInitialData();
+  }
+}
+
+function confirmClearPasswords() {
+  if (confirm('คุณต้องการล้าง "รหัสผ่านที่ตั้งใหม่ทั้งหมด" ที่บันทึกไว้ในเบราว์เซอร์นี้ใช่หรือไม่?\n\n(การทำเช่นนี้จะทำให้ทุกคนในเครื่องนี้กลับไปใช้รหัสผ่านเริ่มต้น เช่น 1234 หรือเลข 4 ตัวท้ายเบอร์โทร)')) {
+    localStorage.removeItem(STORAGE_KEY_CREDENTIALS);
+    localStorage.removeItem(STORAGE_KEY_AUTH_USER);
+    if (typeof AuthManager !== 'undefined') {
+      AuthManager.currentUser = { role: 'guest' };
+      AuthManager.updateAuthUI();
+      AuthManager.refreshActiveViews();
+    }
+    showToast('ล้างรหัสผ่านและออกจากระบบเรียบร้อยแล้ว', 'success');
   }
 }
 
