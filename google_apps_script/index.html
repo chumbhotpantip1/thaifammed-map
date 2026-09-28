@@ -91696,11 +91696,17 @@ function openMemberDetailModal(id) {
     m = AppState.members.find(item => item.id == id);
   }
 
-  // 2. If not found in members, search in AppState.thaifammed
-  if (!m && AppState.thaifammed && AppState.thaifammed.length > 0) {
-    tfDoc = AppState.thaifammed.find(item => item.id == id || (item.matchedMemberId && item.matchedMemberId == id));
-    if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
-      m = AppState.members.find(item => item.id == tfDoc.matchedMemberId);
+  // 2. Always try to find corresponding tfDoc
+  if (AppState.thaifammed && AppState.thaifammed.length > 0) {
+    if (m) {
+      // If we found the sheet member, find their thaifammed record
+      tfDoc = AppState.thaifammed.find(item => String(item.matchedMemberId) === String(m.id) || String(item.id) === String(m.id));
+    } else {
+      // If we haven't found the sheet member, maybe 'id' is a thaifammed ID
+      tfDoc = AppState.thaifammed.find(item => String(item.id) === String(id) || (item.matchedMemberId && String(item.matchedMemberId) === String(id)));
+      if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
+        m = AppState.members.find(item => String(item.id) === String(tfDoc.matchedMemberId));
+      }
     }
   }
 
@@ -91815,8 +91821,9 @@ function openMemberDetailModal(id) {
   // FP and GP (Assoc) numbers
   const elFp = document.getElementById('detail-fp-no');
   if (elFp) {
-    if (m.fpNo) {
-      elFp.innerText = `FP: ${m.fpNo}`;
+    const fpNo = tfDoc ? tfDoc.fpNo : (m.fpNo || '');
+    if (fpNo) {
+      elFp.innerText = `FP: ${fpNo}`;
       elFp.classList.remove('hidden');
     } else {
       elFp.classList.add('hidden');
