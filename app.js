@@ -1147,14 +1147,14 @@ function renderMapMarkers() {
             ${m.mobilePhone ? `<div><i class="fa-solid fa-phone text-emerald-600 mr-1.5"></i> <span class="font-mono text-[11px]">${escapeHtml(getDisplayPhone(m))}</span></div>` : ''}
           </div>
           <div class="pt-2 flex items-center space-x-2">
-            <button onclick="openMemberDetailModal(${m.id})" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
+            <button onclick="openMemberDetailModal('${m.id}')" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
               ดูประวัติ
             </button>
             ${(typeof AuthManager !== 'undefined' && AuthManager.canEdit('sheet', m.id)) ? `
               <button onclick="startRelocateMarkerById('sheet', ${m.id})" class="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ย้ายตำแหน่งพิกัดหมุด">
                 <i class="fa-solid fa-location-crosshairs text-amber-600"></i> ย้ายพิกัด
               </button>
-              <button onclick="openEditMemberModal(${m.id})" class="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition" title="แก้ไขข้อมูล">
+              <button onclick="openEditMemberModal('${m.id}')" class="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition" title="แก้ไขข้อมูล">
                 <i class="fa-solid fa-pen"></i>
               </button>
             ` : `
@@ -1242,7 +1242,7 @@ function renderMapMarkers() {
             <div class="min-w-0 flex-1">
               <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isUpdated ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800'}">Thaifammed FP</span>
               <h5 class="text-sm font-bold text-slate-900 truncate mt-1">${escapeHtml(d.name)}</h5>
-              <p class="text-[11px] text-slate-500 font-mono">ว. ${escapeHtml(d.gpNo || '-')} | FP: ${escapeHtml(d.fpNo || '-')}</p>
+              <p class="text-[11px] text-slate-500 font-mono">เลขที่ สมาคม: ${escapeHtml(d.gpNo || '-')} | FP: ${escapeHtml(d.fpNo || '-')}</p>
             </div>
           </div>
           <div class="pt-2 border-t border-slate-100 space-y-1 text-xs text-slate-600">
@@ -1252,17 +1252,17 @@ function renderMapMarkers() {
           </div>
           <div class="pt-2 flex items-center space-x-2">
             ${isUpdated && d.matchedMemberId ? `
-              <button onclick="openMemberDetailModal(${d.matchedMemberId})" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
+              <button onclick="openMemberDetailModal('${d.matchedMemberId}')" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
                 <i class="fa-solid fa-address-card mr-1"></i> ดูประวัติ
               </button>
-              <button onclick="openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold text-center transition" title="แก้ไขข้อมูล">
+              <button onclick="openUpdateDoctorModal('sheet', '${d.matchedMemberId}')" class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold text-center transition" title="แก้ไขข้อมูล">
                 <i class="fa-solid fa-pen-to-square"></i> แก้ไข
               </button>
             ` : `
-              <button onclick="openMemberDetailModal(${d.id})" class="py-1.5 px-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold text-center transition" title="ดูข้อมูลแพทย์">
+              <button onclick="openMemberDetailModal('tf_${d.id}')" class="py-1.5 px-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold text-center transition" title="ดูข้อมูลแพทย์">
                 <i class="fa-solid fa-address-card mr-1"></i> ดูประวัติ
               </button>
-              <button onclick="openUpdateDoctorModal('thaifammed', ${d.id})" class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold text-center transition shadow-sm">
+              <button onclick="openUpdateDoctorModal('thaifammed', '${d.id}')" class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold text-center transition shadow-sm">
                 <i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูล
               </button>
             `}
@@ -1868,24 +1868,24 @@ function renderProvinceDoctorsList(doctors) {
             <i class="fa-solid fa-location-dot"></i> ดูหมุด
           </button>
           ${isSheet ? `
-            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.id})" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติ">
+            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal('${d.id}')" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติ">
               <i class="fa-solid fa-address-card"></i> ประวัติ
             </button>
-            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('sheet', ${d.id})" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="แก้ไขข้อมูล">
+            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('sheet', '${d.id}')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="แก้ไขข้อมูล">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
           ` : (d.matchedMemberId ? `
-            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.matchedMemberId})" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติใน Sheet">
+            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal('${d.matchedMemberId}')" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติใน Sheet">
               <i class="fa-solid fa-address-card"></i> ประวัติ
             </button>
-            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="แก้ไขข้อมูล">
+            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('sheet', '${d.matchedMemberId}')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="แก้ไขข้อมูล">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
           ` : `
-            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal(${d.id})" class="px-2.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติ">
+            <button onclick="closeModal('provinceDoctorsModal'); openMemberDetailModal('tf_${d.id}')" class="px-2.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="ดูประวัติ">
               <i class="fa-solid fa-address-card"></i> ประวัติ
             </button>
-            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('thaifammed', ${d.id})" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm" title="อัปเดตข้อมูลลง Sheet">
+            <button onclick="closeModal('provinceDoctorsModal'); openUpdateDoctorModal('thaifammed', '${d.id}')" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm" title="อัปเดตข้อมูลลง Sheet">
               <i class="fa-solid fa-user-pen"></i> อัปเดตข้อมูล
             </button>
           `)}
@@ -2210,11 +2210,11 @@ function renderDirectoryCards(members) {
 
         <!-- Card Action Buttons -->
         <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-          <button onclick="openMemberDetailModal(${m.id})" class="flex-1 py-2 px-3 bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold rounded-xl text-xs transition text-center">
+          <button onclick="openMemberDetailModal('${m.id}')" class="flex-1 py-2 px-3 bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold rounded-xl text-xs transition text-center">
             ดูรายละเอียด
           </button>
           ${canEdit ? `
-            <button onclick="openEditMemberModal(${m.id})" class="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-xl transition" title="แก้ไขข้อมูล">
+            <button onclick="openEditMemberModal('${m.id}')" class="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-xl transition" title="แก้ไขข้อมูล">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
           ` : ''}
@@ -2313,11 +2313,11 @@ function renderDirectoryTable(members) {
         <td class="py-2.5 px-4 font-mono text-[11px]">${escapeHtml(getDisplayPhone(m) || getDisplayEmail(m) || '-')}</td>
         <td class="py-2.5 px-4 text-center">
           <div class="flex items-center justify-center space-x-1">
-            <button onclick="openMemberDetailModal(${m.id})" class="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg" title="ดูข้อมูล">
+            <button onclick="openMemberDetailModal('${m.id}')" class="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg" title="ดูข้อมูล">
               <i class="fa-solid fa-eye"></i>
             </button>
             ${canEdit ? `
-              <button onclick="openEditMemberModal(${m.id})" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg" title="แก้ไข">
+              <button onclick="openEditMemberModal('${m.id}')" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg" title="แก้ไข">
                 <i class="fa-solid fa-pen"></i>
               </button>
             ` : ''}
@@ -2400,11 +2400,11 @@ function renderPhotoGallery() {
         <div class="aspect-square w-full bg-slate-100 overflow-hidden relative">
           <img src="${photoSrc}" alt="${m.fullNameTh}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 avatar-img" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
           <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition flex items-end p-2.5 gap-1.5">
-            <button onclick="openMemberDetailModal(${m.id})" class="flex-1 py-1.5 bg-sky-500 hover:bg-sky-400 text-white rounded-lg text-xs font-semibold shadow transition text-center">
+            <button onclick="openMemberDetailModal('${m.id}')" class="flex-1 py-1.5 bg-sky-500 hover:bg-sky-400 text-white rounded-lg text-xs font-semibold shadow transition text-center">
               ดูประวัติ
             </button>
             ${canEdit ? `
-              <button onclick="openEditMemberModal(${m.id})" class="py-1.5 px-2 bg-white/80 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow transition" title="เปลี่ยนรูป">
+              <button onclick="openEditMemberModal('${m.id}')" class="py-1.5 px-2 bg-white/80 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow transition" title="เปลี่ยนรูป">
                 <i class="fa-solid fa-camera"></i>
               </button>
             ` : ''}
@@ -2490,29 +2490,40 @@ function getDisplayEmail(m, mType = 'sheet') {
 function openMemberDetailModal(id) {
   let m = null;
   let tfDoc = null;
+  
+  const idStr = String(id).trim();
+  const isTfId = idStr.startsWith('tf_');
+  const actualId = isTfId ? idStr.substring(3) : idStr;
 
-  // 1. Search in AppState.members by ID
-  if (AppState.members && AppState.members.length > 0) {
-    m = AppState.members.find(item => item.id == id);
-  }
+  if (isTfId) {
+    if (AppState.thaifammed) tfDoc = AppState.thaifammed.find(item => String(item.id) === actualId);
+    if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
+      m = AppState.members.find(item => String(item.id) === String(tfDoc.matchedMemberId));
+    }
+  } else {
+    // 1. Search in AppState.members by ID
+    if (AppState.members && AppState.members.length > 0) {
+      m = AppState.members.find(item => String(item.id) === actualId);
+    }
 
-  // 2. Always try to find corresponding tfDoc
-  if (AppState.thaifammed && AppState.thaifammed.length > 0) {
-    if (m) {
-      // If we found the sheet member, find their thaifammed record
-      tfDoc = AppState.thaifammed.find(item => String(item.matchedMemberId) === String(m.id) || String(item.id) === String(m.id));
-    } else {
-      // If we haven't found the sheet member, maybe 'id' is a thaifammed ID
-      tfDoc = AppState.thaifammed.find(item => String(item.id) === String(id) || (item.matchedMemberId && String(item.matchedMemberId) === String(id)));
-      if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
-        m = AppState.members.find(item => String(item.id) === String(tfDoc.matchedMemberId));
+    // 2. Always try to find corresponding tfDoc
+    if (AppState.thaifammed && AppState.thaifammed.length > 0) {
+      if (m) {
+        // If we found the sheet member, find their thaifammed record by matchedMemberId ONLY
+        tfDoc = AppState.thaifammed.find(item => String(item.matchedMemberId) === String(m.id));
+      } else {
+        // If we haven't found the sheet member, maybe 'actualId' is a thaifammed ID
+        tfDoc = AppState.thaifammed.find(item => String(item.id) === actualId || (item.matchedMemberId && String(item.matchedMemberId) === actualId));
+        if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
+          m = AppState.members.find(item => String(item.id) === String(tfDoc.matchedMemberId));
+        }
       }
     }
   }
 
   // 3. Fallback: Search by License Number or Doctor Name in AppState.members
   if (!m && AppState.members) {
-    const searchStr = String(id).trim();
+    const searchStr = actualId.trim();
     const cleanSearchStr = searchStr.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '');
     m = AppState.members.find(item => {
       if (item.licenseNo && String(item.licenseNo).trim() === searchStr) return true;
@@ -2526,7 +2537,7 @@ function openMemberDetailModal(id) {
 
   // 4. Fallback: Search by Name in AppState.thaifammed
   if (!m && !tfDoc && AppState.thaifammed) {
-    const searchStr = String(id).replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '').trim();
+    const searchStr = actualId.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '').trim();
     if (searchStr.length >= 3) {
       tfDoc = AppState.thaifammed.find(item => {
         const itemName = (item.name || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '').trim();
@@ -4104,13 +4115,13 @@ function renderThaifammed() {
         </td>
         <td class="py-3 px-4 text-center">
           <div class="flex items-center justify-center gap-1.5">
-            <button onclick="openMemberDetailModal(${d.matchedMemberId || d.id})" class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition inline-flex items-center gap-1 border border-sky-200 shadow-sm" title="ดูประวัติแพทย์"><i class="fa-solid fa-address-card"></i> โปรไฟล์</button>
+            <button onclick="openMemberDetailModal(${d.matchedMemberId ? `'${d.matchedMemberId}'` : `'tf_${d.id}'`})" class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition inline-flex items-center gap-1 border border-sky-200 shadow-sm" title="ดูประวัติแพทย์"><i class="fa-solid fa-address-card"></i> โปรไฟล์</button>
             ${isUpdated && d.matchedMemberId
               ? `
-                <button onclick="openUpdateDoctorModal('sheet', ${d.matchedMemberId})" class="px-2 py-1 rounded-xl bg-slate-50 text-slate-700 hover:bg-slate-100 font-medium text-xs transition inline-flex items-center gap-1 border border-slate-200 shadow-sm" title="แก้ไขข้อมูล"><i class="fa-solid fa-pen-to-square text-sky-600"></i> แก้ไข</button>
+                <button onclick="openUpdateDoctorModal('sheet', '${d.matchedMemberId}')" class="px-2 py-1 rounded-xl bg-slate-50 text-slate-700 hover:bg-slate-100 font-medium text-xs transition inline-flex items-center gap-1 border border-slate-200 shadow-sm" title="แก้ไขข้อมูล"><i class="fa-solid fa-pen-to-square text-sky-600"></i> แก้ไข</button>
               `
               : `
-                <button onclick="openUpdateDoctorModal('thaifammed', ${d.id})" class="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition inline-flex items-center gap-1 shadow-sm" title="อัปเดตข้อมูลแพทย์ลงใน Sheet 314">
+                <button onclick="openUpdateDoctorModal('thaifammed', '${d.id}')" class="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition inline-flex items-center gap-1 shadow-sm" title="อัปเดตข้อมูลแพทย์ลงใน Sheet 314">
                   <i class="fa-solid fa-user-pen"></i> อัปเดตข้อมูล
                 </button>
               `
