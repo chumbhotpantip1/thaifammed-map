@@ -99,7 +99,8 @@ function cleanMemberPayload(m) {
     mobilePhone: m.mobilePhone || '',
     email: m.email || '',
     photoDriveId: m.photoDriveId || '',
-    photoUrl: m.photoUrl || ''
+    photoUrl: m.photoUrl || '',
+    isContactPublic: !!m.isContactPublic
   };
 }
 
@@ -2625,7 +2626,9 @@ function openMemberDetailModal(id) {
   if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
 
   // Contact Privacy Logic
-  const canViewContact = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord('sheet', m.id));
+  const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord('sheet', m.id));
+  const isPublic = m.isContactPublic === true || m.isContactPublic === 'TRUE';
+  
   const toggleBtn = document.getElementById('contact-toggle-btn');
   const cIcon = document.getElementById('contact-toggle-icon');
   const cText = document.getElementById('contact-toggle-text');
@@ -2634,15 +2637,23 @@ function openMemberDetailModal(id) {
   if (cIcon) cIcon.className = 'fa-solid fa-eye';
   if (cText) cText.innerText = 'แสดงข้อมูล';
 
-  if (canViewContact) {
+  if (isPublic) {
+    if (toggleBtn) toggleBtn.style.display = 'none'; // No need for toggle if public
+    if (elMobile) {
+      elMobile.innerText = m.mobilePhone || '-';
+      elMobile.classList.remove('blur-sm', 'select-none');
+    }
+    if (elEmail) {
+      elEmail.innerText = m.email || '-';
+      elEmail.classList.remove('blur-sm', 'select-none');
+    }
+  } else if (isOwnerOrAdmin) {
     if (toggleBtn) toggleBtn.style.display = 'flex';
     if (elMobile) {
-      elMobile.dataset.real = m.mobilePhone || '-';
       elMobile.innerText = m.mobilePhone || '-';
       elMobile.classList.add('blur-sm', 'select-none');
     }
     if (elEmail) {
-      elEmail.dataset.real = m.email || '-';
       elEmail.innerText = m.email || '-';
       elEmail.classList.add('blur-sm', 'select-none');
     }
@@ -2917,6 +2928,8 @@ function openEditMemberModal(id) {
 
   document.getElementById('form-mobile').value = m.mobilePhone || '';
   document.getElementById('form-email').value = m.email || '';
+  const pubChk = document.getElementById('form-is-contact-public');
+  if (pubChk) pubChk.checked = (m.isContactPublic === true || m.isContactPublic === 'TRUE' || m.isContactPublic === 'TRUE');
 
   openModal('memberEditModal');
   setTimeout(() => initEditModalMiniMap(m.lat, m.lng), 250);
@@ -3259,11 +3272,13 @@ function handleSaveMember(e) {
   const lat = parseFloat(document.getElementById('form-lat').value) || null;
   const lng = parseFloat(document.getElementById('form-lng').value) || null;
 
+  const pubChk = document.getElementById('form-is-contact-public');
   const memberObj = {
     id: memberId,
     timestamp: new Date().toLocaleString('th-TH'),
     regType: 'ปรับปรุงข้อมูลสมาชิก',
     email: document.getElementById('form-email').value.trim(),
+    isContactPublic: pubChk ? pubChk.checked : false,
     titleTh: titleTh,
     firstNameTh: firstNameTh,
     middleNameTh: '',

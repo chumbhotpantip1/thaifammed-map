@@ -407,10 +407,12 @@ function saveMemberInSheet(member) {
     if (colMap['เขตสุขภาพ'] && member.healthZone) sheet.getRange(targetRow, colMap['เขตสุขภาพ']).setValue(member.healthZone);
     if (colMap['ละติจูด'] && member.lat) sheet.getRange(targetRow, colMap['ละติจูด']).setValue(member.lat);
     if (colMap['ลองจิจูด'] && member.lng) sheet.getRange(targetRow, colMap['ลองจิจูด']).setValue(member.lng);
-    if (colMap['โทรศัพท์มือถือ'] && member.mobilePhone) sheet.getRange(targetRow, colMap['โทรศัพท์มือถือ']).setValue(member.mobilePhone);
-    if (colMap['อีเมล'] && member.email) sheet.getRange(targetRow, colMap['อีเมล']).setValue(member.email);
-    if (colMap['Drive_Photo_ID'] && member.photoDriveId) sheet.getRange(targetRow, colMap['Drive_Photo_ID']).setValue(member.photoDriveId);
-    if (colMap['Drive_Image_URL'] && member.photoUrl) sheet.getRange(targetRow, colMap['Drive_Image_URL']).setValue(member.photoUrl);
+    if (colMap['โทรศัพท์มือถือ'] && member.mobilePhone !== undefined) sheet.getRange(targetRow, colMap['โทรศัพท์มือถือ']).setValue(member.mobilePhone);
+    if (colMap['อีเมล'] && member.email !== undefined) sheet.getRange(targetRow, colMap['อีเมล']).setValue(member.email);
+    if (colMap['ปริญญาอื่นๆ'] && member.otherDegree !== undefined) sheet.getRange(targetRow, colMap['ปริญญาอื่นๆ']).setValue(member.otherDegree);
+    if (colMap['เปิดเผยข้อมูลติดต่อ'] && member.isContactPublic !== undefined) sheet.getRange(targetRow, colMap['เปิดเผยข้อมูลติดต่อ']).setValue(member.isContactPublic ? 'TRUE' : 'FALSE');
+    if (colMap['Drive_Photo_ID'] && member.photoDriveId !== undefined) sheet.getRange(targetRow, colMap['Drive_Photo_ID']).setValue(member.photoDriveId);
+    if (colMap['Drive_Image_URL'] && member.photoUrl !== undefined) sheet.getRange(targetRow, colMap['Drive_Image_URL']).setValue(member.photoUrl);
     var actualId = sheet.getRange(targetRow, idCol).getValue() || member.id;
     return {
       success: true,
@@ -458,6 +460,10 @@ function saveMemberInSheet(member) {
       member.photoDriveId || '',
       member.photoUrl || ''
     ]);
+    
+    var newRow = sheet.getLastRow();
+    if (colMap['ปริญญาอื่นๆ'] && member.otherDegree !== undefined) sheet.getRange(newRow, colMap['ปริญญาอื่นๆ']).setValue(member.otherDegree);
+    if (colMap['เปิดเผยข้อมูลติดต่อ'] && member.isContactPublic !== undefined) sheet.getRange(newRow, colMap['เปิดเผยข้อมูลติดต่อ']).setValue(member.isContactPublic ? 'TRUE' : 'FALSE');
     return {
       success: true,
       status: 'created',
