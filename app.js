@@ -307,13 +307,13 @@ function syncThaifammedWithMembers() {
     if (!m) return;
     let tfDoc = null;
 
-    // Match 1: By Name Only (since Thaifammed does not have licenseNo)
+    // Match 1: By Exact Name (ignoring titles and spaces)
     if (m.fullNameTh) {
-      const cleanName = m.fullNameTh.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').trim();
+      const cleanName = m.fullNameTh.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '').trim();
       if (cleanName.length >= 3) {
         tfDoc = AppState.thaifammed.find(d => {
-          const tfClean = (d.cleanName || d.name || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').trim();
-          return tfClean && (tfClean.includes(cleanName) || cleanName.includes(tfClean));
+          const tfClean = (d.cleanName || d.name || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '').trim();
+          return tfClean === cleanName;
         });
       }
     }
@@ -2513,18 +2513,26 @@ function openMemberDetailModal(id) {
   // 3. Fallback: Search by License Number or Doctor Name in AppState.members
   if (!m && AppState.members) {
     const searchStr = String(id).trim();
-    m = AppState.members.find(item => 
-      (item.licenseNo && String(item.licenseNo).trim() === searchStr) ||
-      (item.fullNameTh && item.fullNameTh.includes(searchStr))
-    );
+    const cleanSearchStr = searchStr.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '');
+    m = AppState.members.find(item => {
+      if (item.licenseNo && String(item.licenseNo).trim() === searchStr) return true;
+      if (item.fullNameTh) {
+        const itemClean = item.fullNameTh.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '');
+        if (cleanSearchStr.length >= 3 && itemClean === cleanSearchStr) return true;
+      }
+      return false;
+    });
   }
 
   // 4. Fallback: Search by Name in AppState.thaifammed
   if (!m && !tfDoc && AppState.thaifammed) {
-    const searchStr = String(id).trim();
-    tfDoc = AppState.thaifammed.find(item =>
-      (item.name && item.name.includes(searchStr))
-    );
+    const searchStr = String(id).replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '').trim();
+    if (searchStr.length >= 3) {
+      tfDoc = AppState.thaifammed.find(item => {
+        const itemName = (item.name || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '').trim();
+        return itemName === searchStr;
+      });
+    }
     if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
       m = AppState.members.find(item => item.id == tfDoc.matchedMemberId);
     }
