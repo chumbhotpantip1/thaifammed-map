@@ -152,6 +152,10 @@ function getMembersFromSheet() {
   var idxEmail = colMap['อีเมล'] !== undefined ? colMap['อีเมล'] : 21;
   var idxPhotoDrive = colMap['Drive_Photo_ID'] !== undefined ? colMap['Drive_Photo_ID'] : (colMap['Google_Drive_Photo_ID'] !== undefined ? colMap['Google_Drive_Photo_ID'] : 22);
   var idxPhotoUrl = colMap['Drive_Image_URL'] !== undefined ? colMap['Drive_Image_URL'] : 23;
+  var idxOtherDegree = colMap['ปริญญาอื่นๆ'] !== undefined ? colMap['ปริญญาอื่นๆ'] : -1;
+  var idxIsPhonePublic = colMap['เปิดเผยเบอร์โทรศัพท์'] !== undefined ? colMap['เปิดเผยเบอร์โทรศัพท์'] : -1;
+  var idxIsEmailPublic = colMap['เปิดเผยอีเมล'] !== undefined ? colMap['เปิดเผยอีเมล'] : -1;
+  var idxHighlights = colMap['ผลงานเด่น'] !== undefined ? colMap['ผลงานเด่น'] : -1;
 
   var members = [];
   for (var r = 1; r < values.length; r++) {
@@ -168,6 +172,21 @@ function getMembersFromSheet() {
       pUrl = 'https://lh3.googleusercontent.com/d/' + driveId + '=w500';
     }
 
+    var otherDeg = idxOtherDegree !== -1 ? String(row[idxOtherDegree] || '').trim() : '';
+    var isPhonePub = idxIsPhonePublic !== -1 ? (String(row[idxIsPhonePublic] || '').toUpperCase() === 'TRUE') : false;
+    var isEmailPub = idxIsEmailPublic !== -1 ? (String(row[idxIsEmailPublic] || '').toUpperCase() === 'TRUE') : false;
+
+    var rawHighlights = idxHighlights !== -1 ? String(row[idxHighlights] || '').trim() : '';
+    var parsedHighlights = [];
+    if (rawHighlights) {
+      try {
+        parsedHighlights = JSON.parse(rawHighlights);
+        if (!Array.isArray(parsedHighlights)) parsedHighlights = [];
+      } catch (phErr) {
+        parsedHighlights = [{ title: rawHighlights }];
+      }
+    }
+
     members.push({
       id: parseInt(row[idxId], 10) || r,
       fullNameTh: fullTh,
@@ -180,6 +199,7 @@ function getMembersFromSheet() {
       certYear: String(row[idxCertYear] || '').trim(),
       medSchool: String(row[idxMedSchool] || '').trim(),
       trainingInstitute: String(row[idxTrainInst] || '').trim(),
+      otherDegree: otherDeg,
       workplace: {
         name: String(row[idxWorkplace] || '').trim(),
         type: String(row[idxWpType] || 'รัฐบาล').trim(),
@@ -193,8 +213,11 @@ function getMembersFromSheet() {
       lng: parseFloat(row[idxLng]) || 0,
       mobilePhone: String(row[idxPhone] || '').trim(),
       email: String(row[idxEmail] || '').trim(),
+      isPhonePublic: isPhonePub,
+      isEmailPublic: isEmailPub,
       photoDriveId: driveId,
-      photoUrl: pUrl
+      photoUrl: pUrl,
+      highlights: parsedHighlights
     });
   }
 
@@ -306,6 +329,53 @@ function processPhotoAndSaveToDrive(member) {
 }
 
 /**
+ * จัดการอัปโหลดไฟล์ประกอบผลงานเด่นลง Google Drive โฟลเดอร์ "ระบบสมาชิก"
+ */
+function processHighlightsAndSaveToDrive(member) {
+  if (!member || !member.highlights || !Array.isArray(member.highlights)) return;
+  var folder;
+  try {
+    folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+  } catch (fErr) {
+    folder = DriveApp.getRootFolder();
+  }
+
+  for (var i = 0; i < member.highlights.length; i++) {
+    var item = member.highlights[i];
+    if (!item) continue;
+    var rawFile = item.fileData || '';
+    if (rawFile.indexOf('data:') === 0) {
+      try {
+        var parts = rawFile.split(',');
+        var meta = parts[0];
+        var base64 = parts[1];
+        var mime = 'application/octet-stream';
+        var mimeMatch = meta.match(/:(.*?);/);
+        if (mimeMatch && mimeMatch[1]) mime = mimeMatch[1];
+
+        var origName = item.fileName || ('highlight_doc_' + (i + 1));
+        var sanitizedName = origName.replace(/[^a-zA-Z0-9_\u0E00-\u0E7F.-]/g, '_');
+        var fileName = 'highlight_' + (member.licenseNo || member.id || Date.now()) + '_' + (i + 1) + '_' + sanitizedName;
+        
+        var blob = Utilities.newBlob(Utilities.base64Decode(base64), mime, fileName);
+        var file = folder.createFile(blob);
+        try {
+          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (shareErr) {}
+        
+        var fileId = file.getId();
+        item.fileDriveId = fileId;
+        item.fileUrl = 'https://drive.google.com/file/d/' + fileId + '/view?usp=sharing';
+        delete item.fileData; // ไม่เก็บ Base64 ก้อนใหญ่ลง Sheet
+        Logger.log('Saved highlight attachment to Drive. ID: ' + fileId);
+      } catch (hErr) {
+        Logger.log('Failed to save highlight file to Drive: ' + hErr);
+      }
+    }
+  }
+}
+
+/**
  * บันทึกหรือแก้ไขข้อมูลสมาชิกใน Sheet
  */
 function saveMemberInSheet(member) {
@@ -313,6 +383,9 @@ function saveMemberInSheet(member) {
 
   // ประมวลผลรูปภาพและอัปโหลดขึ้น Google Drive
   processPhotoAndSaveToDrive(member);
+
+  // ประมวลผลไฟล์แนบผลงานเด่นและอัปโหลดขึ้น Google Drive
+  processHighlightsAndSaveToDrive(member);
 
   var ss = getActiveSpreadsheet();
   var sheet = ss.getSheetByName('02_สมาชิกอัปเดตแล้ว_Sheet_314') ||
@@ -328,6 +401,14 @@ function saveMemberInSheet(member) {
   var colMap = {};
   for (var c = 0; c < headers.length; c++) {
     colMap[String(headers[c]).trim()] = c + 1;
+  }
+
+  // ตรวจสอบและสร้างคอลัมน์ 'ผลงานเด่น' หากยังไม่มีในชีต
+  if (!colMap['ผลงานเด่น']) {
+    var newColIdx = lastCol + 1;
+    sheet.getRange(1, newColIdx).setValue('ผลงานเด่น');
+    colMap['ผลงานเด่น'] = newColIdx;
+    lastCol = newColIdx;
   }
 
   var idCol = colMap['ID'] || 1;
@@ -414,6 +495,7 @@ function saveMemberInSheet(member) {
     if (colMap['เปิดเผยอีเมล'] && member.isEmailPublic !== undefined) sheet.getRange(targetRow, colMap['เปิดเผยอีเมล']).setValue(member.isEmailPublic ? 'TRUE' : 'FALSE');
     if (colMap['Drive_Photo_ID'] && member.photoDriveId !== undefined) sheet.getRange(targetRow, colMap['Drive_Photo_ID']).setValue(member.photoDriveId);
     if (colMap['Drive_Image_URL'] && member.photoUrl !== undefined) sheet.getRange(targetRow, colMap['Drive_Image_URL']).setValue(member.photoUrl);
+    if (colMap['ผลงานเด่น'] && member.highlights !== undefined) sheet.getRange(targetRow, colMap['ผลงานเด่น']).setValue(JSON.stringify(member.highlights));
     var actualId = sheet.getRange(targetRow, idCol).getValue() || member.id;
     return {
       success: true,
@@ -466,6 +548,7 @@ function saveMemberInSheet(member) {
     if (colMap['ปริญญาอื่นๆ'] && member.otherDegree !== undefined) sheet.getRange(newRow, colMap['ปริญญาอื่นๆ']).setValue(member.otherDegree);
     if (colMap['เปิดเผยเบอร์โทรศัพท์'] && member.isPhonePublic !== undefined) sheet.getRange(newRow, colMap['เปิดเผยเบอร์โทรศัพท์']).setValue(member.isPhonePublic ? 'TRUE' : 'FALSE');
     if (colMap['เปิดเผยอีเมล'] && member.isEmailPublic !== undefined) sheet.getRange(newRow, colMap['เปิดเผยอีเมล']).setValue(member.isEmailPublic ? 'TRUE' : 'FALSE');
+    if (colMap['ผลงานเด่น'] && member.highlights !== undefined) sheet.getRange(newRow, colMap['ผลงานเด่น']).setValue(JSON.stringify(member.highlights));
     return {
       success: true,
       status: 'created',

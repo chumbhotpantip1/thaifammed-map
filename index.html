@@ -833,6 +833,9 @@
                 <option value="all">แสดงทั้งหมด</option>
                 <option value="no_photo">เฉพาะที่ยังไม่มีรูปภาพ</option>
               </select>
+              <button onclick="openCameraCaptureModal('gallery')" class="px-3 py-1.5 bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-700 hover:to-teal-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-1.5 shrink-0" title="ถ่ายรูปแพทย์ด้วยกล้อง">
+                <i class="fa-solid fa-camera"></i> ถ่ายรูปแพทย์ด้วยกล้อง
+              </button>
             </div>
           </div>
 
@@ -1562,6 +1565,17 @@
           </div>
         </div>
 
+        <!-- Outstanding Works / Highlights Section -->
+        <div id="detail-highlights-section" class="p-4 rounded-2xl bg-gradient-to-br from-amber-50/70 to-orange-50/40 border border-amber-200/80 space-y-3">
+          <h4 class="font-bold text-slate-900 text-sm flex items-center justify-between border-b border-amber-200/60 pb-2">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-award text-amber-600"></i> ผลงานเด่น / รางวัลที่ได้รับ</span>
+            <span id="detail-highlights-count" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">0 ผลงาน</span>
+          </h4>
+          <div id="detail-highlights-list" class="space-y-2.5">
+            <!-- Dynamic list rendered via app.js -->
+          </div>
+        </div>
+
         <!-- Contact Information -->
         <div class="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 space-y-2 relative">
           <h4 class="font-bold text-sky-950 text-sm flex items-center justify-between border-b border-sky-200/60 pb-2">
@@ -1855,9 +1869,12 @@
                   <button type="button" onclick="document.getElementById('form-photo-file').click()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition shrink-0 flex items-center gap-1.5 border border-slate-300">
                     <i class="fa-solid fa-upload text-purple-600"></i> เลือกไฟล์รูป
                   </button>
+                  <button type="button" onclick="openCameraCaptureModal('edit-form')" class="px-3 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold rounded-xl text-xs transition shrink-0 flex items-center gap-1.5 border border-sky-300 shadow-sm" title="ถ่ายรูปด้วยกล้องโดยตรง (Webcam / กล้องมือถือ)">
+                    <i class="fa-solid fa-camera text-sky-600"></i> ถ่ายรูปด้วยกล้อง
+                  </button>
                   <input type="file" id="form-photo-file" accept="image/*" onchange="handlePhotoFileUpload(event)" class="hidden">
                 </div>
-                <p class="text-[10px] text-slate-400">รองรับไฟล์ JPG, PNG จากเครื่อง หรือ Google Drive URL</p>
+                <p class="text-[10px] text-slate-400">รองรับไฟล์ JPG, PNG, ถ่ายสดจากกล้อง หรือ Google Drive URL</p>
               </div>
             </div>
           </div>
@@ -1881,6 +1898,26 @@
                 <span class="text-xs text-slate-700 font-medium">อนุญาตให้แสดงอีเมลสาธารณะ (เห็นได้โดยไม่ต้องกดปุ่มเบลอ)</span>
               </label>
             </div>
+          </div>
+        </div>
+
+        <!-- Section 5: Highlights / Outstanding Works -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
+            <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-award"></i> 5. ผลงานเด่น / ผลงานทางวิชาการ / รางวัลที่ได้รับ
+            </h4>
+            <button type="button" onclick="addHighlightItem()" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-xs font-semibold transition flex items-center gap-1 shadow-sm">
+              <i class="fa-solid fa-plus text-amber-600"></i> เพิ่มผลงานเด่น
+            </button>
+          </div>
+
+          <div id="form-highlights-container" class="space-y-3">
+            <!-- Dynamic highlights list rendered via app.js -->
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-start gap-2">
+            <i class="fa-solid fa-circle-info text-amber-600 mt-0.5 shrink-0"></i>
+            <span>สามารถระบุได้หลายผลงานแยกกัน พร้อมอัปโหลดไฟล์เอกสารประกอบ (PDF, Word, ภาพ) ขึ้นไปเก็บไว้ที่ Google Drive Server ให้โดยอัตโนมัติ</span>
           </div>
         </div>
 
@@ -2182,6 +2219,95 @@
       <span class="text-[10px] leading-none">เมนู</span>
     </button>
   </nav>
+
+  <!-- ================= CAMERA CAPTURE MODAL ================= -->
+  <div id="cameraCaptureModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-4 hidden animate-fade-in">
+    <div class="bg-slate-900 text-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-700/80 overflow-hidden flex flex-col">
+      <!-- Modal Header -->
+      <div class="p-4 px-5 bg-slate-800/90 border-b border-slate-700/80 flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30">
+            <i class="fa-solid fa-camera text-sm"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-sm text-slate-100 font-heading">ถ่ายรูปแพทย์ด้วยกล้อง</h4>
+            <p id="camera-target-subtitle" class="text-[11px] text-slate-400">เล็งใบหน้าให้อยู่ในกรอบภาพ</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeCameraCaptureModal()" class="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Camera Viewfinder -->
+      <div class="relative bg-black aspect-[3/4] w-full overflow-hidden flex items-center justify-center">
+        <!-- Live Video Element -->
+        <video id="camera-video-stream" autoplay playsinline class="w-full h-full object-cover"></video>
+
+        <!-- Portrait Oval Guide Overlay -->
+        <div id="camera-portrait-guide" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+          <div class="w-48 h-64 sm:w-56 sm:h-72 rounded-[50%] border-2 border-dashed border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"></div>
+          <span class="mt-3 px-3 py-1 bg-black/60 rounded-full text-[10px] text-slate-300 font-medium tracking-wide">
+            จัดตำแหน่งใบหน้าให้อยู่ในกรอบ
+          </span>
+        </div>
+
+        <!-- Snapshot Preview (Shown after snap) -->
+        <img id="camera-snapshot-preview" src="" alt="Snapshot Preview" class="w-full h-full object-cover hidden absolute inset-0 z-10">
+
+        <!-- Hidden Canvas for frame capture -->
+        <canvas id="camera-snapshot-canvas" class="hidden"></canvas>
+
+        <!-- Flash Effect -->
+        <div id="camera-flash" class="absolute inset-0 bg-white opacity-0 pointer-events-none transition-opacity duration-150 z-20"></div>
+
+        <!-- Camera Status / Error Overlay -->
+        <div id="camera-error-overlay" class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 text-center text-xs text-slate-300 space-y-3 hidden z-30">
+          <i class="fa-solid fa-triangle-exclamation text-amber-400 text-3xl mb-1"></i>
+          <p id="camera-error-msg">ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องในเบราว์เซอร์</p>
+          <button type="button" onclick="document.getElementById('camera-native-fallback-input').click()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-camera"></i> เปิดกล้องมือถือโดยตรง
+          </button>
+        </div>
+      </div>
+
+      <!-- Native Camera File Input Fallback -->
+      <input type="file" id="camera-native-fallback-input" accept="image/*" capture="user" onchange="handleNativeCameraUpload(event)" class="hidden">
+
+      <!-- Modal Footer Controls -->
+      <div class="p-4 px-5 bg-slate-800/90 border-t border-slate-700/80">
+        <!-- Controls for Live Stream Mode -->
+        <div id="camera-live-controls" class="flex items-center justify-between">
+          <!-- Switch Camera Button -->
+          <button type="button" id="btn-camera-switch" onclick="switchCameraFacingMode()" class="px-3 py-2 bg-slate-700/80 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-slate-600" title="สลับกล้องหน้า/กล้องหลัง">
+            <i class="fa-solid fa-arrows-rotate"></i> <span class="hidden sm:inline">สลับกล้อง</span>
+          </button>
+
+          <!-- Big Shutter Button -->
+          <button type="button" onclick="takeCameraSnapshot()" class="w-16 h-16 rounded-full bg-white border-4 border-slate-700 hover:border-sky-400 flex items-center justify-center shadow-xl transition active:scale-95 focus:outline-none" title="กดถ่ายภาพ">
+            <div class="w-12 h-12 rounded-full bg-sky-500 hover:bg-sky-600 transition flex items-center justify-center text-white">
+              <i class="fa-solid fa-camera text-base"></i>
+            </div>
+          </button>
+
+          <!-- Native Camera Fallback button -->
+          <button type="button" onclick="document.getElementById('camera-native-fallback-input').click()" class="px-3 py-2 bg-slate-700/80 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-slate-600" title="เลือกจากเครื่อง / กล้องระบบ">
+            <i class="fa-solid fa-folder-open"></i> <span class="hidden sm:inline">จากเครื่อง</span>
+          </button>
+        </div>
+
+        <!-- Controls for Snapshot Preview Mode (After capturing) -->
+        <div id="camera-preview-controls" class="flex items-center justify-between hidden">
+          <button type="button" onclick="retakeCameraSnapshot()" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs font-semibold transition flex items-center gap-2 border border-slate-600">
+            <i class="fa-solid fa-rotate-left"></i> ถ่ายใหม่
+          </button>
+          <button type="button" onclick="confirmCameraSnapshot()" class="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-950/30">
+            <i class="fa-solid fa-check"></i> ใช้รูปนี้
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- 4. TOAST NOTIFICATION -->
   <div id="toast" class="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-medium text-white transition-all duration-300 transform translate-y-20 opacity-0 bg-slate-900 border border-slate-800 pointer-events-none max-w-[90vw]">

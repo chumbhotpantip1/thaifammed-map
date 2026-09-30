@@ -101,7 +101,8 @@ function cleanMemberPayload(m) {
     photoDriveId: m.photoDriveId || '',
     photoUrl: m.photoUrl || '',
     isPhonePublic: !!m.isPhonePublic,
-    isEmailPublic: !!m.isEmailPublic
+    isEmailPublic: !!m.isEmailPublic,
+    highlights: m.highlights || []
   };
 }
 
@@ -2410,8 +2411,11 @@ function renderPhotoGallery() {
               ดูประวัติ
             </button>
             ${canEdit ? `
-              <button onclick="openEditMemberModal('${m.id}')" class="py-1.5 px-2 bg-white/80 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow transition" title="เปลี่ยนรูป">
+              <button onclick="openCameraCaptureModal('gallery', '${m.id}')" class="py-1.5 px-2 bg-sky-600/90 hover:bg-sky-600 text-white rounded-lg text-xs font-semibold shadow transition" title="ถ่ายรูปใหม่ด้วยกล้อง">
                 <i class="fa-solid fa-camera"></i>
+              </button>
+              <button onclick="openEditMemberModal('${m.id}')" class="py-1.5 px-2 bg-white/80 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow transition" title="แก้ไขข้อมูล">
+                <i class="fa-solid fa-pen-to-square"></i>
               </button>
             ` : ''}
           </div>
@@ -2665,6 +2669,43 @@ function openMemberDetailModal(id) {
     }
   }
 
+  // Outstanding Works (ผลงานเด่น)
+  const elHlCount = document.getElementById('detail-highlights-count');
+  const elHlList = document.getElementById('detail-highlights-list');
+  const highlights = (m.highlights && Array.isArray(m.highlights)) ? m.highlights : [];
+  if (elHlCount) elHlCount.innerText = `${highlights.length} ผลงาน`;
+  if (elHlList) {
+    if (highlights.length === 0) {
+      elHlList.innerHTML = `<p class="text-slate-400 italic text-[11px] py-1">ยังไม่มีการระบุผลงานเด่น</p>`;
+    } else {
+      elHlList.innerHTML = highlights.map((h, hIdx) => {
+        const title = escapeHtml(h.title || `ผลงานที่ ${hIdx + 1}`);
+        const desc = h.description ? `<p class="text-slate-600 text-[11px] whitespace-pre-line mt-1">${escapeHtml(h.description)}</p>` : '';
+        const fileBtn = h.fileUrl ? `
+          <div class="mt-2">
+            <a href="${escapeHtml(h.fileUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-semibold text-xs transition shadow-2xs group">
+              <i class="fa-solid fa-file-lines text-amber-600 group-hover:scale-110 transition"></i>
+              <span>${escapeHtml(h.fileName || 'เปิดดูไฟล์เอกสารแนบ')}</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px] text-amber-500 ml-0.5"></i>
+            </a>
+          </div>
+        ` : '';
+        return `
+          <div class="p-3 bg-white/90 rounded-xl border border-amber-200/80 shadow-2xs space-y-1">
+            <div class="flex items-start justify-between gap-2">
+              <h5 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">${hIdx + 1}</span>
+                <span>${title}</span>
+              </h5>
+            </div>
+            ${desc}
+            ${fileBtn}
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
   const elMobile = document.getElementById('detail-mobile');
   const elEmail = document.getElementById('detail-email');
   const elChan = document.getElementById('detail-channels');
@@ -2843,6 +2884,8 @@ function openAddMemberModal() {
   document.getElementById('member-form').reset();
   document.getElementById('form-photo-preview').src = 'https://ui-avatars.com/api/?name=MD&background=0284c7&color=fff';
   AppState.pendingThaifammedImportId = null;
+  currentEditHighlights = [];
+  renderHighlightsForm();
   openModal('memberEditModal');
   setTimeout(() => initEditModalMiniMap(null, null), 250);
 }
@@ -2879,6 +2922,9 @@ function openUpdateDoctorModal(type, id) {
   document.getElementById('form-modal-title').innerText = `อัปเดตข้อมูลแพทย์ลง Sheet: ${doctor.name}`;
   document.getElementById('form-member-id').value = ''; // new member record in Sheet
   document.getElementById('form-photo-preview').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.name)}&background=0284c7&color=fff`;
+
+  currentEditHighlights = [];
+  renderHighlightsForm();
 
   let title = 'นพ.';
   let restName = (doctor.name || '').trim();
@@ -2986,6 +3032,14 @@ function openEditMemberModal(id) {
   if (phonePubChk) phonePubChk.checked = (m.isPhonePublic === true || m.isPhonePublic === 'TRUE');
   const emailPubChk = document.getElementById('form-is-email-public');
   if (emailPubChk) emailPubChk.checked = (m.isEmailPublic === true || m.isEmailPublic === 'TRUE');
+
+  // Load Outstanding Works / Highlights (ผลงานเด่น)
+  if (m.highlights && Array.isArray(m.highlights)) {
+    currentEditHighlights = JSON.parse(JSON.stringify(m.highlights));
+  } else {
+    currentEditHighlights = [];
+  }
+  renderHighlightsForm();
 
   openModal('memberEditModal');
   setTimeout(() => initEditModalMiniMap(m.lat, m.lng), 250);
@@ -3210,6 +3264,438 @@ function handlePhotoFileUpload(event) {
   reader.readAsDataURL(file);
 }
 
+/* ================= OUTSTANDING WORKS / HIGHLIGHTS (ผลงานเด่น) ================= */
+let currentEditHighlights = [];
+
+function renderHighlightsForm() {
+  const container = document.getElementById('form-highlights-container');
+  if (!container) return;
+
+  if (!currentEditHighlights || currentEditHighlights.length === 0) {
+    container.innerHTML = `
+      <div class="p-4 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/30 text-center space-y-1.5">
+        <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-xs">
+          <i class="fa-solid fa-award"></i>
+        </div>
+        <p class="text-xs text-slate-600 font-medium">ยังไม่มีผลงานเด่นที่ระบุ</p>
+        <p class="text-[11px] text-slate-400">คลิกปุ่ม "+ เพิ่มผลงานเด่น" ด้านบนเพื่อเพิ่มข้อมูล</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = currentEditHighlights.map((item, idx) => {
+    const hasExistingFile = !!item.fileUrl;
+    const hasNewUpload = !!item.fileData;
+
+    let fileDisplayHtml = '';
+    if (hasNewUpload) {
+      fileDisplayHtml = `
+        <div class="flex items-center justify-between p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs mt-1">
+          <div class="flex items-center gap-2 truncate">
+            <i class="fa-solid fa-file-circle-check text-emerald-600 text-sm shrink-0"></i>
+            <span class="truncate font-medium">${escapeHtml(item.fileName || 'ไฟล์ใหม่')}</span>
+            <span class="text-[10px] text-emerald-600 shrink-0">(${item.fileSize || 'พร้อมอัปโหลด'})</span>
+          </div>
+          <button type="button" onclick="removeHighlightFile(${idx})" class="text-rose-500 hover:text-rose-700 p-1 shrink-0" title="ลบไฟล์นี้">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      `;
+    } else if (hasExistingFile) {
+      fileDisplayHtml = `
+        <div class="flex items-center justify-between p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs mt-1">
+          <div class="flex items-center gap-2 truncate">
+            <i class="fa-solid fa-file-lines text-amber-600 text-sm shrink-0"></i>
+            <a href="${escapeHtml(item.fileUrl)}" target="_blank" rel="noopener noreferrer" class="truncate font-semibold underline hover:text-amber-800">${escapeHtml(item.fileName || 'เปิดดูไฟล์ใน Drive')}</a>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="document.getElementById('hl-file-input-${idx}').click()" class="text-[11px] px-2 py-0.5 bg-white border border-amber-300 rounded text-amber-800 hover:bg-amber-100">
+              เปลี่ยนไฟล์
+            </button>
+            <button type="button" onclick="removeHighlightFile(${idx})" class="text-rose-500 hover:text-rose-700 p-1" title="ลบไฟล์นี้">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2.5 relative">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+              ${idx + 1}
+            </span>
+            <span class="font-bold text-slate-800 text-xs">ผลงานที่ ${idx + 1}</span>
+          </div>
+          <button type="button" onclick="removeHighlightItem(${idx})" class="text-slate-400 hover:text-rose-500 p-1 transition" title="ลบผลงานนี้">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+        </div>
+
+        <div>
+          <label class="block text-slate-600 text-[11px] font-medium mb-1">ชื่อผลงาน / หัวข้อ / รางวัลที่ได้รับ: <span class="text-rose-500">*</span></label>
+          <input type="text" value="${escapeHtml(item.title || '')}" oninput="updateHighlightField(${idx}, 'title', this.value)" placeholder="เช่น รางวัลแพทย์เวชศาสตร์ครอบครัวดีเด่น ประจำปี 2568" class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
+        </div>
+
+        <div>
+          <label class="block text-slate-600 text-[11px] font-medium mb-1">รายละเอียด / บทคัดย่อ / สรุปสาระสำคัญ:</label>
+          <textarea rows="2" oninput="updateHighlightField(${idx}, 'description', this.value)" placeholder="ระบุรายละเอียดเพิ่มเติมเกี่ยวกับผลงาน..." class="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">${escapeHtml(item.description || '')}</textarea>
+        </div>
+
+        <div>
+          <label class="block text-slate-600 text-[11px] font-medium mb-1">ไฟล์เอกสารหรือภาพประกอบ (PDF, Word, JPG, PNG สูงสุด 15MB):</label>
+          ${fileDisplayHtml}
+          ${(!hasNewUpload && !hasExistingFile) ? `
+            <div class="flex items-center gap-2 mt-1">
+              <button type="button" onclick="document.getElementById('hl-file-input-${idx}').click()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300">
+                <i class="fa-solid fa-cloud-arrow-up text-amber-600"></i> เลือกไฟล์เอกสาร/ภาพ
+              </button>
+              <span class="text-[10px] text-slate-400">ยังไม่ได้แนบไฟล์</span>
+            </div>
+          ` : ''}
+          <input type="file" id="hl-file-input-${idx}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.ppt,.pptx" onchange="handleHighlightFileUpload(${idx}, event)" class="hidden">
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function addHighlightItem(defaultData) {
+  if (!Array.isArray(currentEditHighlights)) currentEditHighlights = [];
+  currentEditHighlights.push(defaultData || {
+    id: 'hw_' + Date.now(),
+    title: '',
+    description: '',
+    fileName: '',
+    fileUrl: '',
+    fileDriveId: '',
+    fileData: ''
+  });
+  renderHighlightsForm();
+}
+
+function removeHighlightItem(idx) {
+  if (!currentEditHighlights || !currentEditHighlights[idx]) return;
+  currentEditHighlights.splice(idx, 1);
+  renderHighlightsForm();
+}
+
+function updateHighlightField(idx, field, val) {
+  if (!currentEditHighlights || !currentEditHighlights[idx]) return;
+  currentEditHighlights[idx][field] = val;
+}
+
+function removeHighlightFile(idx) {
+  if (!currentEditHighlights || !currentEditHighlights[idx]) return;
+  currentEditHighlights[idx].fileData = '';
+  currentEditHighlights[idx].fileName = '';
+  currentEditHighlights[idx].fileUrl = '';
+  currentEditHighlights[idx].fileDriveId = '';
+  currentEditHighlights[idx].fileSize = '';
+  renderHighlightsForm();
+}
+
+function handleHighlightFileUpload(idx, event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Max 15MB
+  if (file.size > 15 * 1024 * 1024) {
+    showToast('ขนาดไฟล์เกิน 15MB กรุณาเลือกไฟล์ขนาดเล็กลง', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    if (!currentEditHighlights[idx]) return;
+    currentEditHighlights[idx].fileData = e.target.result;
+    currentEditHighlights[idx].fileName = file.name;
+    currentEditHighlights[idx].fileSize = (file.size / (1024 * 1024) >= 1) 
+      ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' 
+      : (file.size / 1024).toFixed(0) + ' KB';
+    renderHighlightsForm();
+    showToast(`แนบไฟล์ "${file.name}" เรียบร้อย จะอัปโหลดขึ้น Drive เมื่อกดบันทึก`, 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ================= DIRECT CAMERA CAPTURE (ถ่ายรูปแพทย์ด้วยกล้อง) ================= */
+let cameraStream = null;
+let cameraFacingMode = 'user'; // 'user' (front) or 'environment' (back)
+let cameraTargetMode = 'edit-form'; // 'edit-form' or 'gallery'
+let cameraTargetDoctorId = null;
+let capturedSnapshotDataUrl = null;
+
+function openCameraCaptureModal(targetMode = 'edit-form', doctorId = null) {
+  cameraTargetMode = targetMode;
+  cameraTargetDoctorId = doctorId;
+  capturedSnapshotDataUrl = null;
+
+  const modal = document.getElementById('cameraCaptureModal');
+  if (!modal) return;
+
+  // Set subtitle if doctorId provided
+  const subtitle = document.getElementById('camera-target-subtitle');
+  if (subtitle) {
+    if (doctorId) {
+      const doc = AppState.members.find(m => m.id == doctorId) || AppState.thaifammed.find(d => d.id == doctorId);
+      subtitle.innerText = doc ? `ถ่ายภาพสำหรับ: ${doc.fullNameTh || doc.name}` : 'เล็งใบหน้าให้อยู่ในกรอบภาพ';
+    } else {
+      subtitle.innerText = 'เล็งใบหน้าให้อยู่ในกรอบภาพ';
+    }
+  }
+
+  // Reset preview and controls
+  const video = document.getElementById('camera-video-stream');
+  const preview = document.getElementById('camera-snapshot-preview');
+  const guide = document.getElementById('camera-portrait-guide');
+  const liveControls = document.getElementById('camera-live-controls');
+  const previewControls = document.getElementById('camera-preview-controls');
+  const errorOverlay = document.getElementById('camera-error-overlay');
+
+  if (video) video.classList.remove('hidden');
+  if (preview) {
+    preview.src = '';
+    preview.classList.add('hidden');
+  }
+  if (guide) guide.classList.remove('hidden');
+  if (liveControls) liveControls.classList.remove('hidden');
+  if (previewControls) previewControls.classList.add('hidden');
+  if (errorOverlay) errorOverlay.classList.add('hidden');
+
+  modal.classList.remove('hidden');
+  startCameraStream();
+}
+
+function closeCameraCaptureModal() {
+  stopCameraStream();
+  const modal = document.getElementById('cameraCaptureModal');
+  if (modal) modal.classList.add('hidden');
+  capturedSnapshotDataUrl = null;
+}
+
+function startCameraStream() {
+  stopCameraStream();
+
+  const video = document.getElementById('camera-video-stream');
+  const errorOverlay = document.getElementById('camera-error-overlay');
+  const errorMsg = document.getElementById('camera-error-msg');
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (errorOverlay) {
+      if (errorMsg) errorMsg.innerText = 'เบราว์เซอร์หรืออุปกรณ์ของคุณไม่รองรับการเปิดกล้องเว็บแคมโดยตรง กรุณาใช้ปุ่มด้านล่างเพื่อเปิดกล้องระบบ';
+      errorOverlay.classList.remove('hidden');
+    }
+    return;
+  }
+
+  const constraints = {
+    audio: false,
+    video: {
+      facingMode: cameraFacingMode,
+      width: { ideal: 1280 },
+      height: { ideal: 960 }
+    }
+  };
+
+  navigator.mediaDevices.getUserMedia(constraints)
+    .then(stream => {
+      cameraStream = stream;
+      if (video) {
+        video.srcObject = stream;
+        video.play().catch(e => console.warn('Video play warning:', e));
+      }
+      if (errorOverlay) errorOverlay.classList.add('hidden');
+    })
+    .catch(err => {
+      console.warn('getUserMedia error:', err);
+      navigator.mediaDevices.getUserMedia({ audio: false, video: true })
+        .then(stream => {
+          cameraStream = stream;
+          if (video) {
+            video.srcObject = stream;
+            video.play().catch(e => console.warn('Video play warning:', e));
+          }
+          if (errorOverlay) errorOverlay.classList.add('hidden');
+        })
+        .catch(err2 => {
+          console.error('All getUserMedia attempts failed:', err2);
+          if (errorOverlay) {
+            if (errorMsg) {
+              if (err2.name === 'NotAllowedError' || err2.name === 'PermissionDeniedError') {
+                errorMsg.innerText = 'การเข้าถึงกล้องถูกปฏิเสธ กรุณาอนุญาตการใช้กล้องในเบราว์เซอร์ (Settings > Camera Permissions) หรือกดปุ่มด้านล่าง';
+              } else {
+                errorMsg.innerText = `ไม่สามารถเชื่อมต่อกล้องได้ (${err2.message || 'ตรวจไม่พบอุปกรณ์กล้อง'}) กรุณากดปุ่มด้านล่างเพื่อถ่ายภาพผ่านกล้องระบบ`;
+              }
+            }
+            errorOverlay.classList.remove('hidden');
+          }
+        });
+    });
+}
+
+function stopCameraStream() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => {
+      try { track.stop(); } catch (e) {}
+    });
+    cameraStream = null;
+  }
+  const video = document.getElementById('camera-video-stream');
+  if (video) {
+    video.srcObject = null;
+  }
+}
+
+function switchCameraFacingMode() {
+  cameraFacingMode = (cameraFacingMode === 'user') ? 'environment' : 'user';
+  startCameraStream();
+  showToast(`สลับไปยังกล้อง: ${cameraFacingMode === 'user' ? 'กล้องหน้า' : 'กล้องหลัง'}`, 'info');
+}
+
+function takeCameraSnapshot() {
+  const video = document.getElementById('camera-video-stream');
+  const canvas = document.getElementById('camera-snapshot-canvas');
+  const preview = document.getElementById('camera-snapshot-preview');
+  const guide = document.getElementById('camera-portrait-guide');
+  const flash = document.getElementById('camera-flash');
+  const liveControls = document.getElementById('camera-live-controls');
+  const previewControls = document.getElementById('camera-preview-controls');
+
+  if (!video || !canvas) return;
+
+  // Flash effect
+  if (flash) {
+    flash.style.opacity = '0.9';
+    setTimeout(() => { flash.style.opacity = '0'; }, 100);
+  }
+
+  const vWidth = video.videoWidth || 640;
+  const vHeight = video.videoHeight || 480;
+
+  canvas.width = vWidth;
+  canvas.height = vHeight;
+  const ctx = canvas.getContext('2d');
+
+  if (cameraFacingMode === 'user') {
+    ctx.translate(vWidth, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(video, 0, 0, vWidth, vHeight);
+
+  capturedSnapshotDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+  if (preview) {
+    preview.src = capturedSnapshotDataUrl;
+    preview.classList.remove('hidden');
+  }
+  if (guide) guide.classList.add('hidden');
+  if (liveControls) liveControls.classList.add('hidden');
+  if (previewControls) previewControls.classList.remove('hidden');
+
+  try { video.pause(); } catch (e) {}
+}
+
+function retakeCameraSnapshot() {
+  capturedSnapshotDataUrl = null;
+
+  const video = document.getElementById('camera-video-stream');
+  const preview = document.getElementById('camera-snapshot-preview');
+  const guide = document.getElementById('camera-portrait-guide');
+  const liveControls = document.getElementById('camera-live-controls');
+  const previewControls = document.getElementById('camera-preview-controls');
+
+  if (preview) {
+    preview.src = '';
+    preview.classList.add('hidden');
+  }
+  if (guide) guide.classList.remove('hidden');
+  if (liveControls) liveControls.classList.remove('hidden');
+  if (previewControls) previewControls.classList.add('hidden');
+
+  if (video) {
+    try { video.play(); } catch (e) {}
+  }
+}
+
+function confirmCameraSnapshot() {
+  if (!capturedSnapshotDataUrl) {
+    showToast('กรุณากดถ่ายภาพก่อนกดยืนยัน', 'warning');
+    return;
+  }
+
+  const dataUrl = capturedSnapshotDataUrl;
+  const targetMode = cameraTargetMode;
+  const targetDoctorId = cameraTargetDoctorId;
+
+  closeCameraCaptureModal();
+
+  if (targetMode === 'edit-form') {
+    const photoUrlInput = document.getElementById('form-photo-url');
+    const photoPreview = document.getElementById('form-photo-preview');
+    if (photoUrlInput) photoUrlInput.value = dataUrl;
+    if (photoPreview) photoPreview.src = dataUrl;
+    showToast('ถ่ายรูปภาพสำเร็จและนำมาใส่ในฟอร์มเรียบร้อย', 'success');
+  } else if (targetMode === 'gallery') {
+    if (targetDoctorId) {
+      applyPhotoToDoctorAndSave(targetDoctorId, dataUrl);
+    } else {
+      openAddMemberModal();
+      const photoUrlInput = document.getElementById('form-photo-url');
+      const photoPreview = document.getElementById('form-photo-preview');
+      if (photoUrlInput) photoUrlInput.value = dataUrl;
+      if (photoPreview) photoPreview.src = dataUrl;
+      showToast('ถ่ายรูปภาพสำเร็จ พร้อมบันทึกเป็นสมาชิกใหม่', 'success');
+    }
+  }
+}
+
+function handleNativeCameraUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    capturedSnapshotDataUrl = e.target.result;
+    confirmCameraSnapshot();
+  };
+  reader.readAsDataURL(file);
+}
+
+function applyPhotoToDoctorAndSave(doctorId, dataUrl) {
+  let member = AppState.members.find(m => m.id == doctorId);
+  if (member) {
+    member.photoUrl = dataUrl;
+    saveMembersToStorage();
+    if (typeof renderPhotoGallery === 'function') renderPhotoGallery();
+    showToast(`กำลังบันทึกรูปถ่ายของ ${member.fullNameTh} ขึ้น Google Drive...`, 'info');
+    sendToGasApi({ action: 'saveMember', member: cleanMemberPayload(member) }).then(res => {
+      if (res && res.result && res.result.photoUrl) {
+        member.photoUrl = res.result.photoUrl;
+        member.photoDriveId = res.result.photoDriveId;
+        saveMembersToStorage();
+        if (typeof renderPhotoGallery === 'function') renderPhotoGallery();
+      }
+      showToast(`อัปเดตรูปถ่ายของ ${member.fullNameTh} เรียบร้อยแล้ว`, 'success');
+    }).catch(err => {
+      console.warn('saveMember photo error:', err);
+    });
+  } else {
+    openUpdateDoctorModal('thaifammed', doctorId);
+    const photoUrlInput = document.getElementById('form-photo-url');
+    const photoPreview = document.getElementById('form-photo-preview');
+    if (photoUrlInput) photoUrlInput.value = dataUrl;
+    if (photoPreview) photoPreview.src = dataUrl;
+  }
+}
+
+function openGalleryQuickCameraModal() {
+  openCameraCaptureModal('gallery', null);
+}
+
 function autoGeocodeFromHospitalDb() {
   const wpName = (document.getElementById('form-workplace-name')?.value || '').trim();
   if (!wpName) {
@@ -3373,7 +3859,9 @@ function handleSaveMember(e) {
     lng: lng,
     photoUrl: photoUrl,
     photoDriveId: photoDriveId,
-    contactChannels: 'ที่อยู่ปัจจุบัน, E-mail'
+    contactChannels: 'ที่อยู่ปัจจุบัน, E-mail',
+    highlights: (Array.isArray(currentEditHighlights) ? currentEditHighlights : [])
+      .filter(h => h && (h.title?.trim() || h.description?.trim() || h.fileUrl || h.fileData))
   };
 
   // 1. อัปเดตข้อมูลใน AppState.members โดยตรงทันที
