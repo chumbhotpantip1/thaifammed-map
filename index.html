@@ -1628,6 +1628,9 @@
           </a>
         </div>
         <div class="flex items-center space-x-2">
+          <button id="btn-admin-reset-pass-from-detail" type="button" class="hidden px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm active:scale-95" title="เฉพาะ Admin รีเซ็ตรหัสผ่านแพทย์ท่านนี้">
+            <i class="fa-solid fa-key"></i> รีเซ็ตรหัสผ่าน
+          </button>
           <button id="btn-edit-from-detail" onclick="" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition flex items-center gap-1.5">
             <i class="fa-solid fa-pen-to-square"></i> แก้ไขข้อมูล
           </button>
@@ -2107,6 +2110,113 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+
+  <!-- 6.1 ADMIN RESET PASSWORD MODAL -->
+  <div id="adminResetPasswordModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 p-6 space-y-4 animate-fade-in text-xs">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">
+            <i class="fa-solid fa-key"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-900 text-sm font-heading">Admin รีเซ็ตรหัสผ่านแพทย์รายบุคคล</h4>
+            <p class="text-[10px] text-slate-500">กำหนดรหัสผ่านใหม่และซิงค์ลง Google Sheet ทันที</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeModal('adminResetPasswordModal')" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-3 bg-amber-50/70 border border-amber-200/70 rounded-2xl space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-semibold text-amber-800 uppercase">แพทย์เป้าหมาย:</span>
+          <span id="admin-reset-target-name" class="font-bold text-slate-900 text-xs"></span>
+        </div>
+        <div id="admin-reset-target-contact" class="text-[11px] text-slate-600 truncate"></div>
+      </div>
+
+      <form onsubmit="AuthManager.handleAdminResetPasswordSubmit(event)" class="space-y-4">
+        <input type="hidden" id="admin-reset-target-lic">
+        <div>
+          <label class="block text-slate-700 font-medium mb-1">รหัสผ่านใหม่ (อย่างน้อย 4 หลัก): <span class="text-rose-500">*</span></label>
+          <div class="relative">
+            <input type="text" id="admin-reset-new-password" required minlength="4" placeholder="ระบุรหัสผ่านใหม่ที่ต้องการ" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono font-bold text-sky-900 focus:ring-2 focus:ring-amber-500 focus:bg-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-500 text-[11px] mb-1.5 font-medium">ปุ่มลัดสำหรับกำหนดรหัสผ่าน:</label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="AuthManager.setAdminQuickPassword('1234')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-mono font-semibold transition border border-slate-200">
+              1234
+            </button>
+            <button type="button" onclick="AuthManager.setAdminQuickPassword('admin1234')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-mono font-semibold transition border border-slate-200">
+              admin1234
+            </button>
+            <button type="button" onclick="AuthManager.generateRandomPassword()" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-[11px] font-semibold transition border border-amber-200 flex items-center gap-1">
+              <i class="fa-solid fa-dice"></i> สุ่มรหัส 6 หลัก
+            </button>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-xl bg-slate-50 text-[11px] text-slate-500 border border-slate-100 space-y-1">
+          <p><i class="fa-solid fa-cloud-arrow-up text-emerald-600 mr-1"></i> รหัสผ่านจะถูกบันทึกลงใน Google Sheet (แท็บ <code>00_รหัสผ่าน_Credentials</code>)</p>
+          <p><i class="fa-solid fa-check text-sky-600 mr-1"></i> แพทย์ท่านนี้สามารถใช้รหัสผ่านใหม่ล็อกอินจากอุปกรณ์ใดก็ได้</p>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closeModal('adminResetPasswordModal')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">
+            ยกเลิก
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold shadow-md shadow-amber-500/20 transition flex items-center gap-1.5 active:scale-95">
+            <i class="fa-solid fa-floppy-disk"></i> บันทึกรหัสผ่านใหม่
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 6.2 ADMIN MANAGE ALL PASSWORDS MODAL -->
+  <div id="adminPasswordManagerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 p-6 space-y-4 animate-fade-in text-xs flex flex-col max-h-[88vh]">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-base shadow-sm">
+            <i class="fa-solid fa-users-gear"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-900 text-base font-heading">จัดการรหัสผ่านแพทย์สมาชิกรายบุคคล (Admin)</h4>
+            <p class="text-[11px] text-slate-500">ค้นหาแพทย์ตามชื่อ หรือเลข ว. เพื่อตรวจสอบและรีเซ็ตรหัสผ่าน</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeModal('adminPasswordManagerModal')" class="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="shrink-0">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+          <input type="text" id="admin-password-search-input" oninput="AuthManager.renderAdminPasswordList(this.value)" placeholder="ค้นหาชื่อแพทย์, เลข ว. หรือเบอร์โทรศัพท์..." class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+        </div>
+      </div>
+
+      <div id="admin-password-list-container" class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[250px]">
+        <!-- Rendered dynamically by AuthManager.renderAdminPasswordList() -->
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-slate-500 text-[11px] shrink-0">
+        <span><i class="fa-solid fa-shield-halved text-amber-500 mr-1"></i> สิทธิ์ผู้ดูแลระบบ: รหัสผ่านที่รีเซ็ตจะซิงค์ไปยัง Google Sheet อัตโนมัติ</span>
+        <button type="button" onclick="closeModal('adminPasswordManagerModal')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">
+          ปิดหน้าต่าง
+        </button>
+      </div>
     </div>
   </div>
 

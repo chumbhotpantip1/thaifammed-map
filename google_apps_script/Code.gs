@@ -26,9 +26,64 @@ function getActiveSpreadsheet() {
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || '';
 
-  if (action === 'getMembers') {
+  // 1. ถ้าไม่มี action หรือ action === 'app' ให้ส่งหน้าเว็บแอป index.html สำหรับเปิดใช้งานสด
+  if (!action || action === 'app') {
+    try {
+      return HtmlService.createHtmlOutputFromFile('index')
+        .setTitle('ฐานข้อมูลสมาชิก ราชวิทยาลัยและสมาคมแพทย์เวชศาสตร์ครอบครัว')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    } catch (htmlErr) {
+      // หากยังไม่มีไฟล์ index.html ใน GAS ให้ส่ง JSON info
+    }
+  }
+
+  // 2. ดึงข้อมูลสมาชิกทั้งหมด พร้อม Config และ Credentials
+  if (action === 'getMembers' || action === 'getLatestData') {
     var data = getMembersFromSheet();
     return ContentService.createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 3. ดึงการตั้งค่าระบบ (Branding & Logo)
+  if (action === 'getConfig') {
+    var config = getSystemConfig();
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success', config: config }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 4. บันทึกการตั้งค่าระบบ (Branding & Logo) ผ่าน GET
+  if (action === 'saveConfig' && e && e.parameter && e.parameter.config) {
+    try {
+      var cfgRaw = e.parameter.config;
+      var cfgObj;
+      try { cfgObj = JSON.parse(cfgRaw); } catch(pErr) { cfgObj = JSON.parse(decodeURIComponent(cfgRaw)); }
+      var resCfg = saveSystemConfig(cfgObj);
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: resCfg }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (cfgErr) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: cfgErr.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // 5. รีเซ็ตรหัสผ่านรายบุคคลผ่าน GET
+  if (action === 'resetPassword' && e && e.parameter) {
+    try {
+      var p = e.parameter;
+      var resPass = resetUserPassword(p.licenseNo, p.newPassword, p.adminName, p.doctorName);
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: resPass }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (passErr) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: passErr.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // 6. ดึงข้อมูลรหัสผ่านที่ถูกกำหนดใหม่ทั้งหมด
+  if (action === 'getCredentials') {
+    var creds = getCredentialsMap();
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success', credentials: creds }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -78,7 +133,7 @@ function doGet(e) {
 }
 
 /**
- * API Endpoint รองรับการรับข้อมูลแบบ POST จาก Dashboard (บันทึกข้อมูล/ย้ายหมุด)
+ * API Endpoint รองรับการรับข้อมูลแบบ POST จาก Dashboard (บันทึกข้อมูล/ย้ายหมุด/ตั้งค่า/รีเซ็ตรหัสผ่าน)
  */
 function doPost(e) {
   try {
@@ -86,7 +141,23 @@ function doPost(e) {
     var data = JSON.parse(contents);
     var action = data.action;
 
-    if (action === 'updateCoordinate') {
+    if (action === 'saveConfig') {
+      var res = saveSystemConfig(data.config);
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: res }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } else if (action === 'resetPassword') {
+      var res = resetUserPassword(data.licenseNo, data.newPassword, data.adminName, data.doctorName);
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: res }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } else if (action === 'getCredentials') {
+      var res = getCredentialsMap();
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', credentials: res }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } else if (action === 'getConfig') {
+      var res = getSystemConfig();
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', config: res }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } else if (action === 'updateCoordinate') {
       var res = updateDoctorCoordinateInSheet(data.memberId, data.lat, data.lng, data.workplace, data.sourceType);
       return ContentService.createTextOutput(JSON.stringify({ status: 'success', result: res }))
         .setMimeType(ContentService.MimeType.JSON);
@@ -97,6 +168,9 @@ function doPost(e) {
     } else if (action === 'getLatestData' || action === 'getMembers') {
       var res = getMembersFromSheet();
       return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: res }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } else if (action === 'ping') {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'online', spreadsheetId: SPREADSHEET_ID, time: new Date().toISOString() }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -226,8 +300,233 @@ function getMembersFromSheet() {
     sheetName: sheet.getName(),
     count: members.length,
     lastUpdate: new Date().toISOString(),
-    members: members
+    members: members,
+    config: getSystemConfig(),
+    credentials: getCredentialsMap()
   };
+}
+
+/**
+ * บันทึกการตั้งค่าระบบ (Branding & System Configuration) ลงใน Google Sheet และ ScriptProperties
+ */
+function saveSystemConfig(cfg) {
+  if (!cfg || typeof cfg !== 'object') return { success: false, message: 'ข้อมูลการตั้งค่าไม่ถูกต้อง' };
+  
+  // 1. ตรวจสอบและอัปโหลดโลโก้หลัก (Logo 1) ขึ้น Google Drive หากเป็น Base64
+  if (cfg.logoImageUrl && cfg.logoImageUrl.indexOf('data:image') === 0) {
+    var logo1Url = uploadBase64ImageToDrive(cfg.logoImageUrl, 'system_brand_logo1');
+    if (logo1Url) cfg.logoImageUrl = logo1Url;
+  }
+
+  // 2. ตรวจสอบและอัปโหลดโลโก้ที่สอง (Logo 2) ขึ้น Google Drive หากเป็น Base64
+  if (cfg.logo2ImageUrl && cfg.logo2ImageUrl.indexOf('data:image') === 0) {
+    var logo2Url = uploadBase64ImageToDrive(cfg.logo2ImageUrl, 'system_brand_logo2');
+    if (logo2Url) cfg.logo2ImageUrl = logo2Url;
+  }
+
+  // 3. บันทึกลง ScriptProperties สำหรับการเข้าถึงที่รวดเร็ว
+  try {
+    PropertiesService.getScriptProperties().setProperty('BRANDING_CONFIG', JSON.stringify(cfg));
+  } catch (propErr) {
+    Logger.log('Save to ScriptProperties error: ' + propErr);
+  }
+
+  // 4. บันทึกลง Sheet '00_ตั้งค่าระบบ_Config' ใน Spreadsheet
+  try {
+    var ss = getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('00_ตั้งค่าระบบ_Config');
+    if (!sheet) {
+      sheet = ss.insertSheet('00_ตั้งค่าระบบ_Config', 0);
+      sheet.getRange(1, 1, 1, 3).setValues([['Key', 'Value_JSON', 'Updated_At']]);
+      sheet.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#f1f5f9');
+    }
+    
+    var lastRow = sheet.getLastRow();
+    var targetRow = -1;
+    if (lastRow > 1) {
+      var keys = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var r = 0; r < keys.length; r++) {
+        if (keys[r][0] === 'branding') {
+          targetRow = r + 2;
+          break;
+        }
+      }
+    }
+    
+    var nowIso = new Date().toISOString();
+    var jsonStr = JSON.stringify(cfg);
+    if (targetRow > 0) {
+      sheet.getRange(targetRow, 2).setValue(jsonStr);
+      sheet.getRange(targetRow, 3).setValue(nowIso);
+    } else {
+      sheet.appendRow(['branding', jsonStr, nowIso]);
+    }
+  } catch (sheetErr) {
+    Logger.log('Save to Sheet config error: ' + sheetErr);
+  }
+
+  return { success: true, config: cfg, time: new Date().toISOString() };
+}
+
+/**
+ * ดึงการตั้งค่าระบบ (Branding & System Configuration) ล่าสุด
+ */
+function getSystemConfig() {
+  try {
+    var savedProp = PropertiesService.getScriptProperties().getProperty('BRANDING_CONFIG');
+    if (savedProp) {
+      return JSON.parse(savedProp);
+    }
+  } catch (e) {}
+
+  try {
+    var ss = getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('00_ตั้งค่าระบบ_Config');
+    if (sheet && sheet.getLastRow() > 1) {
+      var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+      for (var i = 0; i < data.length; i++) {
+        if (data[i][0] === 'branding' && data[i][1]) {
+          return JSON.parse(data[i][1]);
+        }
+      }
+    }
+  } catch (e) {}
+
+  return null;
+}
+
+/**
+ * ฟังก์ชันช่วยอัปโหลด Base64 Image ขึ้น Google Drive โฟลเดอร์ "ระบบสมาชิก"
+ */
+function uploadBase64ImageToDrive(base64Data, filePrefix) {
+  try {
+    var folder;
+    try {
+      folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+    } catch (fErr) {
+      folder = DriveApp.getRootFolder();
+    }
+    var parts = base64Data.split(',');
+    var meta = parts[0];
+    var raw = parts[1];
+    var mime = 'image/png';
+    if (meta.indexOf('image/jpeg') !== -1) mime = 'image/jpeg';
+    else if (meta.indexOf('image/webp') !== -1) mime = 'image/webp';
+    else if (meta.indexOf('image/svg') !== -1) mime = 'image/svg+xml';
+
+    var ext = mime === 'image/jpeg' ? 'jpg' : (mime === 'image/webp' ? 'webp' : 'png');
+    var fileName = filePrefix + '_' + Date.now() + '.' + ext;
+    var blob = Utilities.newBlob(Utilities.base64Decode(raw), mime, fileName);
+    var file = folder.createFile(blob);
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (sErr) {}
+    var fileId = file.getId();
+    return 'https://lh3.googleusercontent.com/d/' + fileId;
+  } catch (err) {
+    Logger.log('uploadBase64ImageToDrive error: ' + err);
+    return null;
+  }
+}
+
+/**
+ * จัดการรีเซ็ตรหัสผ่านแพทย์รายบุคคล (Admin Reset Password) บันทึกลง Sheet และ ScriptProperties
+ */
+function resetUserPassword(licenseNo, newPassword, adminName, doctorName) {
+  if (!licenseNo || !newPassword) return { success: false, message: 'ต้องระบุเลข ว. และรหัสผ่านใหม่' };
+  
+  var cleanLic = String(licenseNo).replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|ว\.)\s*/, '').replace(/[^0-9]/g, '').trim() || String(licenseNo).trim();
+  
+  // 1. บันทึกลง ScriptProperties เพื่อให้ค้นหาได้ทันที
+  var credsMap = {};
+  try {
+    var propStr = PropertiesService.getScriptProperties().getProperty('USER_CREDENTIALS_MAP');
+    if (propStr) credsMap = JSON.parse(propStr);
+  } catch (e) {}
+  
+  credsMap['doc_' + cleanLic] = String(newPassword);
+  try {
+    PropertiesService.getScriptProperties().setProperty('USER_CREDENTIALS_MAP', JSON.stringify(credsMap));
+  } catch (propErr) {
+    Logger.log('Save creds to ScriptProperties error: ' + propErr);
+  }
+
+  // 2. บันทึกลง Sheet '00_รหัสผ่าน_Credentials' ใน Google Spreadsheet
+  try {
+    var ss = getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('00_รหัสผ่าน_Credentials');
+    if (!sheet) {
+      sheet = ss.insertSheet('00_รหัสผ่าน_Credentials', 1);
+      sheet.getRange(1, 1, 1, 5).setValues([['เลข_ว_หรือ_Username', 'รหัสผ่าน', 'ชื่อแพทย์', 'ผู้ดำเนินการแก้ไข', 'วันเวลาที่แก้ไข']]);
+      sheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#fef3c7');
+    }
+
+    var lastRow = sheet.getLastRow();
+    var targetRow = -1;
+    if (lastRow > 1) {
+      var licCol = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var r = 0; r < licCol.length; r++) {
+        if (String(licCol[r][0]).trim() === cleanLic) {
+          targetRow = r + 2;
+          break;
+        }
+      }
+    }
+
+    var nowStr = new Date().toLocaleString('th-TH');
+    if (targetRow > 0) {
+      sheet.getRange(targetRow, 2).setValue(String(newPassword));
+      if (doctorName) sheet.getRange(targetRow, 3).setValue(doctorName);
+      sheet.getRange(targetRow, 4).setValue(adminName || 'Admin');
+      sheet.getRange(targetRow, 5).setValue(nowStr);
+    } else {
+      sheet.appendRow([cleanLic, String(newPassword), doctorName || '', adminName || 'Admin', nowStr]);
+    }
+  } catch (sheetErr) {
+    Logger.log('Save creds to Sheet error: ' + sheetErr);
+  }
+
+  return {
+    success: true,
+    licenseNo: cleanLic,
+    doctorName: doctorName || '',
+    updatedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * ดึงรายการรหัสผ่านที่ถูกกำหนดใหม่ทั้งหมด
+ */
+function getCredentialsMap() {
+  var credsMap = {};
+  // 1. จาก ScriptProperties
+  try {
+    var propStr = PropertiesService.getScriptProperties().getProperty('USER_CREDENTIALS_MAP');
+    if (propStr) credsMap = JSON.parse(propStr);
+  } catch (e) {}
+
+  // 2. จาก Sheet หาก ScriptProperties ว่างเปล่า
+  if (Object.keys(credsMap).length === 0) {
+    try {
+      var ss = getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('00_รหัสผ่าน_Credentials');
+      if (sheet && sheet.getLastRow() > 1) {
+        var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+        for (var i = 0; i < values.length; i++) {
+          var lic = String(values[i][0]).trim();
+          var pass = String(values[i][1]).trim();
+          if (lic && pass) {
+            credsMap['doc_' + lic] = pass;
+          }
+        }
+        try {
+          PropertiesService.getScriptProperties().setProperty('USER_CREDENTIALS_MAP', JSON.stringify(credsMap));
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  return credsMap;
 }
 
 /**

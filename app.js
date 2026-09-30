@@ -121,6 +121,26 @@ async function sendToGasApi(payload) {
           .withSuccessHandler(res => resolve({ status: 'success', result: res }))
           .withFailureHandler(err => resolve({ status: 'error', message: err }))
           .updateDoctorCoordinateInSheet(payload.memberId, payload.lat, payload.lng, payload.workplace, payload.sourceType);
+      } else if (payload.action === 'saveConfig') {
+        google.script.run
+          .withSuccessHandler(res => resolve({ status: 'success', result: res }))
+          .withFailureHandler(err => resolve({ status: 'error', message: err }))
+          .saveSystemConfig(payload.config);
+      } else if (payload.action === 'resetPassword') {
+        google.script.run
+          .withSuccessHandler(res => resolve({ status: 'success', result: res }))
+          .withFailureHandler(err => resolve({ status: 'error', message: err }))
+          .resetUserPassword(payload.licenseNo, payload.newPassword, payload.adminName, payload.doctorName);
+      } else if (payload.action === 'getConfig') {
+        google.script.run
+          .withSuccessHandler(res => resolve({ status: 'success', config: res }))
+          .withFailureHandler(err => resolve({ status: 'error', message: err }))
+          .getSystemConfig();
+      } else if (payload.action === 'getCredentials') {
+        google.script.run
+          .withSuccessHandler(res => resolve({ status: 'success', credentials: res }))
+          .withFailureHandler(err => resolve({ status: 'error', message: err }))
+          .getCredentialsMap();
       } else {
         resolve(null);
       }
@@ -170,6 +190,13 @@ async function sendToGasApi(payload) {
         delete getMember.photoUrl;
       }
       getUrl += `${sep}action=saveMember&data=${encodeURIComponent(JSON.stringify(getMember))}`;
+    } else if (payload.action === 'saveConfig') {
+      const getCfg = { ...payload.config };
+      if (getCfg.logoImageUrl && getCfg.logoImageUrl.startsWith('data:image')) delete getCfg.logoImageUrl;
+      if (getCfg.logo2ImageUrl && getCfg.logo2ImageUrl.startsWith('data:image')) delete getCfg.logo2ImageUrl;
+      getUrl += `${sep}action=saveConfig&config=${encodeURIComponent(JSON.stringify(getCfg))}`;
+    } else if (payload.action === 'resetPassword') {
+      getUrl += `${sep}action=resetPassword&licenseNo=${encodeURIComponent(payload.licenseNo)}&newPassword=${encodeURIComponent(payload.newPassword)}&adminName=${encodeURIComponent(payload.adminName || 'Admin')}&doctorName=${encodeURIComponent(payload.doctorName || '')}`;
     } else {
       getUrl += `${sep}action=${encodeURIComponent(payload.action)}`;
     }
@@ -199,12 +226,24 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('Initialization error in DOMContentLoaded:', initErr);
   }
 
-  // If cloud sync URL is configured, auto-sync latest data in background
+  // Trigger immediate realtime sync from Google Sheet (without delay)
   if (getGasEndpoint()) {
-    setTimeout(() => {
-      syncLiveSheetData(true);
-    }, 400);
+    syncLiveSheetData(true);
   }
+
+  // Auto-refresh from Google Sheet when user returns/focuses this browser tab
+  window.addEventListener('focus', () => {
+    if (getGasEndpoint()) {
+      syncLiveSheetData(true);
+    }
+  });
+
+  // Background polling every 60 seconds to ensure data stays live and fresh
+  setInterval(() => {
+    if (!document.hidden && getGasEndpoint()) {
+      syncLiveSheetData(true);
+    }
+  }, 60000);
 });
 
 
@@ -2831,6 +2870,24 @@ function openMemberDetailModal(id) {
     }
   }
 
+  // Admin Reset Password button from Profile Detail
+  const adminResetPassBtn = document.getElementById('btn-admin-reset-pass-from-detail');
+  if (adminResetPassBtn) {
+    if (typeof AuthManager !== 'undefined' && AuthManager.isAdmin()) {
+      adminResetPassBtn.classList.remove('hidden');
+      adminResetPassBtn.onclick = () => {
+        AuthManager.openAdminResetPasswordModal(
+          m.licenseNo || (tfDoc && tfDoc.gpNo) || m.id,
+          m.fullNameTh || (tfDoc && tfDoc.name),
+          m.mobilePhone || (tfDoc && tfDoc.mobilePhone),
+          m.email
+        );
+      };
+    } else {
+      adminResetPassBtn.classList.add('hidden');
+    }
+  }
+
   openModal('memberDetailModal');
 
   setTimeout(() => {
@@ -4117,6 +4174,23 @@ async function syncLiveSheetData(isSilent = false) {
         if (response && response.members) {
           AppState.members = response.members;
           localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
+          
+          // ซิงค์การตั้งค่าระบบ (Branding & Logo)
+          if (response.config && typeof BrandingManager !== 'undefined') {
+            BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...response.config };
+            localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
+            BrandingManager.apply(BrandingManager.currentConfig);
+            BrandingManager.populateForm();
+            BrandingManager.updateLivePreview();
+          }
+
+          // ซิงค์รหัสผ่านแพทย์ที่ตั้งใหม่ (Credentials)
+          if (response.credentials && typeof response.credentials === 'object') {
+            const currentCreds = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDENTIALS) || '{}');
+            const mergedCreds = { ...currentCreds, ...response.credentials };
+            localStorage.setItem(STORAGE_KEY_CREDENTIALS, JSON.stringify(mergedCreds));
+          }
+
           syncThaifammedWithMembers();
           renderDashboard();
           renderDirectory();
@@ -4142,13 +4216,37 @@ async function syncLiveSheetData(isSilent = false) {
   const gasEndpoint = getGasEndpoint();
   if (gasEndpoint && gasEndpoint.startsWith('http')) {
     try {
-      const response = await fetch(`${gasEndpoint}?action=getMembers`);
+      const sep = gasEndpoint.includes('?') ? '&' : '?';
+      // Cache-busting parameter และ no-store เพื่อให้ได้ข้อมูลสดใหม่ 100% ทุกครั้ง
+      const response = await fetch(`${gasEndpoint}${sep}action=getMembers&_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
       const data = await response.json();
       const sheetMembers = (data && Array.isArray(data.members)) ? data.members :
                            (data && data.data && Array.isArray(data.data.members)) ? data.data.members : null;
       if (sheetMembers && sheetMembers.length > 0) {
         AppState.members = sheetMembers;
         localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(AppState.members));
+
+        // ซิงค์การตั้งค่าระบบ (Branding & Logo)
+        const liveConfig = (data && data.config) || (data && data.data && data.data.config);
+        if (liveConfig && typeof BrandingManager !== 'undefined') {
+          BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...liveConfig };
+          localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
+          BrandingManager.apply(BrandingManager.currentConfig);
+          BrandingManager.populateForm();
+          BrandingManager.updateLivePreview();
+        }
+
+        // ซิงค์รหัสผ่านแพทย์ที่ตั้งใหม่ (Credentials)
+        const liveCreds = (data && data.credentials) || (data && data.data && data.data.credentials);
+        if (liveCreds && typeof liveCreds === 'object') {
+          const currentCreds = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDENTIALS) || '{}');
+          const mergedCreds = { ...currentCreds, ...liveCreds };
+          localStorage.setItem(STORAGE_KEY_CREDENTIALS, JSON.stringify(mergedCreds));
+        }
+
         syncThaifammedWithMembers();
         try { handleDirectoryFilter(); } catch (e) {}
         try { renderDashboard(); } catch (e) {}
@@ -5015,15 +5113,34 @@ const BrandingManager = {
     }
   },
 
-  save() {
+  async save() {
     const cfg = this.collectFormData();
     this.currentConfig = cfg;
     localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(cfg));
     this.apply(cfg);
-    showToast('บันทึกการปรับแต่งโลโก้และข้อความระบบเรียบร้อยแล้ว!', 'success');
+    showToast('💾 กำลังบันทึกโลโก้และการตั้งค่าขึ้น Google Sheet & Google Drive...', 'info');
+
+    try {
+      const res = await sendToGasApi({ action: 'saveConfig', config: cfg });
+      if (res && (res.status === 'success' || (res.result && res.result.success))) {
+        if (res.result && res.result.config) {
+          this.currentConfig = { ...this.currentConfig, ...res.result.config };
+          localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(this.currentConfig));
+          this.apply(this.currentConfig);
+          this.populateForm();
+          this.updateLivePreview();
+        }
+        showToast('✅ บันทึกโลโก้และการตั้งค่าลง Google Sheet & Drive เรียบร้อยแล้ว (ทุกคนจะเห็นตรงกัน)', 'success');
+      } else {
+        showToast('บันทึกการตั้งค่าในเครื่องเรียบร้อยแล้ว', 'success');
+      }
+    } catch (err) {
+      console.warn('Error syncing branding to Google Sheet:', err);
+      showToast('บันทึกการตั้งค่าในเครื่องเรียบร้อยแล้ว', 'success');
+    }
   },
 
-  reset() {
+  async reset() {
     if (!confirm('คุณต้องการรีเซ็ตข้อความและโลโก้กลับสู่ค่าเริ่มต้นทั้งหมดใช่หรือไม่?')) return;
     this.currentConfig = { ...DEFAULT_BRANDING };
     localStorage.removeItem(STORAGE_KEY_BRANDING);
@@ -5031,6 +5148,9 @@ const BrandingManager = {
     this.populateForm();
     this.updateLivePreview();
     showToast('คืนค่าข้อความและโลโก้สู่ค่าเริ่มต้นเรียบร้อยแล้ว', 'info');
+    try {
+      await sendToGasApi({ action: 'saveConfig', config: DEFAULT_BRANDING });
+    } catch (e) {}
   },
 
   exportConfig() {
@@ -5553,6 +5673,181 @@ const AuthManager = {
     showToast('เปลี่ยนรหัสผ่านของคุณเรียบร้อยแล้ว', 'success');
   },
 
+  // 1. เปิด Modal ให้ Admin รีเซ็ตรหัสผ่านแพทย์รายบุคคล
+  openAdminResetPasswordModal(licenseNo, doctorName, phone, email) {
+    if (!this.isAdmin()) {
+      showToast('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถรีเซ็ตรหัสผ่านได้', 'error');
+      return;
+    }
+
+    const cleanLic = String(licenseNo || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|ว\.)\s*/, '').replace(/[^0-9]/g, '').trim() || String(licenseNo || '').trim();
+    
+    const targetLicInput = document.getElementById('admin-reset-target-lic');
+    const targetNameEl = document.getElementById('admin-reset-target-name');
+    const targetContactEl = document.getElementById('admin-reset-target-contact');
+    const newPassInput = document.getElementById('admin-reset-new-password');
+
+    if (targetLicInput) targetLicInput.value = cleanLic;
+    if (targetNameEl) targetNameEl.textContent = doctorName || `แพทย์เลข ว. ${cleanLic}`;
+    if (targetContactEl) {
+      const contactInfo = [phone ? `โทร: ${phone}` : '', email ? `อีเมล: ${email}` : ''].filter(Boolean).join(' | ');
+      targetContactEl.textContent = contactInfo || 'ไม่มีข้อมูลติดต่อเพิ่มเติม';
+    }
+    if (newPassInput) {
+      newPassInput.value = '1234';
+      newPassInput.select();
+    }
+
+    openModal('adminResetPasswordModal');
+  },
+
+  setAdminQuickPassword(pass) {
+    const input = document.getElementById('admin-reset-new-password');
+    if (input) {
+      input.value = pass;
+      input.focus();
+    }
+  },
+
+  generateRandomPassword() {
+    const chars = '0123456789';
+    let rand = '';
+    for (let i = 0; i < 6; i++) {
+      rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    this.setAdminQuickPassword(rand);
+  },
+
+  async handleAdminResetPasswordSubmit(event) {
+    if (event) event.preventDefault();
+    if (!this.isAdmin()) return;
+
+    const lic = (document.getElementById('admin-reset-target-lic')?.value || '').trim();
+    const docName = (document.getElementById('admin-reset-target-name')?.textContent || '').trim();
+    const newPass = (document.getElementById('admin-reset-new-password')?.value || '').trim();
+
+    if (!lic || !newPass || newPass.length < 4) {
+      showToast('กรุณาระบุรหัสผ่านใหม่อย่างน้อย 4 ตัวอักษร', 'warning');
+      return;
+    }
+
+    // 1. บันทึกลง LocalStorage
+    const creds = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDENTIALS) || '{}');
+    creds[`doc_${lic}`] = newPass;
+    localStorage.setItem(STORAGE_KEY_CREDENTIALS, JSON.stringify(creds));
+
+    closeModal('adminResetPasswordModal');
+    showToast(`⏳ กำลังบันทึกรหัสผ่านใหม่ของ ${docName} ลง Google Sheet...`, 'info');
+
+    // 2. ซิงค์ขึ้น Google Sheet และ ScriptProperties
+    try {
+      const res = await sendToGasApi({
+        action: 'resetPassword',
+        licenseNo: lic,
+        newPassword: newPass,
+        adminName: this.currentUser.name || 'Admin',
+        doctorName: docName
+      });
+      if (res && (res.status === 'success' || (res.result && res.result.success))) {
+        showToast(`✅ รีเซ็ตรหัสผ่านของ ${docName} เป็น "${newPass}" สำเร็จ (บันทึกลง Google Sheet แล้ว)`, 'success');
+      } else {
+        showToast(`บันทึกรหัสผ่านใหม่ในระบบเรียบร้อย (รหัสผ่าน: ${newPass})`, 'success');
+      }
+    } catch (err) {
+      console.warn('Sync reset password error:', err);
+      showToast(`บันทึกรหัสผ่านใหม่ในระบบเรียบร้อย (รหัสผ่าน: ${newPass})`, 'success');
+    }
+  },
+
+  // 2. หน้าต่างค้นหาและจัดการรหัสผ่านแพทย์ทั้งหมดสำหรับ Admin
+  openAdminPasswordManagerModal() {
+    if (!this.isAdmin()) {
+      showToast('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้น', 'error');
+      return;
+    }
+    this.renderAdminPasswordList();
+    openModal('adminPasswordManagerModal');
+  },
+
+  renderAdminPasswordList(query = '') {
+    const listEl = document.getElementById('admin-password-list-container');
+    if (!listEl) return;
+
+    const creds = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDENTIALS) || '{}');
+    const q = query.trim().toLowerCase();
+
+    // รวมรายชื่อแพทย์จาก Sheet และ Thaifammed
+    let allDocs = [...AppState.members];
+    if (AppState.thaifammed && Array.isArray(AppState.thaifammed)) {
+      AppState.thaifammed.forEach(d => {
+        if (!allDocs.some(m => (m.licenseNo && m.licenseNo == d.gpNo) || (m.fullNameTh && m.fullNameTh === d.name))) {
+          allDocs.push({
+            id: d.id,
+            fullNameTh: d.name,
+            licenseNo: d.gpNo,
+            workplace: d.workplace,
+            mobilePhone: d.mobilePhone || ''
+          });
+        }
+      });
+    }
+
+    if (q) {
+      allDocs = allDocs.filter(d => {
+        const name = (d.fullNameTh || d.name || '').toLowerCase();
+        const lic = String(d.licenseNo || d.gpNo || '');
+        const phone = String(d.mobilePhone || '');
+        return name.includes(q) || lic.includes(q) || phone.includes(q);
+      });
+    }
+
+    // จำกัดแสดงผล 60 รายการแรก เพื่อความรวดเร็ว
+    const displayList = allDocs.slice(0, 60);
+
+    if (displayList.length === 0) {
+      listEl.innerHTML = `
+        <div class="p-8 text-center text-slate-400">
+          <i class="fa-solid fa-user-slash text-3xl mb-2 text-slate-300"></i>
+          <p>ไม่พบข้อมูลแพทย์ตามคำค้นหา "${escapeHtml(query)}"</p>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = displayList.map(d => {
+      const name = d.fullNameTh || d.name || '-';
+      const lic = d.licenseNo || d.gpNo || '-';
+      const phone = d.mobilePhone || '';
+      const customPass = creds[`doc_${lic}`];
+      const wp = (d.workplace && d.workplace.name) || (typeof d.workplace === 'string' ? d.workplace : '') || '-';
+      
+      const passBadge = customPass 
+        ? `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-mono font-bold text-[11px] border border-emerald-200">รหัสผ่าน: ${escapeHtml(customPass)}</span>`
+        : `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 font-mono text-[10px]">รหัสเริ่มต้น (1234/เบอร์)</span>`;
+
+      return `
+        <div class="flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-200 hover:border-amber-300 transition shadow-sm gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900 text-xs truncate">${escapeHtml(name)}</span>
+              <span class="px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 text-[10px] font-semibold">ว.${escapeHtml(lic)}</span>
+            </div>
+            <div class="text-[11px] text-slate-500 truncate flex items-center gap-2 mt-0.5">
+              <span>${escapeHtml(wp)}</span>
+              ${phone ? `<span>• โทร ${escapeHtml(phone)}</span>` : ''}
+            </div>
+            <div class="mt-1">
+              ${passBadge}
+            </div>
+          </div>
+          <button type="button" onclick="AuthManager.openAdminResetPasswordModal('${escapeHtml(lic)}', '${escapeHtml(name)}', '${escapeHtml(phone)}', '')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-sm transition active:scale-95 shrink-0 flex items-center gap-1.5">
+            <i class="fa-solid fa-key"></i> รีเซ็ตรหัส
+          </button>
+        </div>
+      `;
+    }).join('');
+  },
+
   logout() {
     this.currentUser = { role: 'guest' };
     localStorage.removeItem(STORAGE_KEY_AUTH_USER);
@@ -5711,6 +6006,9 @@ const AuthManager = {
                 <div class="text-[10px] text-indigo-300">แก้ไขได้ทุกท่าน + จัดการระบบ</div>
               </div>
             </div>
+            <button onclick="AuthManager.openAdminPasswordManagerModal()" class="w-full py-1.5 px-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1.5 border border-amber-500/30">
+              <i class="fa-solid fa-key text-amber-300"></i> รีเซ็ตรหัสผ่านแพทย์
+            </button>
             <button onclick="AuthManager.logout()" class="w-full py-1 text-slate-400 hover:text-rose-300 text-[10px] transition flex items-center justify-center gap-1">
               <i class="fa-solid fa-arrow-right-from-bracket"></i> ออกจากระบบ
             </button>
@@ -5785,11 +6083,14 @@ const AuthManager = {
               </div>
               <i class="fa-solid fa-chevron-down text-indigo-400 text-[10px]"></i>
             </button>
-            <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 text-xs font-medium text-slate-700 animate-fade-in">
+            <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 text-xs font-medium text-slate-700 animate-fade-in">
               <div class="px-3.5 py-2 border-b border-slate-100">
                 <p class="font-bold text-slate-900">ผู้ดูแลระบบสูงสุด (Admin)</p>
                 <span class="inline-block mt-0.5 px-2 py-0.2 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-semibold">แก้ไขข้อมูลได้ทุกท่าน</span>
               </div>
+              <button onclick="AuthManager.openAdminPasswordManagerModal()" class="w-full px-3.5 py-2 text-left hover:bg-amber-50 text-amber-900 transition flex items-center gap-2 font-medium">
+                <i class="fa-solid fa-key text-amber-600 w-4"></i> รีเซ็ตรหัสผ่านแพทย์รายบุคคล
+              </button>
               <button onclick="switchView('management')" class="w-full px-3.5 py-2 text-left hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2">
                 <i class="fa-solid fa-sliders text-indigo-600 w-4"></i> ปรับแต่งโลโก้ & ข้อความระบบ
               </button>
