@@ -319,7 +319,7 @@ function saveSystemConfig(cfg) {
     else delete cfg.logoImageUrl;
   } else if (cfg.logoImageUrl && cfg.logoImageUrl.indexOf('drive.google.com') !== -1) {
     var m1 = cfg.logoImageUrl.match(/[-\w]{25,}/);
-    if (m1) cfg.logoImageUrl = 'https://lh3.googleusercontent.com/d/' + m1[0];
+    if (m1) cfg.logoImageUrl = 'https://drive.usercontent.google.com/download?id=' + m1[0];
   }
 
   // 2. ตรวจสอบและอัปโหลดโลโก้ที่สอง (Logo 2) ขึ้น Google Drive หากเป็น Base64
@@ -329,7 +329,7 @@ function saveSystemConfig(cfg) {
     else delete cfg.logo2ImageUrl;
   } else if (cfg.logo2ImageUrl && cfg.logo2ImageUrl.indexOf('drive.google.com') !== -1) {
     var m2 = cfg.logo2ImageUrl.match(/[-\w]{25,}/);
-    if (m2) cfg.logo2ImageUrl = 'https://lh3.googleusercontent.com/d/' + m2[0];
+    if (m2) cfg.logo2ImageUrl = 'https://drive.usercontent.google.com/download?id=' + m2[0];
   }
 
   // 3. บันทึกลง ScriptProperties สำหรับการเข้าถึงที่รวดเร็ว
@@ -430,7 +430,7 @@ function uploadBase64ImageToDrive(base64Data, filePrefix) {
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     } catch (sErr) {}
     var fileId = file.getId();
-    return 'https://lh3.googleusercontent.com/d/' + fileId;
+    return 'https://drive.usercontent.google.com/download?id=' + fileId;
   } catch (err) {
     Logger.log('uploadBase64ImageToDrive error: ' + err);
     return null;

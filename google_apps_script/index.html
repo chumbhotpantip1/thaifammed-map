@@ -624,8 +624,8 @@ h1, h2, h3, h4, h5, h6, .font-heading {
               <i class="fa-solid fa-hospital text-base"></i>
             </div>
             <div class="overflow-hidden">
-              <h1 id="brand-title" class="font-semibold text-white text-sm leading-tight font-heading truncate">ราชวิทยาลัยฯ</h1>
-              <p id="brand-subtitle" class="text-[11px] text-sky-400 truncate">เวชศาสตร์ครอบครัว</p>
+              <h1 id="brand-title" class="font-semibold text-white text-sm leading-tight font-heading truncate">ราชวิทยาลัยแพทย์เวชศาสตร์ครอบครัวแห่งประเทศไทย</h1>
+              <p id="brand-subtitle" class="text-[11px] text-sky-400 truncate">และ สมาคมแพทย์เวชศาสตร์ครอบครัว</p>
             </div>
           </div>
           <!-- Close button on Mobile Drawer -->
@@ -638,7 +638,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
         <div class="px-4 py-2.5 bg-slate-800/60 border-b border-slate-800/80 flex items-center justify-between text-xs">
           <div class="flex items-center space-x-2">
             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span id="brand-source-badge" class="text-slate-300 text-[11px]">Sheet + Thaifammed</span>
+            <span id="brand-source-badge" class="text-slate-300 text-[11px]">Master DB 2026</span>
           </div>
           <span id="brand-total-badge" class="px-2 py-0.5 rounded-full bg-sky-950 text-sky-300 font-medium text-[11px] border border-sky-800">3,750+ แพทย์</span>
         </div>
@@ -91829,14 +91829,16 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('Initialization error in DOMContentLoaded:', initErr);
   }
 
-  // Trigger immediate realtime sync from Google Sheet (without delay)
+  // Trigger immediate realtime fast branding sync and full data sync (without delay)
   if (getGasEndpoint()) {
+    syncLiveBrandingConfig();
     syncLiveSheetData(true);
   }
 
   // Auto-refresh from Google Sheet when user returns/focuses this browser tab
   window.addEventListener('focus', () => {
     if (getGasEndpoint()) {
+      syncLiveBrandingConfig();
       syncLiveSheetData(true);
     }
   });
@@ -95750,8 +95752,41 @@ function resetToInitialData() {
 }
 
 /* ================= GOOGLE DRIVE & GOOGLE SHEET REALTIME SYNC ================= */
-const ACTIVE_SPREADSHEET_ID = '1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU';
-const ACTIVE_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link';
+async function syncLiveBrandingConfig() {
+  const gasEndpoint = getGasEndpoint();
+  if (!gasEndpoint || !gasEndpoint.startsWith('http')) return;
+  try {
+    const sep = gasEndpoint.includes('?') ? '&' : '?';
+    // Simple GET request immune to CORS preflight (OPTIONS) restrictions
+    const response = await fetch(`${gasEndpoint}${sep}action=getConfig&_t=${Date.now()}`);
+    const data = await response.json();
+    const liveConfig = data && (data.config || (data.data && data.data.config));
+    if (liveConfig && typeof BrandingManager !== 'undefined') {
+      let localSaved = null;
+      try { localSaved = JSON.parse(localStorage.getItem(STORAGE_KEY_BRANDING) || '{}'); } catch(e) {}
+      const localHasLogo = localSaved && localSaved.logoImageUrl && (localSaved.logoType === 'upload' || localSaved.logoType === 'url');
+      const serverHasLogo = liveConfig.logoImageUrl && (liveConfig.logoType === 'upload' || liveConfig.logoType === 'url');
+
+      if (localHasLogo && !serverHasLogo) {
+        console.log('Local custom logo detected, preserving and pushing to cloud...');
+        BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...liveConfig, logoImageUrl: localSaved.logoImageUrl, logoType: localSaved.logoType };
+        localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
+        BrandingManager.apply(BrandingManager.currentConfig);
+        BrandingManager.populateForm();
+        BrandingManager.updateLivePreview();
+        BrandingManager.save(true);
+      } else {
+        BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...liveConfig };
+        localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
+        BrandingManager.apply(BrandingManager.currentConfig);
+        BrandingManager.populateForm();
+        BrandingManager.updateLivePreview();
+      }
+    }
+  } catch (err) {
+    console.warn('Fast branding sync failed:', err);
+  }
+}
 
 async function syncLiveSheetData(isSilent = false) {
   const btnHeader = document.getElementById('btn-live-sync-header');
@@ -95835,11 +95870,8 @@ async function syncLiveSheetData(isSilent = false) {
   if (gasEndpoint && gasEndpoint.startsWith('http')) {
     try {
       const sep = gasEndpoint.includes('?') ? '&' : '?';
-      // Cache-busting parameter และ no-store เพื่อให้ได้ข้อมูลสดใหม่ 100% ทุกครั้ง
-      const response = await fetch(`${gasEndpoint}${sep}action=getMembers&_t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-      });
+      // Simple GET request immune to CORS preflight restrictions
+      const response = await fetch(`${gasEndpoint}${sep}action=getMembers&_t=${Date.now()}`);
       const data = await response.json();
       const sheetMembers = (data && Array.isArray(data.members)) ? data.members :
                            (data && data.data && Array.isArray(data.data.members)) ? data.data.members : null;
@@ -96386,9 +96418,9 @@ function convertToDirectDriveUrl(url) {
   if (!url) return '';
   url = String(url).trim();
   const match = url.match(/\/d\/([a-zA-Z0-9_-]{25,})/);
-  if (match) return 'https://lh3.googleusercontent.com/d/' + match[1];
+  if (match) return 'https://drive.usercontent.google.com/download?id=' + match[1];
   const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]{25,})/);
-  if (idMatch) return 'https://lh3.googleusercontent.com/d/' + idMatch[1];
+  if (idMatch) return 'https://drive.usercontent.google.com/download?id=' + idMatch[1];
   return url;
 }
 
@@ -96436,9 +96468,9 @@ const DEFAULT_BRANDING = {
   logoImageUrl: '',
   logo2Type: 'icon', // 'icon' | 'upload' | 'url'
   logo2ImageUrl: '',
-  title: 'ราชวิทยาลัยฯ',
-  subtitle: 'เวชศาสตร์ครอบครัว',
-  sourceBadge: 'Sheet + Thaifammed',
+  title: 'ราชวิทยาลัยแพทย์เวชศาสตร์ครอบครัวแห่งประเทศไทย',
+  subtitle: 'และ สมาคมแพทย์เวชศาสตร์ครอบครัว',
+  sourceBadge: 'Master DB 2026',
   headerTitle: 'ระบบสารสนเทศสมาชิกแพทย์เวชศาสตร์ครอบครัว',
   searchPlaceholder: 'ค้นหาชื่อแพทย์, เลข ว., โรงพยาบาล, จังหวัด...',
   dashBadge: 'ฐานข้อมูลสมาชิกเวชศาสตร์ครอบครัวไทย',
@@ -96483,7 +96515,7 @@ const BrandingManager = {
     if (brandLogoContainer) {
       if ((cfg.logoType === 'upload' || cfg.logoType === 'url') && cfg.logoImageUrl) {
         brandLogoContainer.className = 'w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden shrink-0 bg-white border border-slate-700/50';
-        brandLogoContainer.innerHTML = `<img src="${cfg.logoImageUrl}" alt="Logo" class="brand-logo-img">`;
+        brandLogoContainer.innerHTML = `<img src="${cfg.logoImageUrl}" alt="Logo" class="brand-logo-img" onerror="if(!this.dataset.tried1){this.dataset.tried1=true;const m=this.src.match(/[-\\w]{25,}/);if(m)this.src='https://drive.usercontent.google.com/download?id='+m[0];}else if(!this.dataset.tried2){this.dataset.tried2=true;const m=this.src.match(/[-\\w]{25,}/);if(m)this.src='https://drive.google.com/thumbnail?id='+m[0]+'&sz=w500';}">`;
       } else {
         brandLogoContainer.className = `w-10 h-10 rounded-xl bg-gradient-to-tr ${cfg.logoGradient || 'from-sky-500 to-teal-400'} flex items-center justify-center text-white shadow-lg shrink-0 overflow-hidden`;
         brandLogoContainer.innerHTML = `<i class="fa-solid ${cfg.logoIcon || 'fa-user-doctor'} text-lg"></i>`;
@@ -96495,7 +96527,7 @@ const BrandingManager = {
     if (brandLogo2Container) {
       if ((cfg.logo2Type === 'upload' || cfg.logo2Type === 'url') && cfg.logo2ImageUrl) {
         brandLogo2Container.className = 'w-9 h-9 rounded-xl flex items-center justify-center shadow-lg overflow-hidden shrink-0 bg-white border border-slate-700/50';
-        brandLogo2Container.innerHTML = `<img src="${cfg.logo2ImageUrl}" alt="Logo 2" class="brand-logo2-img">`;
+        brandLogo2Container.innerHTML = `<img src="${cfg.logo2ImageUrl}" alt="Logo 2" class="brand-logo2-img" onerror="if(!this.dataset.tried1){this.dataset.tried1=true;const m=this.src.match(/[-\\w]{25,}/);if(m)this.src='https://drive.usercontent.google.com/download?id='+m[0];}else if(!this.dataset.tried2){this.dataset.tried2=true;const m=this.src.match(/[-\\w]{25,}/);if(m)this.src='https://drive.google.com/thumbnail?id='+m[0]+'&sz=w500';}">`;
       } else {
         brandLogo2Container.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 overflow-hidden shrink-0';
         brandLogo2Container.innerHTML = `<i class="fa-solid fa-hospital text-sm"></i>`;
