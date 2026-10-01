@@ -316,12 +316,20 @@ function saveSystemConfig(cfg) {
   if (cfg.logoImageUrl && cfg.logoImageUrl.indexOf('data:image') === 0) {
     var logo1Url = uploadBase64ImageToDrive(cfg.logoImageUrl, 'system_brand_logo1');
     if (logo1Url) cfg.logoImageUrl = logo1Url;
+    else delete cfg.logoImageUrl;
+  } else if (cfg.logoImageUrl && cfg.logoImageUrl.indexOf('drive.google.com') !== -1) {
+    var m1 = cfg.logoImageUrl.match(/[-\w]{25,}/);
+    if (m1) cfg.logoImageUrl = 'https://lh3.googleusercontent.com/d/' + m1[0];
   }
 
   // 2. ตรวจสอบและอัปโหลดโลโก้ที่สอง (Logo 2) ขึ้น Google Drive หากเป็น Base64
   if (cfg.logo2ImageUrl && cfg.logo2ImageUrl.indexOf('data:image') === 0) {
     var logo2Url = uploadBase64ImageToDrive(cfg.logo2ImageUrl, 'system_brand_logo2');
     if (logo2Url) cfg.logo2ImageUrl = logo2Url;
+    else delete cfg.logo2ImageUrl;
+  } else if (cfg.logo2ImageUrl && cfg.logo2ImageUrl.indexOf('drive.google.com') !== -1) {
+    var m2 = cfg.logo2ImageUrl.match(/[-\w]{25,}/);
+    if (m2) cfg.logo2ImageUrl = 'https://lh3.googleusercontent.com/d/' + m2[0];
   }
 
   // 3. บันทึกลง ScriptProperties สำหรับการเข้าถึงที่รวดเร็ว

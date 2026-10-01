@@ -4177,11 +4177,26 @@ async function syncLiveSheetData(isSilent = false) {
           
           // ซิงค์การตั้งค่าระบบ (Branding & Logo)
           if (response.config && typeof BrandingManager !== 'undefined') {
-            BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...response.config };
-            localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
-            BrandingManager.apply(BrandingManager.currentConfig);
-            BrandingManager.populateForm();
-            BrandingManager.updateLivePreview();
+            let localSaved = null;
+            try { localSaved = JSON.parse(localStorage.getItem(STORAGE_KEY_BRANDING) || '{}'); } catch(e) {}
+            const localHasLogo = localSaved && localSaved.logoImageUrl && (localSaved.logoType === 'upload' || localSaved.logoType === 'url');
+            const serverHasLogo = response.config.logoImageUrl && (response.config.logoType === 'upload' || response.config.logoType === 'url');
+
+            if (localHasLogo && !serverHasLogo) {
+              console.log('Local custom logo detected, preserving and pushing to cloud...');
+              BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...response.config, logoImageUrl: localSaved.logoImageUrl, logoType: localSaved.logoType };
+              localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
+              BrandingManager.apply(BrandingManager.currentConfig);
+              BrandingManager.populateForm();
+              BrandingManager.updateLivePreview();
+              BrandingManager.save(true);
+            } else {
+              BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...response.config };
+              localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
+              BrandingManager.apply(BrandingManager.currentConfig);
+              BrandingManager.populateForm();
+              BrandingManager.updateLivePreview();
+            }
           }
 
           // ซิงค์รหัสผ่านแพทย์ที่ตั้งใหม่ (Credentials)
@@ -4232,11 +4247,26 @@ async function syncLiveSheetData(isSilent = false) {
         // ซิงค์การตั้งค่าระบบ (Branding & Logo)
         const liveConfig = (data && data.config) || (data && data.data && data.data.config);
         if (liveConfig && typeof BrandingManager !== 'undefined') {
-          BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...liveConfig };
-          localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
-          BrandingManager.apply(BrandingManager.currentConfig);
-          BrandingManager.populateForm();
-          BrandingManager.updateLivePreview();
+          let localSaved = null;
+          try { localSaved = JSON.parse(localStorage.getItem(STORAGE_KEY_BRANDING) || '{}'); } catch(e) {}
+          const localHasLogo = localSaved && localSaved.logoImageUrl && (localSaved.logoType === 'upload' || localSaved.logoType === 'url');
+          const serverHasLogo = liveConfig.logoImageUrl && (liveConfig.logoType === 'upload' || liveConfig.logoType === 'url');
+
+          if (localHasLogo && !serverHasLogo) {
+            console.log('Local custom logo detected, preserving and pushing to cloud...');
+            BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...liveConfig, logoImageUrl: localSaved.logoImageUrl, logoType: localSaved.logoType };
+            localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
+            BrandingManager.apply(BrandingManager.currentConfig);
+            BrandingManager.populateForm();
+            BrandingManager.updateLivePreview();
+            BrandingManager.save(true);
+          } else {
+            BrandingManager.currentConfig = { ...DEFAULT_BRANDING, ...liveConfig };
+            localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(BrandingManager.currentConfig));
+            BrandingManager.apply(BrandingManager.currentConfig);
+            BrandingManager.populateForm();
+            BrandingManager.updateLivePreview();
+          }
         }
 
         // ซิงค์รหัสผ่านแพทย์ที่ตั้งใหม่ (Credentials)
@@ -4749,6 +4779,52 @@ function openAddFromThaifammed(tfId) {
   openUpdateDoctorModal('thaifammed', tfId);
 }
 
+function convertToDirectDriveUrl(url) {
+  if (!url) return '';
+  url = String(url).trim();
+  const match = url.match(/\/d\/([a-zA-Z0-9_-]{25,})/);
+  if (match) return 'https://lh3.googleusercontent.com/d/' + match[1];
+  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]{25,})/);
+  if (idMatch) return 'https://lh3.googleusercontent.com/d/' + idMatch[1];
+  return url;
+}
+
+function compressImageFile(file, maxDim = 280, quality = 0.88) {
+  return new Promise((resolve, reject) => {
+    if (!file) return reject(new Error('No file provided'));
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const isPng = file.type === 'image/png';
+        const mime = isPng ? 'image/png' : 'image/jpeg';
+        const dataUrl = canvas.toDataURL(mime, quality);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 /* ================= BRANDING & UI CUSTOMIZATION ENGINE ================= */
 const DEFAULT_BRANDING = {
   logoType: 'icon', // 'icon' | 'upload' | 'url'
@@ -4947,84 +5023,98 @@ const BrandingManager = {
     });
   },
 
-  handleFileUpload(event) {
+  async handleFileUpload(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('ไฟล์ภาพมีขนาดใหญ่เกินไป (ไม่เกิน 2MB)', 'warning');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      this.currentConfig.logoImageUrl = e.target.result;
+    showToast('⏳ กำลังประมวลผลรูปภาพและเตรียมอัปโหลด...', 'info');
+    try {
+      const compressedData = await compressImageFile(file, 280, 0.88);
+      this.currentConfig.logoImageUrl = compressedData;
       this.currentConfig.logoType = 'upload';
+      this.apply(this.currentConfig);
       this.updateLivePreview();
-      showToast('อัปโหลดไฟล์รูปภาพโลโก้เรียบร้อยแล้ว (กดปุ่มบันทึกเพื่อใช้งาน)', 'success');
-    };
-    reader.readAsDataURL(file);
+      // อัปโหลดขึ้น Google Drive และ Google Sheet ทันที ไม่ต้องกดบันทึกซ้ำ
+      await this.save(false);
+    } catch (err) {
+      console.error('Image compression error:', err);
+      showToast('ไม่สามารถประมวลผลไฟล์ภาพได้: ' + (err.message || err), 'error');
+    }
   },
 
   handleUrlInput(val) {
-    this.currentConfig.logoImageUrl = (val || '').trim();
+    const directUrl = convertToDirectDriveUrl(val);
+    this.currentConfig.logoImageUrl = directUrl;
+    if (directUrl) {
+      this.currentConfig.logoType = 'url';
+    }
     this.updateLivePreview();
   },
 
-  applyUrl() {
+  async applyUrl() {
     const input = document.getElementById('input-brand-logo-url');
     if (input && input.value) {
-      this.currentConfig.logoImageUrl = input.value.trim();
+      const directUrl = convertToDirectDriveUrl(input.value);
+      input.value = directUrl;
+      this.currentConfig.logoImageUrl = directUrl;
       this.currentConfig.logoType = 'url';
+      this.apply(this.currentConfig);
       this.updateLivePreview();
-      showToast('ทดสอบเชื่อมโยง URL โลโก้เรียบร้อยแล้ว', 'info');
+      await this.save(false);
+      showToast('เชื่อมโยง URL โลโก้และบันทึกขึ้น Cloud สำเร็จ', 'success');
     }
   },
 
-  handleLogo2Upload(event) {
+  async handleLogo2Upload(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('ไฟล์ภาพ Logo 2 มีขนาดใหญ่เกินไป (ไม่เกิน 2MB)', 'warning');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      this.currentConfig.logo2ImageUrl = e.target.result;
+    showToast('⏳ กำลังประมวลผล Logo 2 และเตรียมอัปโหลด...', 'info');
+    try {
+      const compressedData = await compressImageFile(file, 280, 0.88);
+      this.currentConfig.logo2ImageUrl = compressedData;
       this.currentConfig.logo2Type = 'upload';
-      this.updateLivePreview();
       this.apply(this.currentConfig);
-      showToast('อัปโหลดไฟล์รูปภาพ Logo 2 เรียบร้อยแล้ว (กดปุ่มบันทึกเพื่อใช้งาน)', 'success');
-    };
-    reader.readAsDataURL(file);
+      this.updateLivePreview();
+      // อัปโหลดขึ้น Google Drive และ Google Sheet ทันที
+      await this.save(false);
+    } catch (err) {
+      console.error('Logo 2 compression error:', err);
+      showToast('ไม่สามารถประมวลผลไฟล์ภาพ Logo 2 ได้', 'error');
+    }
   },
 
   handleLogo2UrlInput(val) {
-    this.currentConfig.logo2ImageUrl = (val || '').trim();
-    if (this.currentConfig.logo2ImageUrl) {
+    const directUrl = convertToDirectDriveUrl(val);
+    this.currentConfig.logo2ImageUrl = directUrl;
+    if (directUrl) {
       this.currentConfig.logo2Type = 'url';
     }
     this.updateLivePreview();
     this.apply(this.currentConfig);
   },
 
-  applyLogo2Url() {
+  async applyLogo2Url() {
     const input = document.getElementById('input-brand-logo2-url');
     if (input && input.value) {
-      this.currentConfig.logo2ImageUrl = input.value.trim();
+      const directUrl = convertToDirectDriveUrl(input.value);
+      input.value = directUrl;
+      this.currentConfig.logo2ImageUrl = directUrl;
       this.currentConfig.logo2Type = 'url';
-      this.updateLivePreview();
       this.apply(this.currentConfig);
-      showToast('ทดสอบเชื่อมโยง URL Logo 2 เรียบร้อยแล้ว', 'info');
+      this.updateLivePreview();
+      await this.save(false);
+      showToast('เชื่อมโยง URL Logo 2 และบันทึกขึ้น Cloud สำเร็จ', 'success');
     }
   },
 
-  removeLogo2() {
+  async removeLogo2() {
     this.currentConfig.logo2ImageUrl = '';
     this.currentConfig.logo2Type = 'icon';
     const input = document.getElementById('input-brand-logo2-url');
     if (input) input.value = '';
-    this.updateLivePreview();
     this.apply(this.currentConfig);
-    showToast('รีเซ็ต Logo 2 เป็นไอคอนเริ่มต้นเรียบร้อยแล้ว', 'info');
+    this.updateLivePreview();
+    await this.save(false);
+    showToast('รีเซ็ต Logo 2 และบันทึกเรียบร้อยแล้ว', 'info');
   },
 
   collectFormData() {
@@ -5113,12 +5203,14 @@ const BrandingManager = {
     }
   },
 
-  async save() {
+  async save(isSilent = false) {
     const cfg = this.collectFormData();
     this.currentConfig = cfg;
     localStorage.setItem(STORAGE_KEY_BRANDING, JSON.stringify(cfg));
     this.apply(cfg);
-    showToast('💾 กำลังบันทึกโลโก้และการตั้งค่าขึ้น Google Sheet & Google Drive...', 'info');
+    if (!isSilent) {
+      showToast('💾 กำลังบันทึกโลโก้และการตั้งค่าขึ้น Google Sheet & Google Drive...', 'info');
+    }
 
     try {
       const res = await sendToGasApi({ action: 'saveConfig', config: cfg });
@@ -5130,13 +5222,15 @@ const BrandingManager = {
           this.populateForm();
           this.updateLivePreview();
         }
-        showToast('✅ บันทึกโลโก้และการตั้งค่าลง Google Sheet & Drive เรียบร้อยแล้ว (ทุกคนจะเห็นตรงกัน)', 'success');
+        if (!isSilent) {
+          showToast('✅ บันทึกโลโก้และการตั้งค่าลง Google Sheet & Drive เรียบร้อยแล้ว (ทุกคนจะเห็นตรงกัน)', 'success');
+        }
       } else {
-        showToast('บันทึกการตั้งค่าในเครื่องเรียบร้อยแล้ว', 'success');
+        if (!isSilent) showToast('บันทึกการตั้งค่าในเครื่องเรียบร้อยแล้ว', 'success');
       }
     } catch (err) {
       console.warn('Error syncing branding to Google Sheet:', err);
-      showToast('บันทึกการตั้งค่าในเครื่องเรียบร้อยแล้ว', 'success');
+      if (!isSilent) showToast('บันทึกการตั้งค่าในเครื่องเรียบร้อยแล้ว', 'success');
     }
   },
 

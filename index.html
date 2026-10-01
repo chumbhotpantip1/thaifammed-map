@@ -38,11 +38,16 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
+  <!-- Anti-Cache Meta Tags: Force latest code and branding on all browsers -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="styles.css">
+  <!-- Custom Stylesheet (Versioned for cache busting) -->
+  <link rel="stylesheet" href="styles.css?v=20260930_2025">
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
@@ -1184,15 +1189,15 @@
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                         <div>
                           <label class="block text-slate-500 mb-1">ชื่อระบบหลัก (Title):</label>
-                          <input type="text" id="cfg-brand-title" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-indigo-500">
+                          <input type="text" id="cfg-brand-title" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-indigo-500">
                         </div>
                         <div>
                           <label class="block text-slate-500 mb-1">คำบรรยายย่อย (Subtitle):</label>
-                          <input type="text" id="cfg-brand-subtitle" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-indigo-500">
+                          <input type="text" id="cfg-brand-subtitle" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-indigo-500">
                         </div>
                         <div class="sm:col-span-2">
                           <label class="block text-slate-500 mb-1">ป้ายกำกับแหล่งข้อมูล (Source Badge):</label>
-                          <input type="text" id="cfg-brand-source-badge" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-indigo-500">
+                          <input type="text" id="cfg-brand-source-badge" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-indigo-500">
                         </div>
                       </div>
                     </div>
@@ -1205,11 +1210,11 @@
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                         <div>
                           <label class="block text-slate-500 mb-1">หัวข้อบน Header:</label>
-                          <input type="text" id="cfg-brand-header-title" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
+                          <input type="text" id="cfg-brand-header-title" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
                         </div>
                         <div>
                           <label class="block text-slate-500 mb-1">ข้อความในช่องค้นหา (Search Placeholder):</label>
-                          <input type="text" id="cfg-brand-search-placeholder" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
+                          <input type="text" id="cfg-brand-search-placeholder" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-sky-500">
                         </div>
                       </div>
                     </div>
@@ -1223,16 +1228,16 @@
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div class="sm:col-span-1">
                             <label class="block text-slate-500 mb-1">ป้าย Badge ด้านบน:</label>
-                            <input type="text" id="cfg-brand-dash-badge" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-teal-500">
+                            <input type="text" id="cfg-brand-dash-badge" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-teal-500">
                           </div>
                           <div class="sm:col-span-2">
                             <label class="block text-slate-500 mb-1">หัวเรื่องหลัก Dashboard:</label>
-                            <input type="text" id="cfg-brand-dash-title" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-teal-500">
+                            <input type="text" id="cfg-brand-dash-title" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-teal-500">
                           </div>
                         </div>
                         <div>
                           <label class="block text-slate-500 mb-1">คำบรรยายใต้หัวเรื่อง Dashboard:</label>
-                          <textarea id="cfg-brand-dash-desc" rows="2" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-teal-500"></textarea>
+                          <textarea id="cfg-brand-dash-desc" rows="2" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-teal-500"></textarea>
                         </div>
                       </div>
                     </div>
@@ -1245,11 +1250,11 @@
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                         <div>
                           <label class="block text-slate-500 mb-1">หัวเรื่องหน้าแผนที่ (Map Title):</label>
-                          <input type="text" id="cfg-brand-map-title" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-emerald-500">
+                          <input type="text" id="cfg-brand-map-title" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-emerald-500">
                         </div>
                         <div>
                           <label class="block text-slate-500 mb-1">หัวเรื่องทำเนียบสมาชิก (Sheet 314):</label>
-                          <input type="text" id="cfg-brand-dir-title" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-emerald-500">
+                          <input type="text" id="cfg-brand-dir-title" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-emerald-500">
                         </div>
                       </div>
                     </div>
@@ -1262,11 +1267,11 @@
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                         <div>
                           <label class="block text-slate-500 mb-1">ข้อความลิขสิทธิ์ / สังกัด:</label>
-                          <input type="text" id="cfg-brand-footer-text" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-slate-500">
+                          <input type="text" id="cfg-brand-footer-text" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-slate-500">
                         </div>
                         <div>
                           <label class="block text-slate-500 mb-1">ข้อมูลติดต่อ / หน่วยงาน:</label>
-                          <input type="text" id="cfg-brand-footer-contact" oninput="BrandingManager.updateLivePreview()" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-slate-500">
+                          <input type="text" id="cfg-brand-footer-contact" oninput="BrandingManager.updateLivePreview()" onchange="BrandingManager.save(true)" class="w-full p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-slate-500">
                         </div>
                       </div>
                     </div>
@@ -2427,9 +2432,9 @@
     <span id="toast-message" class="truncate">บันทึกข้อมูลสำเร็จ</span>
   </div>
 
-  <!-- Load Data Bundle and App Logic -->
-  <script src="gov_hospitals.js"></script>
-  <script src="data.js"></script>
-  <script src="app.js"></script>
+  <!-- Load Data Bundle and App Logic (Versioned for anti-cache instant updates) -->
+  <script src="gov_hospitals.js?v=20260930_2025"></script>
+  <script src="data.js?v=20260930_2025"></script>
+  <script src="app.js?v=20260930_2025"></script>
 </body>
 </html>
