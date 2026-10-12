@@ -230,6 +230,12 @@ function getMembersFromSheet() {
   var idxIsPhonePublic = colMap['เปิดเผยเบอร์โทรศัพท์'] !== undefined ? colMap['เปิดเผยเบอร์โทรศัพท์'] : -1;
   var idxIsEmailPublic = colMap['เปิดเผยอีเมล'] !== undefined ? colMap['เปิดเผยอีเมล'] : -1;
   var idxHighlights = colMap['ผลงานเด่น'] !== undefined ? colMap['ผลงานเด่น'] : -1;
+  var idxBirthDate = colMap['วันเดือนปีเกิด'] !== undefined ? colMap['วันเดือนปีเกิด'] : -1;
+  var idxHomeAddress = colMap['ที่อยู่'] !== undefined ? colMap['ที่อยู่'] : (colMap['ที่อยู่ตามทะเบียนบ้าน'] !== undefined ? colMap['ที่อยู่ตามทะเบียนบ้าน'] : -1);
+  var idxHomePhone = colMap['โทรศัพท์บ้าน'] !== undefined ? colMap['โทรศัพท์บ้าน'] : -1;
+  var idxRegType = colMap['ประเภทการสมัคร'] !== undefined ? colMap['ประเภทการสมัคร'] : -1;
+  var idxTimestamp = colMap['ประทับเวลา'] !== undefined ? colMap['ประทับเวลา'] : (colMap['Timestamp'] !== undefined ? colMap['Timestamp'] : -1);
+  var idxConsent = colMap['ยินยอม'] !== undefined ? colMap['ยินยอม'] : -1;
 
   var members = [];
   for (var r = 1; r < values.length; r++) {
@@ -291,7 +297,13 @@ function getMembersFromSheet() {
       isEmailPublic: isEmailPub,
       photoDriveId: driveId,
       photoUrl: pUrl,
-      highlights: parsedHighlights
+      highlights: parsedHighlights,
+      birthDate: idxBirthDate !== -1 ? String(row[idxBirthDate] || '').trim() : '',
+      homeAddress: idxHomeAddress !== -1 ? String(row[idxHomeAddress] || '').trim() : '',
+      homePhone: idxHomePhone !== -1 ? String(row[idxHomePhone] || '').trim() : '',
+      regType: idxRegType !== -1 ? String(row[idxRegType] || '').trim() : '',
+      timestamp: idxTimestamp !== -1 ? String(row[idxTimestamp] || '').trim() : '',
+      consent: idxConsent !== -1 ? String(row[idxConsent] || '').trim() : ''
     });
   }
 

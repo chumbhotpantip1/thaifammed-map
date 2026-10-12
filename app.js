@@ -2628,8 +2628,8 @@ function openMemberDetailModal(id) {
       healthZone: tfDoc.healthZone || '',
       lat: tfDoc.lat,
       lng: tfDoc.lng,
-      mobilePhone: '',
-      email: '',
+      mobilePhone: tfDoc.mobilePhone || '',
+      email: tfDoc.email || '',
       photoUrl: tfDoc.photoUrl || '',
       photoDriveId: ''
     };
@@ -2752,8 +2752,9 @@ function openMemberDetailModal(id) {
   const elChan = document.getElementById('detail-channels');
   if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
 
-  // Contact Privacy Logic
-  const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord('sheet', m.id));
+  // Contact Privacy Logic & Admin Unrestricted View
+  const isAdmin = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
+  const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (isAdmin || AuthManager.isMyRecord('sheet', m.id));
   const isPhonePublic = m.isPhonePublic === true || m.isPhonePublic === 'TRUE';
   const isEmailPublic = m.isEmailPublic === true || m.isEmailPublic === 'TRUE';
   
@@ -2761,57 +2762,191 @@ function openMemberDetailModal(id) {
   const cIcon = document.getElementById('contact-toggle-icon');
   const cText = document.getElementById('contact-toggle-text');
   
-  contactInfoVisible = false;
-  if (cIcon) cIcon.className = 'fa-solid fa-eye';
-  if (cText) cText.innerText = 'แสดงข้อมูล';
-
-  if (isOwnerOrAdmin && (!isPhonePublic || !isEmailPublic)) {
+  if (isAdmin) {
+    // Admin Mode: ปลดล็อคข้อมูลทั้งหมด 100% ดูได้ทุกอย่างทันที ไม่มีการเบลอ
+    contactInfoVisible = true;
+    if (cIcon) cIcon.className = 'fa-solid fa-eye-slash';
+    if (cText) cText.innerText = 'ซ่อนข้อมูล';
     if (toggleBtn) toggleBtn.style.display = 'flex';
-  } else {
-    if (toggleBtn) toggleBtn.style.display = 'none';
-  }
 
-  if (isPhonePublic) {
     if (elMobile) {
-      elMobile.innerText = m.mobilePhone || '-';
+      elMobile.innerText = m.mobilePhone || (tfDoc && tfDoc.mobilePhone) || '-';
       elMobile.classList.remove('blur-sm', 'select-none');
     }
-  } else if (isOwnerOrAdmin) {
-    if (elMobile) {
-      elMobile.innerText = m.mobilePhone || '-';
-      elMobile.classList.add('blur-sm', 'select-none');
-    }
-  } else {
-    if (elMobile) {
-      let p = m.mobilePhone || '-';
-      if (p.length >= 9) p = p.substring(0, 3) + '-XXX-XXXX';
-      elMobile.innerText = p;
-      elMobile.classList.remove('blur-sm', 'select-none');
-    }
-  }
-
-  if (isEmailPublic) {
     if (elEmail) {
-      elEmail.innerText = m.email || '-';
+      elEmail.innerText = m.email || (tfDoc && tfDoc.email) || '-';
       elEmail.classList.remove('blur-sm', 'select-none');
     }
-  } else if (isOwnerOrAdmin) {
-    if (elEmail) {
-      elEmail.innerText = m.email || '-';
-      elEmail.classList.add('blur-sm', 'select-none');
-    }
   } else {
-    if (elEmail) {
-      let e = m.email || '-';
-      if (e.includes('@')) {
-        let parts = e.split('@');
-        let n = parts[0];
-        if (n.length > 2) n = n.substring(0, 2) + '***';
-        else n = '***';
-        e = n + '@***';
+    // Normal User Mode
+    contactInfoVisible = false;
+    if (cIcon) cIcon.className = 'fa-solid fa-eye';
+    if (cText) cText.innerText = 'แสดงข้อมูล';
+
+    if (isOwnerOrAdmin && (!isPhonePublic || !isEmailPublic)) {
+      if (toggleBtn) toggleBtn.style.display = 'flex';
+    } else {
+      if (toggleBtn) toggleBtn.style.display = 'none';
+    }
+
+    if (isPhonePublic) {
+      if (elMobile) {
+        elMobile.innerText = m.mobilePhone || (tfDoc && tfDoc.mobilePhone) || '-';
+        elMobile.classList.remove('blur-sm', 'select-none');
       }
-      elEmail.innerText = e;
-      elEmail.classList.remove('blur-sm', 'select-none');
+    } else if (isOwnerOrAdmin) {
+      if (elMobile) {
+        elMobile.innerText = m.mobilePhone || (tfDoc && tfDoc.mobilePhone) || '-';
+        elMobile.classList.add('blur-sm', 'select-none');
+      }
+    } else {
+      if (elMobile) {
+        let p = m.mobilePhone || (tfDoc && tfDoc.mobilePhone) || '-';
+        if (p.length >= 9) p = p.substring(0, 3) + '-XXX-XXXX';
+        elMobile.innerText = p;
+        elMobile.classList.remove('blur-sm', 'select-none');
+      }
+    }
+
+    if (isEmailPublic) {
+      if (elEmail) {
+        elEmail.innerText = m.email || (tfDoc && tfDoc.email) || '-';
+        elEmail.classList.remove('blur-sm', 'select-none');
+      }
+    } else if (isOwnerOrAdmin) {
+      if (elEmail) {
+        elEmail.innerText = m.email || (tfDoc && tfDoc.email) || '-';
+        elEmail.classList.add('blur-sm', 'select-none');
+      }
+    } else {
+      if (elEmail) {
+        let e = m.email || (tfDoc && tfDoc.email) || '-';
+        if (e.includes('@')) {
+          let parts = e.split('@');
+          let n = parts[0];
+          if (n.length > 2) n = n.substring(0, 2) + '***';
+          else n = '***';
+          e = n + '@***';
+        }
+        elEmail.innerText = e;
+        elEmail.classList.remove('blur-sm', 'select-none');
+      }
+    }
+  }
+
+  // Admin Master DB Panel Rendering (ปลดล็อคข้อมูลทุกอย่างสำหรับ Admin)
+  const adminPanel = document.getElementById('detail-admin-panel');
+  if (adminPanel) {
+    if (isAdmin) {
+      adminPanel.classList.remove('hidden');
+
+      // 1. Password & Credentials
+      const creds = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDENTIALS) || '{}');
+      const licKey = m.licenseNo || (tfDoc && tfDoc.gpNo) || '';
+      const customPass = licKey ? creds[`doc_${licKey}`] : null;
+      
+      const elAdminPass = document.getElementById('detail-admin-password');
+      const elAdminPassStatus = document.getElementById('detail-admin-pass-status');
+      if (elAdminPass) {
+        if (customPass) {
+          elAdminPass.innerText = customPass;
+          if (elAdminPassStatus) {
+            elAdminPassStatus.innerText = '✅ รหัสผ่านที่ตั้งใหม่ (Custom Password)';
+            elAdminPassStatus.className = 'block text-[9px] text-emerald-600 font-semibold mt-0.5';
+          }
+        } else {
+          const phoneDigits = (m.mobilePhone || (tfDoc && tfDoc.mobilePhone) || '').replace(/\D/g, '');
+          const last4 = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : '';
+          const defaultHint = last4 ? `${last4} (4 ตัวท้ายเบอร์) หรือ 1234` : '1234 หรือ เลข ว.';
+          elAdminPass.innerText = defaultHint;
+          if (elAdminPassStatus) {
+            elAdminPassStatus.innerText = 'ℹ️ รหัสผ่านเริ่มต้น';
+            elAdminPassStatus.className = 'block text-[9px] text-slate-400 mt-0.5';
+          }
+        }
+      }
+
+      // 2. Role & Member ID
+      const delegates = typeof AuthManager !== 'undefined' ? AuthManager.getDelegates() : [];
+      const isDelegate = delegates.some(d => (licKey && d.licenseNo === licKey) || d.name === m.fullNameTh);
+      const elAdminRole = document.getElementById('detail-admin-role');
+      if (elAdminRole) {
+        elAdminRole.innerHTML = isDelegate
+          ? '<span class="text-rose-700 font-bold"><i class="fa-solid fa-shield-halved"></i> มีสิทธิ์ Master DB</span>'
+          : '<span class="text-sky-700">แพทย์สมาชิกทั่วไป</span>';
+      }
+      const elAdminId = document.getElementById('detail-admin-id-badge');
+      if (elAdminId) {
+        elAdminId.innerText = `Sheet ID: ${m.id || '-'}${tfDoc ? ` | TF ID: ${tfDoc.id}` : ''}`;
+      }
+
+      // 3. Personal Master Data (วันเกิด, ที่อยู่บ้าน, เบอร์บ้าน, ประเภทการสมัคร, วันเวลา, แหล่งข้อมูล)
+      const elBirth = document.getElementById('detail-admin-birthdate');
+      if (elBirth) elBirth.innerText = m.birthDate || '-';
+
+      const elHomeAddr = document.getElementById('detail-admin-home-address');
+      if (elHomeAddr) {
+        if (m.homeAddress && typeof m.homeAddress === 'object') {
+          const ha = m.homeAddress;
+          const haStr = `${ha.line || ''} ${ha.tambon ? 'ต.' + ha.tambon : ''} ${ha.amphoe ? 'อ.' + ha.amphoe : ''} ${ha.province ? 'จ.' + ha.province : ''} ${ha.zipcode || ''}`.trim();
+          elHomeAddr.innerText = haStr || '-';
+          elHomeAddr.title = haStr || '-';
+        } else {
+          elHomeAddr.innerText = m.homeAddress || '-';
+          elHomeAddr.title = m.homeAddress || '-';
+        }
+      }
+
+      const elHomePhone = document.getElementById('detail-admin-home-phone');
+      if (elHomePhone) elHomePhone.innerText = m.homePhone || '-';
+
+      const elRegType = document.getElementById('detail-admin-reg-type');
+      if (elRegType) elRegType.innerText = m.regType || '-';
+
+      const elTimestamp = document.getElementById('detail-admin-timestamp');
+      if (elTimestamp) elTimestamp.innerText = m.timestamp || '-';
+
+      const elSource = document.getElementById('detail-admin-source-status');
+      if (elSource) {
+        const isSheet = AppState.members && AppState.members.some(x => x.id == m.id);
+        const hasTf = !!tfDoc;
+        elSource.innerText = (isSheet && hasTf) ? 'Sheet Master DB + Thaifammed' : (isSheet ? 'Google Sheet Master DB' : 'Thaifammed Database');
+      }
+
+      // 4. Panel Action Buttons
+      const btnRelocate = document.getElementById('btn-admin-panel-relocate');
+      if (btnRelocate) {
+        btnRelocate.onclick = () => {
+          closeModal('memberDetailModal');
+          switchView('map');
+          setTimeout(() => {
+            const relType = (AppState.members && AppState.members.some(x => x.id == m.id)) ? 'sheet' : 'thaifammed';
+            startRelocateMarkerById(relType, m.id);
+          }, 350);
+        };
+      }
+
+      const btnCamera = document.getElementById('btn-admin-panel-camera');
+      if (btnCamera) {
+        btnCamera.onclick = () => {
+          closeModal('memberDetailModal');
+          openCameraCaptureModal('gallery', m.id);
+        };
+      }
+
+      const btnResetPass = document.getElementById('btn-admin-panel-reset-pass');
+      if (btnResetPass) {
+        btnResetPass.onclick = () => {
+          AuthManager.openAdminResetPasswordModal(
+            m.licenseNo || (tfDoc && tfDoc.gpNo) || m.id,
+            m.fullNameTh || (tfDoc && tfDoc.name),
+            m.mobilePhone || (tfDoc && tfDoc.mobilePhone),
+            m.email
+          );
+        };
+      }
+    } else {
+      adminPanel.classList.add('hidden');
     }
   }
 
@@ -2819,11 +2954,14 @@ function openMemberDetailModal(id) {
   const isAdminForLinks = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
   const driveBtn = document.getElementById('detail-drive-link');
   if (driveBtn) {
-    if (isAdminForLinks && driveId) {
-      driveBtn.href = `https://drive.google.com/file/d/${driveId}/view`;
-      driveBtn.classList.remove('hidden');
-    } else if (isAdminForLinks && m.photoUrl && m.photoUrl.startsWith('http') && !m.photoUrl.includes('ui-avatars')) {
-      driveBtn.href = m.photoUrl;
+    if (isAdminForLinks) {
+      if (driveId) {
+        driveBtn.href = `https://drive.google.com/file/d/${driveId}/view`;
+      } else if (m.photoUrl && m.photoUrl.startsWith('http') && !m.photoUrl.includes('ui-avatars')) {
+        driveBtn.href = m.photoUrl;
+      } else {
+        driveBtn.href = 'https://drive.google.com/drive/folders/1kG-hz2vQ1hwbw-vX2xs80PyZhAN9ARz6';
+      }
       driveBtn.classList.remove('hidden');
     } else {
       driveBtn.classList.add('hidden');
@@ -2857,14 +2995,14 @@ function openMemberDetailModal(id) {
     const isTfOnly = tfDoc && (!tfDoc.matchedMemberId || !AppState.members.some(item => item.id == tfDoc.matchedMemberId));
     if (isTfOnly) {
       editBtn.innerHTML = `<i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูลลง Sheet`;
-      editBtn.className = `px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition`;
+      editBtn.className = `px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5`;
       editBtn.onclick = () => {
         closeModal('memberDetailModal');
         openUpdateDoctorModal('thaifammed', tfDoc.id);
       };
     } else {
       editBtn.innerHTML = `<i class="fa-solid fa-pen-to-square mr-1"></i> แก้ไขข้อมูล`;
-      editBtn.className = `px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold shadow transition`;
+      editBtn.className = `px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5`;
       editBtn.onclick = () => {
         closeModal('memberDetailModal');
         openEditMemberModal(m.id);
@@ -2875,7 +3013,7 @@ function openMemberDetailModal(id) {
   // Admin Reset Password button from Profile Detail
   const adminResetPassBtn = document.getElementById('btn-admin-reset-pass-from-detail');
   if (adminResetPassBtn) {
-    if (typeof AuthManager !== 'undefined' && AuthManager.isAdmin()) {
+    if (isAdmin) {
       adminResetPassBtn.classList.remove('hidden');
       adminResetPassBtn.onclick = () => {
         AuthManager.openAdminResetPasswordModal(
@@ -4578,7 +4716,9 @@ function setupEventListeners() {
     'loginModal',
     'changePasswordModal',
     'gasConfigModal',
-    'provinceDoctorsModal'
+    'provinceDoctorsModal',
+    'adminPasswordManagerModal',
+    'adminMemberPickerModal'
   ];
 
   allModalIds.forEach(id => {
@@ -5903,12 +6043,18 @@ const AuthManager = {
     const q = query.trim().toLowerCase();
 
     // รวมรายชื่อแพทย์จาก Sheet และ Thaifammed
-    let allDocs = [...AppState.members];
+    let allDocs = (AppState.members || []).map(m => ({
+      id: m.id,
+      fullNameTh: m.fullNameTh,
+      licenseNo: m.licenseNo,
+      workplace: m.workplace,
+      mobilePhone: m.mobilePhone || ''
+    }));
     if (AppState.thaifammed && Array.isArray(AppState.thaifammed)) {
       AppState.thaifammed.forEach(d => {
         if (!allDocs.some(m => (m.licenseNo && m.licenseNo == d.gpNo) || (m.fullNameTh && m.fullNameTh === d.name))) {
           allDocs.push({
-            id: d.id,
+            id: d.matchedMemberId ? d.matchedMemberId : `tf_${d.id}`,
             fullNameTh: d.name,
             licenseNo: d.gpNo,
             workplace: d.workplace,
@@ -5966,9 +6112,14 @@ const AuthManager = {
               ${passBadge}
             </div>
           </div>
-          <button type="button" onclick="AuthManager.openAdminResetPasswordModal('${escapeHtml(lic)}', '${escapeHtml(name)}', '${escapeHtml(phone)}', '')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-sm transition active:scale-95 shrink-0 flex items-center gap-1.5">
-            <i class="fa-solid fa-key"></i> รีเซ็ตรหัส
-          </button>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="closeModal('adminPasswordManagerModal'); openMemberDetailModal('${escapeHtml(d.id)}')" class="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-semibold shadow-xs transition active:scale-95 flex items-center gap-1">
+              <i class="fa-solid fa-id-card"></i> ดูโปรไฟล์
+            </button>
+            <button type="button" onclick="AuthManager.openAdminResetPasswordModal('${escapeHtml(lic)}', '${escapeHtml(name)}', '${escapeHtml(phone)}', '')" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-sm transition active:scale-95 flex items-center gap-1">
+              <i class="fa-solid fa-key"></i> รีเซ็ตรหัส
+            </button>
+          </div>
         </div>
       `;
     }).join('');
@@ -5989,8 +6140,7 @@ const AuthManager = {
     }
 
     if (this.isAdmin()) {
-      switchView('directory');
-      showToast('ในฐานะ Admin คุณสามารถดูและแก้ไขรายละเอียดของแพทย์ทุกคนได้', 'info');
+      this.openAdminMemberPickerModal();
       return;
     }
 
@@ -6132,6 +6282,9 @@ const AuthManager = {
                 <div class="text-[10px] text-indigo-300">แก้ไขได้ทุกท่าน + จัดการระบบ</div>
               </div>
             </div>
+            <button onclick="AuthManager.openAdminMemberPickerModal()" class="w-full py-1.5 px-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1.5 border border-indigo-500/30">
+              <i class="fa-solid fa-id-card text-indigo-300"></i> ดูโปรไฟล์แพทย์ทุกคน
+            </button>
             <button onclick="AuthManager.openAdminPasswordManagerModal()" class="w-full py-1.5 px-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1.5 border border-amber-500/30">
               <i class="fa-solid fa-key text-amber-300"></i> รีเซ็ตรหัสผ่านแพทย์
             </button>
@@ -6209,11 +6362,14 @@ const AuthManager = {
               </div>
               <i class="fa-solid fa-chevron-down text-indigo-400 text-[10px]"></i>
             </button>
-            <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 text-xs font-medium text-slate-700 animate-fade-in">
+            <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 text-xs font-medium text-slate-700 animate-fade-in">
               <div class="px-3.5 py-2 border-b border-slate-100">
                 <p class="font-bold text-slate-900">ผู้ดูแลระบบสูงสุด (Admin)</p>
-                <span class="inline-block mt-0.5 px-2 py-0.2 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-semibold">แก้ไขข้อมูลได้ทุกท่าน</span>
+                <span class="inline-block mt-0.5 px-2 py-0.2 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-semibold">ดูและแก้ไขข้อมูลได้ทุกท่าน</span>
               </div>
+              <button onclick="AuthManager.openAdminMemberPickerModal()" class="w-full px-3.5 py-2 text-left hover:bg-indigo-50 text-indigo-900 transition flex items-center gap-2 font-medium">
+                <i class="fa-solid fa-id-card text-indigo-600 w-4"></i> ค้นหาและดูโปรไฟล์แพทย์ทุกคน
+              </button>
               <button onclick="AuthManager.openAdminPasswordManagerModal()" class="w-full px-3.5 py-2 text-left hover:bg-amber-50 text-amber-900 transition flex items-center gap-2 font-medium">
                 <i class="fa-solid fa-key text-amber-600 w-4"></i> รีเซ็ตรหัสผ่านแพทย์รายบุคคล
               </button>
@@ -6231,6 +6387,290 @@ const AuthManager = {
           </div>
         `;
       }
+    }
+  },
+
+  // 3. ADMIN MEMBER PROFILE PICKER & SEARCH METHODS (ดูและค้นหาโปรไฟล์แพทย์ทุกคน)
+  adminPickerFilter: 'all',
+
+  openAdminMemberPickerModal() {
+    if (!this.isAdmin()) {
+      showToast('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้น', 'error');
+      return;
+    }
+    const searchInput = document.getElementById('admin-picker-search');
+    if (searchInput) searchInput.value = '';
+    this.adminPickerFilter = 'all';
+    this.updateAdminPickerTabUI();
+    this.renderAdminMemberPickerList('', 'all');
+    openModal('adminMemberPickerModal');
+  },
+
+  handleAdminPickerSearch(val) {
+    this.renderAdminMemberPickerList(val, this.adminPickerFilter);
+  },
+
+  switchAdminPickerFilter(filter) {
+    this.adminPickerFilter = filter;
+    this.updateAdminPickerTabUI();
+    const searchInput = document.getElementById('admin-picker-search');
+    const query = searchInput ? searchInput.value : '';
+    this.renderAdminMemberPickerList(query, filter);
+  },
+
+  updateAdminPickerTabUI() {
+    const filter = this.adminPickerFilter || 'all';
+    const tabAll = document.getElementById('admin-picker-tab-all');
+    const tabSheet = document.getElementById('admin-picker-tab-sheet');
+    const tabTf = document.getElementById('admin-picker-tab-thaifammed');
+
+    const activeClass = 'px-3 py-1.5 rounded-xl font-semibold bg-indigo-600 text-white transition shadow-2xs shrink-0';
+    const inactiveClass = 'px-3 py-1.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition shrink-0';
+
+    if (tabAll) tabAll.className = filter === 'all' ? activeClass : inactiveClass;
+    if (tabSheet) tabSheet.className = filter === 'sheet' ? activeClass : inactiveClass;
+    if (tabTf) tabTf.className = filter === 'thaifammed' ? activeClass : inactiveClass;
+  },
+
+  renderAdminMemberPickerList(query = '', filter = null) {
+    const listEl = document.getElementById('admin-picker-list-container');
+    if (!listEl) return;
+
+    const currentFilter = filter || this.adminPickerFilter || 'all';
+    const q = (query || '').trim().toLowerCase();
+
+    // รวบรวมข้อมูลตามตัวกรอง
+    let items = [];
+
+    if (currentFilter === 'sheet') {
+      // เฉพาะ Master DB Sheet
+      items = (AppState.members || []).map(m => {
+        const tf = (AppState.thaifammed || []).find(t => String(t.matchedMemberId) === String(m.id));
+        return {
+          targetId: String(m.id),
+          isSheet: true,
+          isThaifammed: !!tf,
+          name: m.fullNameTh || '-',
+          licenseNo: m.licenseNo || '',
+          fpNo: (tf && tf.fpNo) || m.fpNo || '',
+          workplace: (m.workplace && m.workplace.name) || '-',
+          province: (m.workplace && m.workplace.province) || '',
+          healthZone: m.healthZone || '',
+          mobilePhone: m.mobilePhone || (tf && tf.mobilePhone) || '',
+          email: m.email || (tf && tf.email) || '',
+          photoUrl: getDoctorPrimaryImage(m) || m.photoUrl || '',
+          photoDriveId: m.photoDriveId || '',
+          sourceBadge: 'Sheet Master DB',
+          sheetId: m.id
+        };
+      });
+    } else if (currentFilter === 'thaifammed') {
+      // เฉพาะฐานข้อมูล Thaifammed 3,750 ท่าน
+      items = (AppState.thaifammed || []).map(t => {
+        const m = t.matchedMemberId && (AppState.members || []).find(x => String(x.id) === String(t.matchedMemberId));
+        const rawName = t.name || '-';
+        const formattedName = (rawName.startsWith('นพ.') || rawName.startsWith('พญ.') || rawName.startsWith('นายแพทย์') || rawName.startsWith('แพทย์หญิง')) ? rawName : `นพ. ${rawName}`;
+        const wpName = (typeof t.workplace === 'object' && t.workplace) ? (t.workplace.name || '-') : (t.workplace || '-');
+        return {
+          targetId: m ? String(m.id) : `tf_${t.id}`,
+          isSheet: !!m,
+          isThaifammed: true,
+          name: m ? m.fullNameTh : formattedName,
+          licenseNo: t.gpNo || (m && m.licenseNo) || '',
+          fpNo: t.fpNo || (m && m.fpNo) || '',
+          workplace: wpName,
+          province: t.province || (m && m.workplace && m.workplace.province) || '',
+          healthZone: t.healthZone || (m && m.healthZone) || '',
+          mobilePhone: (m && m.mobilePhone) || t.mobilePhone || '',
+          email: (m && m.email) || t.email || '',
+          photoUrl: (m && getDoctorPrimaryImage(m)) || t.photoUrl || '',
+          photoDriveId: m ? (m.photoDriveId || '') : '',
+          sourceBadge: m ? 'Sheet + Thaifammed' : 'Thaifammed',
+          sheetId: m ? m.id : null
+        };
+      });
+    } else {
+      // ทั้งหมด (Master DB + Thaifammed)
+      // 1. เพิ่ม Sheet members ทั้งหมดก่อน
+      const seenLicense = new Set();
+      const seenNames = new Set();
+
+      (AppState.members || []).forEach(m => {
+        const tf = (AppState.thaifammed || []).find(t => String(t.matchedMemberId) === String(m.id));
+        const lic = String(m.licenseNo || '').trim();
+        if (lic) seenLicense.add(lic);
+        if (m.fullNameTh) seenNames.add(m.fullNameTh.trim());
+
+        items.push({
+          targetId: String(m.id),
+          isSheet: true,
+          isThaifammed: !!tf,
+          name: m.fullNameTh || '-',
+          licenseNo: m.licenseNo || '',
+          fpNo: (tf && tf.fpNo) || m.fpNo || '',
+          workplace: (m.workplace && m.workplace.name) || '-',
+          province: (m.workplace && m.workplace.province) || '',
+          healthZone: m.healthZone || '',
+          mobilePhone: m.mobilePhone || (tf && tf.mobilePhone) || '',
+          email: m.email || (tf && tf.email) || '',
+          photoUrl: getDoctorPrimaryImage(m) || m.photoUrl || '',
+          photoDriveId: m.photoDriveId || '',
+          sourceBadge: tf ? 'Sheet + Thaifammed' : 'Sheet Master DB',
+          sheetId: m.id
+        });
+      });
+
+      // 2. เพิ่ม Thaifammed ที่ยังไม่มีใน Sheet
+      (AppState.thaifammed || []).forEach(t => {
+        const lic = String(t.gpNo || '').trim();
+        const rawName = (t.name || '').trim();
+        const cleanName = rawName.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง)\s*/, '');
+        const isMatched = t.matchedMemberId && (AppState.members || []).some(m => String(m.id) === String(t.matchedMemberId));
+        const isSeenLic = lic && seenLicense.has(lic);
+        const isSeenName = seenNames.has(rawName) || seenNames.has(`นพ. ${rawName}`) || seenNames.has(`พญ. ${rawName}`);
+
+        if (!isMatched && !isSeenLic && !isSeenName) {
+          const formattedName = (rawName.startsWith('นพ.') || rawName.startsWith('พญ.') || rawName.startsWith('นายแพทย์') || rawName.startsWith('แพทย์หญิง')) ? rawName : `นพ. ${rawName}`;
+          const wpName = (typeof t.workplace === 'object' && t.workplace) ? (t.workplace.name || '-') : (t.workplace || '-');
+          items.push({
+            targetId: `tf_${t.id}`,
+            isSheet: false,
+            isThaifammed: true,
+            name: formattedName,
+            licenseNo: t.gpNo || '',
+            fpNo: t.fpNo || '',
+            workplace: wpName,
+            province: t.province || '',
+            healthZone: t.healthZone || '',
+            mobilePhone: t.mobilePhone || '',
+            email: t.email || '',
+            photoUrl: t.photoUrl || '',
+            photoDriveId: '',
+            sourceBadge: 'Thaifammed',
+            sheetId: null
+          });
+        }
+      });
+    }
+
+    // ทำการค้นหาถ้ามี query
+    if (q) {
+      const qDigits = q.replace(/\D/g, '');
+      items = items.filter(d => {
+        const name = (d.name || '').toLowerCase();
+        const lic = String(d.licenseNo || '').toLowerCase();
+        const fp = String(d.fpNo || '').toLowerCase();
+        const wp = (d.workplace || '').toLowerCase();
+        const prov = (d.province || '').toLowerCase();
+        const zone = String(d.healthZone || '').toLowerCase();
+        const phone = String(d.mobilePhone || '');
+        const email = (d.email || '').toLowerCase();
+
+        return name.includes(q) ||
+               lic.includes(q) ||
+               fp.includes(q) ||
+               wp.includes(q) ||
+               prov.includes(q) ||
+               zone.includes(q) ||
+               email.includes(q) ||
+               (qDigits.length >= 3 && phone.includes(qDigits));
+      });
+    }
+
+    // อัปเดตตัวเลขแสดงผล
+    const countBadge = document.getElementById('admin-picker-count-badge');
+    if (countBadge) {
+      countBadge.innerText = `${items.length.toLocaleString()} รายการ`;
+    }
+
+    if (items.length === 0) {
+      listEl.innerHTML = `
+        <div class="p-12 text-center text-slate-400 space-y-2">
+          <i class="fa-solid fa-user-slash text-4xl text-slate-300"></i>
+          <p class="font-medium text-slate-600">ไม่พบข้อมูลแพทย์ตามเงื่อนไขการค้นหา</p>
+          <p class="text-xs text-slate-400">ลองค้นหาด้วยคำอื่น หรือเปลี่ยนแท็บตัวกรองด้านบน</p>
+        </div>
+      `;
+      return;
+    }
+
+    // จำกัดแสดง 70 รายการแรก เพื่อความลื่นไหล
+    const displayList = items.slice(0, 70);
+    const creds = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDENTIALS) || '{}');
+
+    listEl.innerHTML = displayList.map(item => {
+      const avatar = item.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=0284c7&color=fff`;
+      const licText = item.licenseNo ? `ว.${escapeHtml(item.licenseNo)}` : (item.fpNo ? `FP:${escapeHtml(item.fpNo)}` : 'ไม่ระบุ ว.');
+      const customPass = item.licenseNo ? creds[`doc_${item.licenseNo}`] : null;
+
+      let badgeBg = 'bg-sky-100 text-sky-800 border-sky-200';
+      if (item.sourceBadge.includes('Sheet +')) badgeBg = 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      else if (item.sourceBadge.includes('Sheet')) badgeBg = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+
+      return `
+        <div class="p-3.5 bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition space-y-2.5">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-11 h-11 rounded-2xl overflow-hidden bg-sky-100 border border-slate-200 shrink-0">
+                <img src="${avatar}" referrerpolicy="no-referrer" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=0284c7&color=fff'">
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-bold text-slate-900 text-sm truncate">${escapeHtml(item.name)}</span>
+                  <span class="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono font-bold">${licText}</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeBg}">${item.sourceBadge}</span>
+                </div>
+                <div class="text-[11px] text-slate-600 truncate flex items-center gap-2 mt-0.5">
+                  <span class="truncate"><i class="fa-solid fa-hospital text-slate-400 mr-1"></i>${escapeHtml(item.workplace)}</span>
+                  ${item.province ? `<span>• จ.${escapeHtml(item.province)}</span>` : ''}
+                  ${item.healthZone ? `<span>(เขต ${escapeHtml(item.healthZone)})</span>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Action: View Full Profile -->
+            <button type="button" onclick="closeModal('adminMemberPickerModal'); openMemberDetailModal('${escapeHtml(item.targetId)}')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-1.5 shrink-0">
+              <i class="fa-solid fa-id-card"></i> ดูโปรไฟล์เต็ม
+            </button>
+          </div>
+
+          <!-- Unmasked Admin Contacts & Password info -->
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] flex-wrap gap-2">
+            <div class="flex items-center gap-3 flex-wrap text-slate-700">
+              <span class="flex items-center gap-1 font-medium">
+                <i class="fa-solid fa-phone text-emerald-600"></i> ${escapeHtml(item.mobilePhone || 'ไม่มีเบอร์')}
+              </span>
+              <span class="flex items-center gap-1">
+                <i class="fa-solid fa-envelope text-sky-600"></i> ${escapeHtml(item.email || 'ไม่มีอีเมล')}
+              </span>
+              ${customPass ? `
+                <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[10px] font-bold">
+                  รหัสผ่าน: ${escapeHtml(customPass)}
+                </span>
+              ` : ''}
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              ${item.isSheet ? `
+                <button type="button" onclick="closeModal('adminMemberPickerModal'); openEditMemberModal('${escapeHtml(item.sheetId)}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition flex items-center gap-1">
+                  <i class="fa-solid fa-user-pen"></i> แก้ไข
+                </button>
+              ` : ''}
+              <button type="button" onclick="AuthManager.openAdminResetPasswordModal('${escapeHtml(item.licenseNo || item.targetId)}', '${escapeHtml(item.name)}', '${escapeHtml(item.mobilePhone)}', '${escapeHtml(item.email)}')" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[11px] font-semibold transition flex items-center gap-1">
+                <i class="fa-solid fa-key"></i> รีเซ็ตรหัส
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (items.length > 70) {
+      listEl.innerHTML += `
+        <div class="p-3 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+          แสดง 70 รายการแรกจากทั้งหมด ${items.length.toLocaleString()} รายการ (พิมพ์คำค้นหาเพื่อเจาะจงแพทย์ที่ต้องการ)
+        </div>
+      `;
     }
   }
 };

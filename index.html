@@ -1605,6 +1605,78 @@
           </div>
         </div>
 
+        <!-- Admin Master Data & Credentials Panel (Exclusive for Admin - ดูได้ทุกอย่าง) -->
+        <div id="detail-admin-panel" class="hidden p-4 rounded-2xl bg-indigo-50/70 border-2 border-indigo-200/90 space-y-3 relative">
+          <div class="flex items-center justify-between border-b border-indigo-200/80 pb-2.5">
+            <h4 class="font-bold text-indigo-950 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shadow-sm">
+                <i class="fa-solid fa-shield-halved"></i>
+              </span>
+              <span>ข้อมูลสำหรับผู้ดูแลระบบ (Admin Master DB - ปลดล็อคข้อมูลทั้งหมด)</span>
+            </h4>
+            <span class="px-2.5 py-0.5 rounded-full bg-indigo-200 text-indigo-900 font-bold text-[10px] tracking-wide">
+              ADMIN ACCESS
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+              <span class="text-indigo-600 block text-[10px] font-semibold">รหัสผ่านเข้าสู่ระบบ (Password):</span>
+              <strong id="detail-admin-password" class="text-indigo-950 font-mono text-sm font-bold">-</strong>
+              <span id="detail-admin-pass-status" class="block text-[9px] text-slate-400 mt-0.5">รหัสเริ่มต้น</span>
+            </div>
+
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+              <span class="text-indigo-600 block text-[10px] font-semibold">สิทธิ์ Master DB / บัญชี:</span>
+              <strong id="detail-admin-role" class="text-slate-800 text-xs font-semibold">-</strong>
+              <span id="detail-admin-id-badge" class="block text-[9px] text-slate-400 mt-0.5 font-mono">ID: -</span>
+            </div>
+
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+              <span class="text-indigo-600 block text-[10px] font-semibold">วันเดือนปีเกิด / อายุ:</span>
+              <strong id="detail-admin-birthdate" class="text-slate-800 text-xs font-medium">-</strong>
+            </div>
+
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs sm:col-span-2">
+              <span class="text-indigo-600 block text-[10px] font-semibold">ที่อยู่ตามทะเบียนบ้าน / ติดต่อ:</span>
+              <span id="detail-admin-home-address" class="text-slate-800 text-xs block truncate">-</span>
+            </div>
+
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+              <span class="text-indigo-600 block text-[10px] font-semibold">เบอร์โทรศัพท์บ้าน / อื่นๆ:</span>
+              <span id="detail-admin-home-phone" class="text-slate-800 text-xs font-mono">-</span>
+            </div>
+
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+              <span class="text-indigo-600 block text-[10px] font-semibold">ประเภทการสมัครสมาชิก:</span>
+              <span id="detail-admin-reg-type" class="text-slate-800 text-[11px] block truncate">-</span>
+            </div>
+
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+              <span class="text-indigo-600 block text-[10px] font-semibold">วันเวลาที่ลงทะเบียน (Timestamp):</span>
+              <span id="detail-admin-timestamp" class="text-slate-800 text-[11px] font-mono block">-</span>
+            </div>
+
+            <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
+              <span class="text-indigo-600 block text-[10px] font-semibold">ความยินยอม / แหล่งข้อมูล:</span>
+              <span id="detail-admin-source-status" class="text-slate-800 text-[11px] block truncate">-</span>
+            </div>
+          </div>
+
+          <!-- Admin Quick Action Bar inside the panel -->
+          <div class="pt-2 border-t border-indigo-200/60 flex flex-wrap items-center gap-2">
+            <button type="button" id="btn-admin-panel-relocate" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
+              <i class="fa-solid fa-location-crosshairs"></i> ย้ายพิกัดหมุด
+            </button>
+            <button type="button" id="btn-admin-panel-camera" class="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
+              <i class="fa-solid fa-camera"></i> ถ่าย/เปลี่ยนภาพถ่าย
+            </button>
+            <button type="button" id="btn-admin-panel-reset-pass" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
+              <i class="fa-solid fa-key"></i> เปลี่ยนรหัสผ่านให้แพทย์
+            </button>
+          </div>
+        </div>
+
         <!-- Mini Map Container (OpenStreetMap - No API Required) -->
         <div>
           <div class="flex items-center justify-between mb-2">
@@ -2219,6 +2291,64 @@
       <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-slate-500 text-[11px] shrink-0">
         <span><i class="fa-solid fa-shield-halved text-amber-500 mr-1"></i> สิทธิ์ผู้ดูแลระบบ: รหัสผ่านที่รีเซ็ตจะซิงค์ไปยัง Google Sheet อัตโนมัติ</span>
         <button type="button" onclick="closeModal('adminPasswordManagerModal')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 6.3 ADMIN MEMBER PROFILE VIEWER / SEARCH MODAL (ดูโปรไฟล์สมาชิกทุกคน) -->
+  <div id="adminMemberPickerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-100 p-6 space-y-4 animate-fade-in text-xs flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-lg shadow-sm">
+            <i class="fa-solid fa-id-card"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-900 text-base font-heading flex items-center gap-2">
+              <span>ค้นหาและเข้าดูโปรไฟล์สมาชิก (Admin Profile Access)</span>
+              <span id="admin-picker-count-badge" class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-bold">0 รายการ</span>
+            </h4>
+            <p class="text-[11px] text-slate-500">เลือกแพทย์ที่ต้องการเพื่อดูข้อมูลประวัติ ข้อมูลติดต่อ และข้อมูลในฐานข้อมูลทั้งหมด</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeModal('adminMemberPickerModal')" class="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="shrink-0 space-y-2.5">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+          <input type="text" id="admin-picker-search" oninput="AuthManager.handleAdminPickerSearch(this.value)" placeholder="ค้นหาชื่อแพทย์, เลข ว., รพ., จังหวัด, เบอร์โทร..." class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+        </div>
+        <!-- Filter Tabs -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <button type="button" id="admin-picker-tab-all" onclick="AuthManager.switchAdminPickerFilter('all')" class="px-3 py-1.5 rounded-xl font-semibold bg-indigo-600 text-white transition shadow-2xs">
+            ทั้งหมด (3,750+ ท่าน)
+          </button>
+          <button type="button" id="admin-picker-tab-sheet" onclick="AuthManager.switchAdminPickerFilter('sheet')" class="px-3 py-1.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition">
+            เฉพาะ Master DB Sheet (314 ท่าน)
+          </button>
+          <button type="button" id="admin-picker-tab-thaifammed" onclick="AuthManager.switchAdminPickerFilter('thaifammed')" class="px-3 py-1.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition">
+            ฐานข้อมูล Thaifammed
+          </button>
+        </div>
+      </div>
+
+      <!-- Members List Container -->
+      <div id="admin-picker-list-container" class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[280px]">
+        <!-- Rendered dynamically via AuthManager.renderAdminMemberPickerList() -->
+      </div>
+
+      <!-- Footer -->
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-slate-500 text-[11px] shrink-0">
+        <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-indigo-600"></i> โหมดผู้ดูแลระบบ: ปลดล็อคข้อมูลติดต่อ เบอร์โทรศัพท์ และรหัสผ่านทั้งหมด</span>
+        <button type="button" onclick="closeModal('adminMemberPickerModal')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">
           ปิดหน้าต่าง
         </button>
       </div>
