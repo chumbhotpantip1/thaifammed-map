@@ -52,7 +52,7 @@
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
   <!-- Global Application Wrapper -->
-  <div class="flex-1 flex overflow-hidden">
+  <div id="main-app-container" class="flex-1 flex overflow-hidden">
 
     <!-- Mobile Sidebar Backdrop Overlay -->
     <div id="sidebar-backdrop" onclick="closeMobileSidebar()" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"></div>
@@ -335,14 +335,12 @@
               <div>
                 <div class="flex items-center gap-2 flex-wrap">
                   <h4 class="font-bold text-white text-base font-heading">ผู้แทนเขตสุขภาพ & การประชุมวิชาการประจำปี</h4>
-                  <span class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 font-bold text-[10px]">23 ผู้อำนวยการ รพ.</span>
+                  <span class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 font-bold text-[10px]">23 ท่าน</span>
                   <span class="px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-300 border border-rose-400/40 text-[10px] font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>ขาดเขต 6</span>
                 </div>
                 <div class="text-xs text-slate-300 mt-1 flex items-center gap-3 flex-wrap">
                   <span><i class="fa-solid fa-graduation-cap text-sky-400 mr-1"></i>Pre-Conf: <strong>13</strong> เข้าร่วม</span>
                   <span><i class="fa-solid fa-landmark text-emerald-400 mr-1"></i>Main Conf: <strong>14</strong> เข้าร่วม</span>
-                  <span><i class="fa-solid fa-champagne-glasses text-purple-400 mr-1"></i>Party: <strong>8</strong> เข้าร่วม</span>
-                  <span><i class="fa-solid fa-hotel text-teal-400 mr-1"></i>พักเดี่ยว: <strong>3</strong> ท่าน</span>
                 </div>
               </div>
             </div>
@@ -943,7 +941,7 @@
                     <span>ผู้แทนเขตสุขภาพ & การประชุมวิชาการประจำปี</span>
                     <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200">23 ท่าน (12/13 เขต)</span>
                   </h3>
-                  <p class="text-xs text-slate-500">ข้อมูลผู้อำนวยการโรงพยาบาลตัวแทนประจำ 13 เขตสุขภาพ และสถานะการเข้าร่วมประชุม Pre-Conference, Main Conference, Party Night และโรงแรมที่พัก</p>
+                  <p class="text-xs text-slate-500">ข้อมูลแพทย์ตัวแทนประจำ 13 เขตสุขภาพ และสถานะการเข้าร่วมประชุม Pre-Conference และ Main Conference</p>
                 </div>
               </div>
             </div>
@@ -982,13 +980,13 @@
             </button>
           </div>
 
-          <!-- KPI Summary Cards (5 Cards) -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <!-- KPI Summary Cards (3 Cards) -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <!-- 1. Total Delegates -->
             <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs text-slate-500 font-medium">ผู้แทนเขตสุขภาพ</span>
-                <span class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xs"><i class="fa-solid fa-hospital-user"></i></span>
+                <span class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xs"><i class="fa-solid fa-user-doctor"></i></span>
               </div>
               <div class="text-2xl font-bold text-slate-900 font-heading" id="kpi-delegate-count">23 ท่าน</div>
               <div class="text-[11px] text-amber-700 mt-1 flex items-center gap-1">
@@ -1019,35 +1017,11 @@
                 เข้าร่วม 14 • ยังไม่ระบุ 9
               </div>
             </div>
-
-            <!-- 4. Party Night -->
-            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs text-slate-500 font-medium">Party Night</span>
-                <span class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xs"><i class="fa-solid fa-champagne-glasses"></i></span>
-              </div>
-              <div class="text-2xl font-bold text-purple-700 font-heading" id="kpi-party-join">8 ท่าน</div>
-              <div class="text-[11px] text-slate-500 mt-1 truncate" id="kpi-party-detail">
-                ไม่เข้า 6 • รอแจ้ง 1 • อื่นๆ 8
-              </div>
-            </div>
-
-            <!-- 5. Hotel -->
-            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs col-span-2 sm:col-span-1">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs text-slate-500 font-medium">โรงแรมที่พัก</span>
-                <span class="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-xs"><i class="fa-solid fa-hotel"></i></span>
-              </div>
-              <div class="text-2xl font-bold text-teal-800 font-heading" id="kpi-hotel-info">14 ไม่จอง</div>
-              <div class="text-[11px] text-slate-500 mt-1 truncate" id="kpi-hotel-detail">
-                พักเดี่ยว 3 ท่าน • ยังไม่ระบุ 6
-              </div>
-            </div>
           </div>
 
           <!-- Filters & View Options -->
           <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2.5 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
               <!-- Search Input -->
               <div class="relative sm:col-span-2">
                 <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400"></i>
@@ -1085,16 +1059,6 @@
                 </select>
               </div>
 
-              <!-- Hotel Filter -->
-              <div>
-                <select id="delegates-filter-hotel" onchange="filterZoneDelegates()" class="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
-                  <option value="all">โรงแรม (ทั้งหมด)</option>
-                  <option value="ไม่จอง">ไม่จองโรงแรม</option>
-                  <option value="พักเดี่ยว">พักเดี่ยว</option>
-                  <option value="ยังไม่ระบุ">ยังไม่ระบุโรงแรม</option>
-                </select>
-              </div>
-
               <!-- View Switcher (Table vs Zone Cards) -->
               <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
                 <button type="button" id="btn-delegates-view-table" onclick="switchDelegatesDisplayMode('table')" class="flex-1 py-1.5 px-2.5 rounded-lg bg-white text-slate-900 font-bold shadow-2xs text-xs transition">
@@ -1115,13 +1079,11 @@
                   <tr>
                     <th class="py-3 px-3 text-center w-12">#</th>
                     <th class="py-3 px-3 text-center w-24">เขตสุขภาพ</th>
-                    <th class="py-3 px-4 min-w-[200px]">ชื่อ-นามสกุล / ตำแหน่ง</th>
+                    <th class="py-3 px-4 min-w-[180px]">ชื่อ-นามสกุล</th>
                     <th class="py-3 px-4 min-w-[180px]">ต้นสังกัด & จังหวัด</th>
                     <th class="py-3 px-4 min-w-[170px]">ข้อมูลติดต่อ</th>
-                    <th class="py-3 px-3 min-w-[130px]">โรงแรมที่พัก</th>
-                    <th class="py-3 px-3 text-center min-w-[105px]">Pre-Conf</th>
-                    <th class="py-3 px-3 text-center min-w-[105px]">Main-Conf</th>
-                    <th class="py-3 px-3 text-center min-w-[105px]">Party Night</th>
+                    <th class="py-3 px-3 text-center min-w-[110px]">Pre-Conf</th>
+                    <th class="py-3 px-3 text-center min-w-[110px]">Main-Conf</th>
                     <th class="py-3 px-4 min-w-[160px]">หมายเหตุ</th>
                     <th class="py-3 px-3 text-center w-28">จัดการ</th>
                   </tr>
@@ -1134,7 +1096,7 @@
             <!-- Table Footer -->
             <div class="p-3 bg-slate-50 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
               <span id="delegates-table-count">แสดงผล 23 รายการ</span>
-              <span class="text-slate-400">ข้อมูลผู้แทนเขตสุขภาพและผู้บริหารโรงพยาบาล</span>
+              <span class="text-slate-400">ข้อมูลผู้แทนเขตสุขภาพประจำ 13 เขต</span>
             </div>
           </div>
 
@@ -1865,12 +1827,11 @@
         <div id="detail-zone-delegate-section" class="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 space-y-3 hidden">
           <div class="flex items-center justify-between border-b border-amber-200 pb-2">
             <h4 class="font-bold text-amber-950 text-sm flex items-center gap-2">
-              <i class="fa-solid fa-user-tie text-amber-600"></i>
+              <i class="fa-solid fa-user-doctor text-amber-600"></i>
               <span id="detail-delegate-zone-title">ผู้แทนแพทย์ประจำเขตสุขภาพ</span>
             </h4>
-            <span id="detail-delegate-role-badge" class="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-bold text-[10px]">ผู้อำนวยการโรงพยาบาล</span>
           </div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
+          <div class="grid grid-cols-2 gap-3 text-[11px]">
             <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200">
               <span class="text-slate-500 block text-[10px]">Pre-Conference</span>
               <strong id="detail-delegate-pre" class="text-slate-800 font-semibold">-</strong>
@@ -1878,14 +1839,6 @@
             <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200">
               <span class="text-slate-500 block text-[10px]">Main Conference</span>
               <strong id="detail-delegate-main" class="text-slate-800 font-semibold">-</strong>
-            </div>
-            <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200">
-              <span class="text-slate-500 block text-[10px]">Party Night</span>
-              <strong id="detail-delegate-party" class="text-slate-800 font-semibold">-</strong>
-            </div>
-            <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200">
-              <span class="text-slate-500 block text-[10px]">โรงแรมที่พัก</span>
-              <strong id="detail-delegate-hotel" class="text-slate-800 font-semibold">-</strong>
             </div>
           </div>
           <div id="detail-delegate-note-box" class="text-[11px] bg-amber-100/70 p-2 rounded-xl text-amber-900 hidden">
@@ -2324,23 +2277,16 @@
   </div>
 
 
-  <!-- 5. LOGIN MODAL -->
-  <div id="loginModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col animate-fade-in">
+  <!-- 5. LOGIN GATEWAY OVERLAY (REQUIRED LOGIN BEFORE VIEWING WEBSITE) -->
+  <div id="loginGate" class="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col animate-fade-in my-auto">
       <!-- Modal Header -->
-      <div class="bg-gradient-to-r from-slate-900 via-sky-950 to-teal-950 text-white p-5 flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-teal-400 flex items-center justify-center text-white shadow-md">
-            <i class="fa-solid fa-right-to-bracket text-lg"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-bold font-heading">เข้าสู่ระบบ (Login)</h3>
-            <p class="text-xs text-sky-300">เข้าสู่ระบบเพื่อแก้ไขข้อมูลและพิกัดส่วนตัวของคุณ</p>
-          </div>
+      <div class="bg-gradient-to-r from-slate-900 via-sky-950 to-teal-950 text-white p-6 text-center space-y-2">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center p-2 shadow-inner">
+          <img src="https://thaifammed.org/wp-content/uploads/2022/07/logo-rcfpt.png" alt="Logo" class="max-w-full max-h-full object-contain drop-shadow" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fa-solid fa-user-doctor text-2xl text-amber-400\'></i>';">
         </div>
-        <button onclick="closeModal('loginModal')" class="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition">
-          <i class="fa-solid fa-xmark text-xl"></i>
-        </button>
+        <h3 class="text-base font-bold font-heading text-white">ระบบฐานข้อมูลสมาชิกและแผนที่แพทย์เวชศาสตร์ครอบครัว</h3>
+        <p class="text-xs text-sky-200">กรุณาเข้าสู่ระบบก่อนเข้าใช้งาน Website (Login Required)</p>
       </div>
 
       <!-- Login Tabs -->
@@ -2379,7 +2325,7 @@
                 <i class="fa-regular fa-eye"></i>
               </button>
             </div>
-            <p class="text-[11px] text-slate-400 mt-1">
+            <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
               💡 <strong>คำแนะนำ:</strong> สำหรับการเข้าใช้งานครั้งแรก สามารถใช้ <strong>เลข ว.</strong> หรือ <strong>4 ตัวท้ายของเบอร์โทรศัพท์</strong> หรือ <strong>1234</strong>
             </p>
           </div>
@@ -2394,7 +2340,7 @@
       <div id="login-tab-admin" class="p-6 space-y-4 text-xs hidden">
         <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-[11px] flex items-center gap-2">
           <i class="fa-solid fa-shield-halved text-indigo-600 text-base"></i>
-          <span>สำหรับเจ้าหน้าที่ราชวิทยาลัยและผู้ดูแลระบบ สามารถแก้ไขข้อมูลแพทย์ทุกคน และจัดการระบบส่วนกลางได้</span>
+          <span>สำหรับเจ้าหน้าที่และผู้ดูแลระบบ เข้าถึงและจัดการระบบส่วนกลางได้ทั้งหมด</span>
         </div>
         <form onsubmit="AuthManager.handleAdminLoginForm(event)" class="space-y-3.5">
           <div>
@@ -2443,6 +2389,8 @@
           </button>
         </form>
       </div>
+    </div>
+  </div>
     </div>
   </div>
 
@@ -2699,15 +2647,9 @@
           <input type="text" id="form-delegate-name" required placeholder="เช่น ธนาสิทธิ์ วิจิตราพันธ์" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-700 font-semibold mb-1">ต้นสังกัด (โรงพยาบาล) *</label>
-            <input type="text" id="form-delegate-hospital" required placeholder="เช่น โรงพยาบาลสันป่าตอง" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
-          </div>
-          <div>
-            <label class="block text-slate-700 font-semibold mb-1">ตำแหน่ง (เรียน)</label>
-            <input type="text" id="form-delegate-position" placeholder="ผู้อำนวยการโรงพยาบาล..." class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
-          </div>
+        <div>
+          <label class="block text-slate-700 font-semibold mb-1">ต้นสังกัด (โรงพยาบาล) *</label>
+          <input type="text" id="form-delegate-hospital" required placeholder="เช่น โรงพยาบาลสันป่าตอง" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -2726,7 +2668,7 @@
           <h5 class="font-bold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
             <i class="fa-solid fa-calendar-check text-sky-600"></i> สถานะการเข้าร่วมประชุมวิชาการ
           </h5>
-          <div class="grid grid-cols-3 gap-2.5">
+          <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-slate-600 text-[11px] mb-1">Pre-Conference</label>
               <select id="form-delegate-pre" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs">
@@ -2744,25 +2686,12 @@
                 <option value="ไม่เข้าร่วม">ไม่เข้าร่วม</option>
               </select>
             </div>
-            <div>
-              <label class="block text-slate-600 text-[11px] mb-1">Party Night</label>
-              <select id="form-delegate-party" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs">
-                <option value="">(ยังไม่ระบุ)</option>
-                <option value="เข้าร่วม">เข้าร่วม</option>
-                <option value="ไม่เข้าร่วม">ไม่เข้าร่วม</option>
-                <option value="เดี๋ยวแจ้งอีกที">เดี๋ยวแจ้งอีกที</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label class="block text-slate-600 text-[11px] mb-1">การจองโรงแรมที่พัก</label>
-            <input type="text" id="form-delegate-hotel" placeholder="เช่น ไม่จอง หรือ พักเดี่ยว (เช็คอิน 19 เช็คเอาท์ 22)" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs">
           </div>
         </div>
 
         <div>
           <label class="block text-slate-700 font-semibold mb-1">หมายเหตุ</label>
-          <input type="text" id="form-delegate-note" placeholder="เช่น เป็นกรรมการบริหาร, เช็คอิน 19 เช็คเอาท์ 22, ฯลฯ" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+          <input type="text" id="form-delegate-note" placeholder="เช่น เป็นกรรมการบริหาร, อื่นๆ ฯลฯ" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
         </div>
 
         <div class="pt-3 border-t border-slate-100 flex items-center justify-between">

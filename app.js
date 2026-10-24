@@ -469,6 +469,11 @@ window.handleImgError = function(imgEl, driveId, encodedName) {
 
 /* ================= VIEW SWITCHING ================= */
 function switchView(viewName) {
+  if (typeof AuthManager !== 'undefined' && AuthManager.isGuest()) {
+    AuthManager.openLoginModal();
+    return;
+  }
+
   if (viewName === 'management' || viewName === 'geo') {
     if (typeof AuthManager !== 'undefined' && !AuthManager.canAccessMasterDb()) {
       if (AuthManager.isGuest()) {
@@ -2589,7 +2594,7 @@ const HEALTH_ZONE_INFO = {
 function renderZoneDelegates() {
   const delegates = AppState.zoneDelegates || [];
 
-  // 1. Calculate & Render KPIs
+  // 1. Calculate & Render KPIs (3 KPIs: Total, Pre-Conf, Main-Conf)
   const totalCount = delegates.length;
   const preJoin = delegates.filter(d => d.preConference === 'เข้าร่วม').length;
   const preNo = delegates.filter(d => d.preConference === 'ไม่เข้าร่วม').length;
@@ -2599,15 +2604,6 @@ function renderZoneDelegates() {
   const mainJoin = delegates.filter(d => d.mainConference === 'เข้าร่วม').length;
   const mainNo = delegates.filter(d => d.mainConference === 'ไม่เข้าร่วม').length;
   const mainOther = totalCount - mainJoin - mainNo;
-
-  const partyJoin = delegates.filter(d => d.partyNight === 'เข้าร่วม').length;
-  const partyNo = delegates.filter(d => d.partyNight === 'ไม่เข้าร่วม').length;
-  const partyLater = delegates.filter(d => (d.partyNight || '').includes('แจ้งอีกที')).length;
-  const partyOther = totalCount - partyJoin - partyNo - partyLater;
-
-  const hotelNotBooked = delegates.filter(d => (d.hotel || '').includes('ไม่จอง')).length;
-  const hotelSingle = delegates.filter(d => (d.hotel || '').includes('พักเดี่ยว')).length;
-  const hotelOther = totalCount - hotelNotBooked - hotelSingle;
 
   const uniqueZones = new Set(delegates.map(d => String(d.zone)).filter(Boolean));
   const hasZone6 = uniqueZones.has('6');
@@ -2624,12 +2620,6 @@ function renderZoneDelegates() {
   if (document.getElementById('kpi-main-join')) document.getElementById('kpi-main-join').innerText = `${mainJoin} ท่าน`;
   if (document.getElementById('kpi-main-detail')) document.getElementById('kpi-main-detail').innerText = `เข้าร่วม ${mainJoin} • ยังไม่ระบุ ${mainOther}`;
 
-  if (document.getElementById('kpi-party-join')) document.getElementById('kpi-party-join').innerText = `${partyJoin} ท่าน`;
-  if (document.getElementById('kpi-party-detail')) document.getElementById('kpi-party-detail').innerText = `ไม่เข้า ${partyNo} • รอแจ้ง ${partyLater} • อื่นๆ ${partyOther}`;
-
-  if (document.getElementById('kpi-hotel-info')) document.getElementById('kpi-hotel-info').innerText = `${hotelNotBooked} ไม่จอง`;
-  if (document.getElementById('kpi-hotel-detail')) document.getElementById('kpi-hotel-detail').innerText = `พักเดี่ยว ${hotelSingle} ท่าน • ยังไม่ระบุ ${hotelOther}`;
-
   // Toggle Missing Zone 6 Alert Banner
   const alertZone6 = document.getElementById('delegates-missing-zone-alert');
   if (alertZone6) {
@@ -2644,7 +2634,6 @@ function renderZoneDelegates() {
   const query = (document.getElementById('delegates-search')?.value || '').trim().toLowerCase();
   const zoneFilter = document.getElementById('delegates-filter-zone')?.value || 'all';
   const preFilter = document.getElementById('delegates-filter-pre')?.value || 'all';
-  const hotelFilter = document.getElementById('delegates-filter-hotel')?.value || 'all';
 
   let filtered = delegates.filter(d => {
     if (zoneFilter !== 'all' && String(d.zone) !== zoneFilter) return false;
@@ -2652,12 +2641,8 @@ function renderZoneDelegates() {
       if (preFilter === 'ยังไม่ระบุ' && d.preConference) return false;
       if (preFilter !== 'ยังไม่ระบุ' && d.preConference !== preFilter) return false;
     }
-    if (hotelFilter !== 'all') {
-      if (hotelFilter === 'ยังไม่ระบุ' && d.hotel) return false;
-      if (hotelFilter !== 'ยังไม่ระบุ' && !(d.hotel || '').includes(hotelFilter)) return false;
-    }
     if (query) {
-      const target = `${d.title} ${d.name} ${d.hospital} ${d.position} ${d.province} ${d.phone} ${d.email} ${d.note} ${d.zone}`.toLowerCase();
+      const target = `${d.title} ${d.name} ${d.hospital} ${d.province} ${d.phone} ${d.email} ${d.note} ${d.zone}`.toLowerCase();
       if (!target.includes(query)) return false;
     }
     return true;
@@ -2670,7 +2655,7 @@ function renderZoneDelegates() {
 
   if (tbody) {
     if (filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="11" class="py-12 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขการค้นหา</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="py-12 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขการค้นหา</td></tr>`;
     } else {
       tbody.innerHTML = filtered.map((d, idx) => {
         const preBadge = d.preConference === 'เข้าร่วม' 
@@ -2686,22 +2671,6 @@ function renderZoneDelegates() {
           : (d.mainConference 
             ? `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px]">${escapeHtml(d.mainConference)}</span>` 
             : '<span class="text-slate-300">-</span>');
-
-        const partyBadge = d.partyNight === 'เข้าร่วม' 
-          ? '<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-bold text-[10px]"><i class="fa-solid fa-champagne-glasses mr-1 text-[9px]"></i>เข้าร่วม</span>' 
-          : (d.partyNight === 'ไม่เข้าร่วม' 
-            ? '<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px]"><i class="fa-solid fa-xmark mr-1 text-[9px]"></i>ไม่เข้าร่วม</span>' 
-            : (d.partyNight 
-              ? `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">${escapeHtml(d.partyNight)}</span>` 
-              : '<span class="text-slate-300">-</span>'));
-
-        const hotelBadge = (d.hotel || '').includes('ไม่จอง') 
-          ? '<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px]"><i class="fa-solid fa-ban mr-1 text-[9px]"></i>ไม่จอง</span>' 
-          : ((d.hotel || '').includes('พักเดี่ยว') 
-            ? `<span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[10px]"><i class="fa-solid fa-bed mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
-            : (d.hotel 
-              ? `<span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px]"><i class="fa-solid fa-hotel mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
-              : '<span class="text-slate-300">-</span>'));
 
         const phoneLink = d.phone 
           ? `<a href="tel:${escapeHtml(d.phone)}" class="text-emerald-700 font-mono hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[9px]"></i> ${escapeHtml(d.phone)}</a>` 
@@ -2720,7 +2689,6 @@ function renderZoneDelegates() {
             </td>
             <td class="py-3 px-4">
               <div class="font-bold text-slate-900 text-xs">${escapeHtml(d.title)} ${escapeHtml(d.name)}</div>
-              <div class="text-[10px] text-amber-700 font-medium">${escapeHtml(d.position || 'ผู้อำนวยการโรงพยาบาล')}</div>
             </td>
             <td class="py-3 px-4">
               <div class="font-semibold text-slate-800 text-xs">${escapeHtml(d.hospital)}</div>
@@ -2730,10 +2698,8 @@ function renderZoneDelegates() {
               ${phoneLink || '<span class="text-slate-300 text-[10px]">-</span>'}
               ${emailLink}
             </td>
-            <td class="py-3 px-3">${hotelBadge}</td>
             <td class="py-3 px-3 text-center">${preBadge}</td>
             <td class="py-3 px-3 text-center">${mainBadge}</td>
-            <td class="py-3 px-3 text-center">${partyBadge}</td>
             <td class="py-3 px-4">
               ${d.note ? `<span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[10px] inline-block leading-relaxed">${escapeHtml(d.note)}</span>` : '<span class="text-slate-300">-</span>'}
             </td>
@@ -2834,14 +2800,6 @@ function renderZoneDelegatesCards(list) {
       delegatesInZone.forEach(d => {
         const docId = d.sheetMemberId ? String(d.sheetMemberId) : (d.thaifammedId ? 'tf_' + d.thaifammedId : d.name);
 
-        const hotelBadge = (d.hotel || '').includes('ไม่จอง') 
-          ? '<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px]">ไม่จองโรงแรม</span>' 
-          : ((d.hotel || '').includes('พักเดี่ยว') 
-            ? `<span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[10px]"><i class="fa-solid fa-bed mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
-            : (d.hotel 
-              ? `<span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px]"><i class="fa-solid fa-hotel mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
-              : '<span class="text-slate-400 text-[10px]">(ไม่ระบุโรงแรม)</span>'));
-
         html += `
           <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/40 hover:border-amber-300 hover:shadow-xs transition space-y-2.5">
             <div class="flex items-start justify-between gap-2">
@@ -2851,22 +2809,20 @@ function renderZoneDelegatesCards(list) {
                 </div>
                 <div>
                   <div class="font-bold text-slate-900 text-xs">${escapeHtml(d.title)} ${escapeHtml(d.name)}</div>
-                  <div class="text-[10px] text-amber-700 font-medium">${escapeHtml(d.position || 'ผู้อำนวยการโรงพยาบาล')}</div>
                   <div class="text-[10px] text-slate-500 font-semibold">${escapeHtml(d.hospital)} (จ.${escapeHtml(d.province || '-')})</div>
                 </div>
               </div>
               <span class="text-slate-400 font-mono text-[10px]">#${d.order}</span>
             </div>
 
-            <!-- Contact & Hotel -->
+            <!-- Contact & Note -->
             <div class="grid grid-cols-2 gap-2 text-[10px] pt-1 border-t border-slate-100">
               <div class="space-y-1">
                 ${d.phone ? `<a href="tel:${escapeHtml(d.phone)}" class="text-emerald-700 font-mono hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[9px]"></i> ${escapeHtml(d.phone)}</a>` : '<span class="text-slate-400"><i class="fa-solid fa-phone text-[9px] mr-1"></i> -</span>'}
                 ${d.email ? `<a href="mailto:${escapeHtml(d.email)}" class="text-sky-700 font-mono hover:underline flex items-center gap-1 truncate"><i class="fa-solid fa-envelope text-[9px]"></i> ${escapeHtml(d.email)}</a>` : '<span class="text-slate-400"><i class="fa-solid fa-envelope text-[9px] mr-1"></i> -</span>'}
               </div>
               <div class="space-y-1 text-right sm:text-left">
-                <div>${hotelBadge}</div>
-                ${d.note ? `<div class="text-amber-800 font-medium truncate text-[10px]" title="${escapeHtml(d.note)}"><i class="fa-regular fa-note-sticky mr-1"></i>${escapeHtml(d.note)}</div>` : ''}
+                ${d.note ? `<div class="text-amber-800 font-medium truncate text-[10px]" title="${escapeHtml(d.note)}"><i class="fa-regular fa-note-sticky mr-1"></i>${escapeHtml(d.note)}</div>` : '<span class="text-slate-300">-</span>'}
               </div>
             </div>
 
@@ -2878,9 +2834,6 @@ function renderZoneDelegatesCards(list) {
               </span>
               <span class="px-2 py-0.5 rounded-full ${d.mainConference === 'เข้าร่วม' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-slate-100 text-slate-600'}">
                 Main: ${escapeHtml(d.mainConference || 'ไม่ระบุ')}
-              </span>
-              <span class="px-2 py-0.5 rounded-full ${d.partyNight === 'เข้าร่วม' ? 'bg-purple-100 text-purple-800 font-bold' : (d.partyNight === 'ไม่เข้าร่วม' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600')}">
-                Party: ${escapeHtml(d.partyNight || 'ไม่ระบุ')}
               </span>
             </div>
 
@@ -2959,7 +2912,7 @@ function exportZoneDelegatesCsv() {
     return;
   }
 
-  const headers = ['ลำดับ', 'เขตสุขภาพ', 'คำนำหน้า', 'ชื่อ-นามสกุล', 'ต้นสังกัด', 'เรียน', 'Email', 'เบอร์โทร', 'โรงแรม', 'Pre-Conference', 'Main Conference', 'Party Night', 'หมายเหตุ'];
+  const headers = ['ลำดับ', 'เขตสุขภาพ', 'คำนำหน้า', 'ชื่อ-นามสกุล', 'ต้นสังกัด', 'Email', 'เบอร์โทร', 'Pre-Conference', 'Main Conference', 'หมายเหตุ'];
   
   let csvContent = '\uFEFF' + headers.join(',') + '\n';
 
@@ -2970,13 +2923,10 @@ function exportZoneDelegatesCsv() {
       `"${(d.title || '').replace(/"/g, '""')}"`,
       `"${(d.name || '').replace(/"/g, '""')}"`,
       `"${(d.hospital || '').replace(/"/g, '""')}"`,
-      `"${(d.position || '').replace(/"/g, '""')}"`,
       `"${(d.email || '').replace(/"/g, '""')}"`,
       `"${(d.phone || '').replace(/"/g, '""')}"`,
-      `"${(d.hotel || '').replace(/"/g, '""')}"`,
       `"${(d.preConference || '').replace(/"/g, '""')}"`,
       `"${(d.mainConference || '').replace(/"/g, '""')}"`,
-      `"${(d.partyNight || '').replace(/"/g, '""')}"`,
       `"${(d.note || '').replace(/"/g, '""')}"`
     ];
     csvContent += row.join(',') + '\n';
@@ -3003,13 +2953,10 @@ function openAddDelegateModal(zone) {
   document.getElementById('form-delegate-title').value = 'นายแพทย์';
   document.getElementById('form-delegate-name').value = '';
   document.getElementById('form-delegate-hospital').value = '';
-  document.getElementById('form-delegate-position').value = 'ผู้อำนวยการโรงพยาบาล';
   document.getElementById('form-delegate-phone').value = '';
   document.getElementById('form-delegate-email').value = '';
   document.getElementById('form-delegate-pre').value = '';
   document.getElementById('form-delegate-main').value = '';
-  document.getElementById('form-delegate-party').value = '';
-  document.getElementById('form-delegate-hotel').value = '';
   document.getElementById('form-delegate-note').value = '';
 }
 
@@ -3029,13 +2976,10 @@ function openEditDelegateModal(order) {
   document.getElementById('form-delegate-title').value = d.title || 'นายแพทย์';
   document.getElementById('form-delegate-name').value = d.name || '';
   document.getElementById('form-delegate-hospital').value = d.hospital || '';
-  document.getElementById('form-delegate-position').value = d.position || 'ผู้อำนวยการโรงพยาบาล';
   document.getElementById('form-delegate-phone').value = d.phone || '';
   document.getElementById('form-delegate-email').value = d.email || '';
   document.getElementById('form-delegate-pre').value = d.preConference || '';
   document.getElementById('form-delegate-main').value = d.mainConference || '';
-  document.getElementById('form-delegate-party').value = d.partyNight || '';
-  document.getElementById('form-delegate-hotel').value = d.hotel || '';
   document.getElementById('form-delegate-note').value = d.note || '';
 }
 
@@ -3046,13 +2990,10 @@ function saveDelegateFromModal(event) {
   const title = document.getElementById('form-delegate-title').value;
   const name = document.getElementById('form-delegate-name').value.trim();
   const hospital = document.getElementById('form-delegate-hospital').value.trim();
-  const position = document.getElementById('form-delegate-position').value.trim();
   const phone = document.getElementById('form-delegate-phone').value.trim();
   const email = document.getElementById('form-delegate-email').value.trim();
   const preConference = document.getElementById('form-delegate-pre').value;
   const mainConference = document.getElementById('form-delegate-main').value;
-  const partyNight = document.getElementById('form-delegate-party').value;
-  const hotel = document.getElementById('form-delegate-hotel').value.trim();
   const note = document.getElementById('form-delegate-note').value.trim();
 
   if (!AppState.zoneDelegates) AppState.zoneDelegates = [];
@@ -3067,13 +3008,10 @@ function saveDelegateFromModal(event) {
         title,
         name,
         hospital,
-        position,
         phone,
         email,
         preConference,
         mainConference,
-        partyNight,
-        hotel,
         note
       };
     }
@@ -3102,15 +3040,10 @@ function saveDelegateFromModal(event) {
       title,
       name,
       hospital,
-      position: position || 'ผู้อำนวยการโรงพยาบาล',
       email,
       phone,
-      hotel,
-      hotelCheckIn: '',
-      hotelCheckOut: '',
       preConference,
       mainConference,
-      partyNight,
       note,
       province,
       lat,
@@ -3399,17 +3332,11 @@ function openMemberDetailModal(id) {
       delSection.classList.remove('hidden');
       const elDelZone = document.getElementById('detail-delegate-zone-title');
       if (elDelZone) elDelZone.innerText = `ผู้แทนแพทย์ประจำเขตสุขภาพที่ ${delData.zone} (${delData.hospital})`;
-      const elDelRole = document.getElementById('detail-delegate-role-badge');
-      if (elDelRole) elDelRole.innerText = delData.position || 'ผู้อำนวยการโรงพยาบาล';
 
       const elPre = document.getElementById('detail-delegate-pre');
       if (elPre) elPre.innerText = delData.preConference || '(ยังไม่ระบุ)';
       const elMain = document.getElementById('detail-delegate-main');
       if (elMain) elMain.innerText = delData.mainConference || '(ยังไม่ระบุ)';
-      const elParty = document.getElementById('detail-delegate-party');
-      if (elParty) elParty.innerText = delData.partyNight || '(ยังไม่ระบุ)';
-      const elHotel = document.getElementById('detail-delegate-hotel');
-      if (elHotel) elHotel.innerText = delData.hotel || '(ยังไม่ระบุ)';
 
       const noteBox = document.getElementById('detail-delegate-note-box');
       const noteText = document.getElementById('detail-delegate-note-text');
@@ -5385,7 +5312,6 @@ function setupEventListeners() {
     'memberDetailModal',
     'memberEditModal',
     'deleteConfirmModal',
-    'loginModal',
     'changePasswordModal',
     'gasConfigModal',
     'provinceDoctorsModal',
@@ -6369,7 +6295,8 @@ const AuthManager = {
   },
 
   openLoginModal() {
-    openModal('loginModal');
+    const gate = document.getElementById('loginGate');
+    if (gate) gate.classList.remove('hidden');
   },
 
   openChangePasswordModal() {
@@ -6803,7 +6730,7 @@ const AuthManager = {
     localStorage.removeItem(STORAGE_KEY_AUTH_USER);
     this.updateAuthUI();
     this.refreshActiveViews();
-    showToast('ออกจากระบบเรียบร้อยแล้ว คุณกำลังอยู่ในโหมดผู้เข้าชม (ดูได้อย่างเดียว)', 'info');
+    showToast('ออกจากระบบเรียบร้อยแล้ว กรุณาเข้าสู่ระบบก่อนเข้าใช้งาน Website', 'info');
   },
 
   openMyProfile() {
@@ -6854,6 +6781,17 @@ const AuthManager = {
   },
 
   updateAuthUI() {
+    // Enforce Login Required before viewing Website
+    const loginGate = document.getElementById('loginGate');
+    const mainApp = document.getElementById('main-app-container');
+    if (this.isGuest()) {
+      if (loginGate) loginGate.classList.remove('hidden');
+      if (mainApp) mainApp.classList.add('filter', 'blur-sm', 'pointer-events-none', 'select-none');
+    } else {
+      if (loginGate) loginGate.classList.add('hidden');
+      if (mainApp) mainApp.classList.remove('filter', 'blur-sm', 'pointer-events-none', 'select-none');
+    }
+
     const sidebarContainer = document.getElementById('auth-sidebar-container');
     const headerContainer = document.getElementById('auth-header-container');
 
