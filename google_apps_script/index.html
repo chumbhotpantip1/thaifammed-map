@@ -656,6 +656,12 @@ h1, h2, h3, h4, h5, h6, .font-heading {
             <span>ภาพรวมสถิติ (Dashboard)</span>
           </button>
 
+          <button onclick="switchView('delegates')" id="nav-delegates" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
+            <i class="fa-solid fa-user-tie w-5 text-center text-base text-amber-400"></i>
+            <span class="flex-1 text-left">ผู้แทนเขต & การประชุม</span>
+            <span id="sidebar-delegates-badge" class="px-1.5 py-0.5 rounded-md bg-amber-950 text-amber-300 text-[10px] font-mono border border-amber-800">23 ท่าน</span>
+          </button>
+
           <button onclick="switchView('map')" id="nav-map" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
             <i class="fa-solid fa-map-location-dot w-5 text-center text-base text-teal-400"></i>
             <span>แผนที่พิกัดแพทย์ (Map)</span>
@@ -874,6 +880,32 @@ h1, h2, h3, h4, h5, h6, .font-heading {
             </div>
           </div>
 
+          <!-- Conference & Zone Delegates Quick Banner in Dashboard -->
+          <div class="p-5 rounded-2xl bg-gradient-to-r from-amber-950 via-slate-900 to-sky-950 text-white border border-amber-500/30 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center justify-center text-2xl shrink-0 shadow-sm">
+                <i class="fa-solid fa-user-tie"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h4 class="font-bold text-white text-base font-heading">ผู้แทนเขตสุขภาพ & การประชุมวิชาการประจำปี</h4>
+                  <span class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 font-bold text-[10px]">23 ผู้อำนวยการ รพ.</span>
+                  <span class="px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-300 border border-rose-400/40 text-[10px] font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>ขาดเขต 6</span>
+                </div>
+                <div class="text-xs text-slate-300 mt-1 flex items-center gap-3 flex-wrap">
+                  <span><i class="fa-solid fa-graduation-cap text-sky-400 mr-1"></i>Pre-Conf: <strong>13</strong> เข้าร่วม</span>
+                  <span><i class="fa-solid fa-landmark text-emerald-400 mr-1"></i>Main Conf: <strong>14</strong> เข้าร่วม</span>
+                  <span><i class="fa-solid fa-champagne-glasses text-purple-400 mr-1"></i>Party: <strong>8</strong> เข้าร่วม</span>
+                  <span><i class="fa-solid fa-hotel text-teal-400 mr-1"></i>พักเดี่ยว: <strong>3</strong> ท่าน</span>
+                </div>
+              </div>
+            </div>
+            <button onclick="switchView('delegates')" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 shrink-0 active:scale-95">
+              <span>เปิดดูรายงานผู้แทน 13 เขตสุขภาพ</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+
           <!-- Charts Row 1: 13 Health Zones (Thaifammed) & Certification (Sheet) -->
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Bar Chart: 13 Health Zones (Thaifammed Data) -->
@@ -1058,6 +1090,12 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                     <span class="ml-1.5 text-slate-600 font-medium">รวมกลุ่มหมุด</span>
                   </label>
                 </div>
+
+                <!-- Zone Delegates Highlight Button -->
+                <button type="button" id="map-btn-delegates-only" onclick="toggleMapDelegatesOnly()" class="py-1.5 px-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold text-xs flex items-center gap-1.5 transition shadow-2xs">
+                  <i class="fa-solid fa-user-tie text-amber-600"></i>
+                  <span>ผู้แทนเขต (23 ท่าน)</span>
+                </button>
               </div>
 
               <!-- Map Controls & Status Badge -->
@@ -1441,6 +1479,224 @@ h1, h2, h3, h4, h5, h6, .font-heading {
               <span>พิกัดจาก Google Sheet Tab Geo</span>
             </div>
           </div>
+        </section>
+
+
+        <!-- ================= VIEW: HEALTH ZONE DELEGATES & ANNUAL CONFERENCE ================= -->
+        <section id="view-delegates" class="space-y-5 hidden animate-fade-in">
+          
+          <!-- Top Header & Action Controls -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg font-bold shadow-xs shrink-0">
+                  <i class="fa-solid fa-user-tie"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-slate-900 text-lg font-heading flex items-center gap-2">
+                    <span>ผู้แทนเขตสุขภาพ & การประชุมวิชาการประจำปี</span>
+                    <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200">23 ท่าน (12/13 เขต)</span>
+                  </h3>
+                  <p class="text-xs text-slate-500">ข้อมูลผู้อำนวยการโรงพยาบาลตัวแทนประจำ 13 เขตสุขภาพ และสถานะการเข้าร่วมประชุม Pre-Conference, Main Conference, Party Night และโรงแรมที่พัก</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center flex-wrap gap-2">
+              <button onclick="showDelegatesOnMap()" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-semibold shadow-xs transition active:scale-95 flex items-center gap-1.5">
+                <i class="fa-solid fa-map-location-dot text-teal-600"></i> ดูหมุดบนแผนที่
+              </button>
+              <button onclick="exportZoneDelegatesCsv()" class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold shadow-xs transition active:scale-95 flex items-center gap-1.5">
+                <i class="fa-solid fa-file-excel text-emerald-600"></i> ดาวน์โหลด CSV
+              </button>
+              <button onclick="openAddDelegateModal()" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-sm transition active:scale-95 flex items-center gap-1.5">
+                <i class="fa-solid fa-user-plus"></i> เพิ่มตัวแทนเขต
+              </button>
+            </div>
+          </div>
+
+          <!-- Alert Banner: Missing Zone 6 -->
+          <div id="delegates-missing-zone-alert" class="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/10 border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <span>แจ้งเตือน: ยังขาดตัวแทนแพทย์ประจำเขตสุขภาพที่ 6</span>
+                  <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold">ยังไม่มีข้อมูล</span>
+                </h4>
+                <p class="text-xs text-slate-600 mt-0.5">
+                  เขตสุขภาพที่ 6 (ภาคตะวันออก): ชลบุรี, ระยอง, จันทบุรี, ตราด, ฉะเชิงเทรา, ปราจีนบุรี, นครนายก, สระแก้ว, สมุทรปราการ
+                </p>
+              </div>
+            </div>
+            <button type="button" onclick="openAddDelegateModal('6')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-xs transition active:scale-95 flex items-center gap-1.5 shrink-0">
+              <i class="fa-solid fa-user-plus"></i> ระบุตัวแทนเขต 6
+            </button>
+          </div>
+
+          <!-- KPI Summary Cards (5 Cards) -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+            <!-- 1. Total Delegates -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-slate-500 font-medium">ผู้แทนเขตสุขภาพ</span>
+                <span class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xs"><i class="fa-solid fa-hospital-user"></i></span>
+              </div>
+              <div class="text-2xl font-bold text-slate-900 font-heading" id="kpi-delegate-count">23 ท่าน</div>
+              <div class="text-[11px] text-amber-700 mt-1 flex items-center gap-1">
+                <i class="fa-solid fa-circle-exclamation"></i> 12/13 เขต (ขาดเขต 6)
+              </div>
+            </div>
+
+            <!-- 2. Pre-Conference -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-slate-500 font-medium">Pre-Conference</span>
+                <span class="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center text-xs"><i class="fa-solid fa-graduation-cap"></i></span>
+              </div>
+              <div class="text-2xl font-bold text-sky-700 font-heading" id="kpi-pre-join">13 ท่าน</div>
+              <div class="text-[11px] text-slate-500 mt-1 truncate" id="kpi-pre-detail">
+                ไม่เข้า 1 • รอแจ้ง 1 • อื่นๆ 8
+              </div>
+            </div>
+
+            <!-- 3. Main Conference -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-slate-500 font-medium">Main Conference</span>
+                <span class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs"><i class="fa-solid fa-landmark"></i></span>
+              </div>
+              <div class="text-2xl font-bold text-emerald-700 font-heading" id="kpi-main-join">14 ท่าน</div>
+              <div class="text-[11px] text-slate-500 mt-1 truncate" id="kpi-main-detail">
+                เข้าร่วม 14 • ยังไม่ระบุ 9
+              </div>
+            </div>
+
+            <!-- 4. Party Night -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-slate-500 font-medium">Party Night</span>
+                <span class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xs"><i class="fa-solid fa-champagne-glasses"></i></span>
+              </div>
+              <div class="text-2xl font-bold text-purple-700 font-heading" id="kpi-party-join">8 ท่าน</div>
+              <div class="text-[11px] text-slate-500 mt-1 truncate" id="kpi-party-detail">
+                ไม่เข้า 6 • รอแจ้ง 1 • อื่นๆ 8
+              </div>
+            </div>
+
+            <!-- 5. Hotel -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs col-span-2 sm:col-span-1">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-slate-500 font-medium">โรงแรมที่พัก</span>
+                <span class="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-xs"><i class="fa-solid fa-hotel"></i></span>
+              </div>
+              <div class="text-2xl font-bold text-teal-800 font-heading" id="kpi-hotel-info">14 ไม่จอง</div>
+              <div class="text-[11px] text-slate-500 mt-1 truncate" id="kpi-hotel-detail">
+                พักเดี่ยว 3 ท่าน • ยังไม่ระบุ 6
+              </div>
+            </div>
+          </div>
+
+          <!-- Filters & View Options -->
+          <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2.5 text-xs">
+              <!-- Search Input -->
+              <div class="relative sm:col-span-2">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400"></i>
+                <input type="text" id="delegates-search" oninput="filterZoneDelegates()" placeholder="ค้นหาชื่อแพทย์, รพ., จังหวัด, เบอร์โทร..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 transition text-xs">
+              </div>
+
+              <!-- Zone Filter -->
+              <div>
+                <select id="delegates-filter-zone" onchange="filterZoneDelegates()" class="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+                  <option value="all">ทุกเขตสุขภาพ (1-13)</option>
+                  <option value="1">เขต 1 (ภาคเหนือบน)</option>
+                  <option value="2">เขต 2 (ภาคเหนือล่าง)</option>
+                  <option value="3">เขต 3 (ภาคกลางตอนบน)</option>
+                  <option value="4">เขต 4 (ภาคกลาง)</option>
+                  <option value="5">เขต 5 (ภาคตะวันตก)</option>
+                  <option value="6">เขต 6 (ภาคตะวันออก - ขาดตัวแทน)</option>
+                  <option value="7">เขต 7 (ร้อยแก่นสารสินธุ์)</option>
+                  <option value="8">เขต 8 (อุดร/อีสานบน)</option>
+                  <option value="9">เขต 9 (นครชัยบุรินทร์)</option>
+                  <option value="10">เขต 10 (อุบล/อีสานล่าง)</option>
+                  <option value="11">เขต 11 (ภาคใต้ตอนบน)</option>
+                  <option value="12">เขต 12 (ภาคใต้ตอนล่าง)</option>
+                  <option value="13">เขต 13 (กทม.)</option>
+                </select>
+              </div>
+
+              <!-- Pre-Conference Filter -->
+              <div>
+                <select id="delegates-filter-pre" onchange="filterZoneDelegates()" class="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+                  <option value="all">Pre-Conf (ทั้งหมด)</option>
+                  <option value="เข้าร่วม">Pre-Conf: เข้าร่วม</option>
+                  <option value="ไม่เข้าร่วม">Pre-Conf: ไม่เข้าร่วม</option>
+                  <option value="เดี๋ยวแจ้งอีกที">Pre-Conf: เดี๋ยวแจ้งอีกที</option>
+                  <option value="ยังไม่ระบุ">Pre-Conf: ยังไม่ระบุ</option>
+                </select>
+              </div>
+
+              <!-- Hotel Filter -->
+              <div>
+                <select id="delegates-filter-hotel" onchange="filterZoneDelegates()" class="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+                  <option value="all">โรงแรม (ทั้งหมด)</option>
+                  <option value="ไม่จอง">ไม่จองโรงแรม</option>
+                  <option value="พักเดี่ยว">พักเดี่ยว</option>
+                  <option value="ยังไม่ระบุ">ยังไม่ระบุโรงแรม</option>
+                </select>
+              </div>
+
+              <!-- View Switcher (Table vs Zone Cards) -->
+              <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <button type="button" id="btn-delegates-view-table" onclick="switchDelegatesDisplayMode('table')" class="flex-1 py-1.5 px-2.5 rounded-lg bg-white text-slate-900 font-bold shadow-2xs text-xs transition">
+                  <i class="fa-solid fa-table-list mr-1"></i> ตาราง
+                </button>
+                <button type="button" id="btn-delegates-view-cards" onclick="switchDelegatesDisplayMode('cards')" class="flex-1 py-1.5 px-2.5 rounded-lg text-slate-600 hover:text-slate-900 font-medium text-xs transition">
+                  <i class="fa-solid fa-cubes-stacked mr-1"></i> รายเขต
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div id="delegates-table-container" class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-100/80 text-slate-700 font-semibold border-b border-slate-200 uppercase text-[11px]">
+                  <tr>
+                    <th class="py-3 px-3 text-center w-12">#</th>
+                    <th class="py-3 px-3 text-center w-24">เขตสุขภาพ</th>
+                    <th class="py-3 px-4 min-w-[200px]">ชื่อ-นามสกุล / ตำแหน่ง</th>
+                    <th class="py-3 px-4 min-w-[180px]">ต้นสังกัด & จังหวัด</th>
+                    <th class="py-3 px-4 min-w-[170px]">ข้อมูลติดต่อ</th>
+                    <th class="py-3 px-3 min-w-[130px]">โรงแรมที่พัก</th>
+                    <th class="py-3 px-3 text-center min-w-[105px]">Pre-Conf</th>
+                    <th class="py-3 px-3 text-center min-w-[105px]">Main-Conf</th>
+                    <th class="py-3 px-3 text-center min-w-[105px]">Party Night</th>
+                    <th class="py-3 px-4 min-w-[160px]">หมายเหตุ</th>
+                    <th class="py-3 px-3 text-center w-28">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="delegates-table-body" class="divide-y divide-slate-100">
+                  <!-- Populated dynamically via renderZoneDelegates() -->
+                </tbody>
+              </table>
+            </div>
+            <!-- Table Footer -->
+            <div class="p-3 bg-slate-50 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
+              <span id="delegates-table-count">แสดงผล 23 รายการ</span>
+              <span class="text-slate-400">ข้อมูลผู้แทนเขตสุขภาพและผู้บริหารโรงพยาบาล</span>
+            </div>
+          </div>
+
+          <!-- Cards View Container (Grouped by Zone) -->
+          <div id="delegates-cards-container" class="hidden space-y-4">
+            <!-- Populated dynamically via renderZoneDelegatesCards() -->
+          </div>
+
         </section>
 
 
@@ -2156,6 +2412,39 @@ h1, h2, h3, h4, h5, h6, .font-heading {
               <span class="text-sky-700 text-[11px] block">ช่องทางรับเอกสาร:</span>
               <span id="detail-channels" class="text-slate-800 font-medium">-</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Zone Delegate & Conference Information -->
+        <div id="detail-zone-delegate-section" class="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 space-y-3 hidden">
+          <div class="flex items-center justify-between border-b border-amber-200 pb-2">
+            <h4 class="font-bold text-amber-950 text-sm flex items-center gap-2">
+              <i class="fa-solid fa-user-tie text-amber-600"></i>
+              <span id="detail-delegate-zone-title">ผู้แทนแพทย์ประจำเขตสุขภาพ</span>
+            </h4>
+            <span id="detail-delegate-role-badge" class="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-bold text-[10px]">ผู้อำนวยการโรงพยาบาล</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
+            <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200">
+              <span class="text-slate-500 block text-[10px]">Pre-Conference</span>
+              <strong id="detail-delegate-pre" class="text-slate-800 font-semibold">-</strong>
+            </div>
+            <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200">
+              <span class="text-slate-500 block text-[10px]">Main Conference</span>
+              <strong id="detail-delegate-main" class="text-slate-800 font-semibold">-</strong>
+            </div>
+            <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200">
+              <span class="text-slate-500 block text-[10px]">Party Night</span>
+              <strong id="detail-delegate-party" class="text-slate-800 font-semibold">-</strong>
+            </div>
+            <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200">
+              <span class="text-slate-500 block text-[10px]">โรงแรมที่พัก</span>
+              <strong id="detail-delegate-hotel" class="text-slate-800 font-semibold">-</strong>
+            </div>
+          </div>
+          <div id="detail-delegate-note-box" class="text-[11px] bg-amber-100/70 p-2 rounded-xl text-amber-900 hidden">
+            <span class="font-bold"><i class="fa-solid fa-comment-dots mr-1"></i>หมายเหตุ:</span>
+            <span id="detail-delegate-note-text">-</span>
           </div>
         </div>
 
@@ -2906,6 +3195,137 @@ h1, h2, h3, h4, h5, h6, .font-heading {
           ปิดหน้าต่าง
         </button>
       </div>
+    </div>
+  </div>
+
+
+  <!-- 8. ZONE DELEGATE EDIT / ADD MODAL -->
+  <div id="delegateEditModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 p-6 space-y-4 animate-fade-in text-xs max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg font-bold shadow-xs">
+            <i class="fa-solid fa-user-pen"></i>
+          </div>
+          <div>
+            <h4 id="delegate-modal-title" class="font-bold text-slate-900 text-base font-heading">แก้ไขข้อมูลผู้แทนเขตสุขภาพ</h4>
+            <p class="text-[11px] text-slate-500">ปรับปรุงข้อมูลการติดต่อและสถานะการเข้าร่วมประชุมวิชาการ</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeModal('delegateEditModal')" class="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="form-delegate-edit" onsubmit="saveDelegateFromModal(event)" class="space-y-3.5">
+        <input type="hidden" id="form-delegate-order" value="">
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1">เขตสุขภาพ (1-13) *</label>
+            <select id="form-delegate-zone" required class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+              <option value="1">เขตสุขภาพที่ 1</option>
+              <option value="2">เขตสุขภาพที่ 2</option>
+              <option value="3">เขตสุขภาพที่ 3</option>
+              <option value="4">เขตสุขภาพที่ 4</option>
+              <option value="5">เขตสุขภาพที่ 5</option>
+              <option value="6">เขตสุขภาพที่ 6</option>
+              <option value="7">เขตสุขภาพที่ 7</option>
+              <option value="8">เขตสุขภาพที่ 8</option>
+              <option value="9">เขตสุขภาพที่ 9</option>
+              <option value="10">เขตสุขภาพที่ 10</option>
+              <option value="11">เขตสุขภาพที่ 11</option>
+              <option value="12">เขตสุขภาพที่ 12</option>
+              <option value="13">เขตสุขภาพที่ 13 (กทม.)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1">คำนำหน้า *</label>
+            <select id="form-delegate-title" required class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+              <option value="นายแพทย์">นายแพทย์ (นพ.)</option>
+              <option value="แพทย์หญิง">แพทย์หญิง (พญ.)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 font-semibold mb-1">ชื่อ-นามสกุล *</label>
+          <input type="text" id="form-delegate-name" required placeholder="เช่น ธนาสิทธิ์ วิจิตราพันธ์" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1">ต้นสังกัด (โรงพยาบาล) *</label>
+            <input type="text" id="form-delegate-hospital" required placeholder="เช่น โรงพยาบาลสันป่าตอง" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+          </div>
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1">ตำแหน่ง (เรียน)</label>
+            <input type="text" id="form-delegate-position" placeholder="ผู้อำนวยการโรงพยาบาล..." class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1">เบอร์โทรศัพท์</label>
+            <input type="text" id="form-delegate-phone" placeholder="08X-XXX-XXXX" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1">อีเมล (Email)</label>
+            <input type="email" id="form-delegate-email" placeholder="example@gmail.com" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono">
+          </div>
+        </div>
+
+        <!-- Conference Attendance Fields -->
+        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+          <h5 class="font-bold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
+            <i class="fa-solid fa-calendar-check text-sky-600"></i> สถานะการเข้าร่วมประชุมวิชาการ
+          </h5>
+          <div class="grid grid-cols-3 gap-2.5">
+            <div>
+              <label class="block text-slate-600 text-[11px] mb-1">Pre-Conference</label>
+              <select id="form-delegate-pre" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs">
+                <option value="">(ยังไม่ระบุ)</option>
+                <option value="เข้าร่วม">เข้าร่วม</option>
+                <option value="ไม่เข้าร่วม">ไม่เข้าร่วม</option>
+                <option value="เดี๋ยวแจ้งอีกที">เดี๋ยวแจ้งอีกที</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-600 text-[11px] mb-1">Main Conference</label>
+              <select id="form-delegate-main" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs">
+                <option value="">(ยังไม่ระบุ)</option>
+                <option value="เข้าร่วม">เข้าร่วม</option>
+                <option value="ไม่เข้าร่วม">ไม่เข้าร่วม</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-600 text-[11px] mb-1">Party Night</label>
+              <select id="form-delegate-party" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs">
+                <option value="">(ยังไม่ระบุ)</option>
+                <option value="เข้าร่วม">เข้าร่วม</option>
+                <option value="ไม่เข้าร่วม">ไม่เข้าร่วม</option>
+                <option value="เดี๋ยวแจ้งอีกที">เดี๋ยวแจ้งอีกที</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-slate-600 text-[11px] mb-1">การจองโรงแรมที่พัก</label>
+            <input type="text" id="form-delegate-hotel" placeholder="เช่น ไม่จอง หรือ พักเดี่ยว (เช็คอิน 19 เช็คเอาท์ 22)" class="w-full p-2 rounded-xl border border-slate-200 bg-white text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 font-semibold mb-1">หมายเหตุ</label>
+          <input type="text" id="form-delegate-note" placeholder="เช่น เป็นกรรมการบริหาร, เช็คอิน 19 เช็คเอาท์ 22, ฯลฯ" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <button type="button" onclick="closeModal('delegateEditModal')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition shadow-md shadow-amber-500/20 flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -14748,7 +15168,31 @@ window.INITIAL_DATA = {
       "photoDriveId": "19s6viVJ2WXEQDNN7fPsvWJ8uZn8lnkZK",
       "photoUrl": "https://lh3.googleusercontent.com/d/19s6viVJ2WXEQDNN7fPsvWJ8uZn8lnkZK=w500",
       "photoDriveViewUrl": "https://drive.google.com/file/d/19s6viVJ2WXEQDNN7fPsvWJ8uZn8lnkZK/view",
-      "consent": ""
+      "consent": "",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 9,
+        "zone": "5",
+        "title": "นายแพทย์",
+        "name": "ปิติ ชาคริยานุโยค",
+        "hospital": "โรงพยาบาลสามพราน",
+        "position": "ผู้อำนวยการโรงพยาบาลสามพราน",
+        "email": "mooy069@hotmail.com",
+        "phone": "085-914-5153",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "ไม่เข้าร่วม",
+        "note": "",
+        "province": "นครปฐม",
+        "lat": 13.7258,
+        "lng": 100.2172,
+        "sheetMemberId": 181,
+        "thaifammedId": 1535
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลสามพราน"
     },
     {
       "id": 182,
@@ -19636,7 +20080,31 @@ window.INITIAL_DATA = {
       "photoDriveId": "1m6A0bFmX3skcNhasypdolg5OyhPPVEwt",
       "photoUrl": "https://lh3.googleusercontent.com/d/1m6A0bFmX3skcNhasypdolg5OyhPPVEwt=w500",
       "photoDriveViewUrl": "https://drive.google.com/file/d/1m6A0bFmX3skcNhasypdolg5OyhPPVEwt/view",
-      "consent": "ยินยอม"
+      "consent": "ยินยอม",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 6,
+        "zone": "3",
+        "title": "นายแพทย์",
+        "name": "ศุภโชค วีระวัฒน์โสภณ",
+        "hospital": "โรงพยาบาลชุมแสง",
+        "position": "ผู้อำนวยการโรงพยาบาลชุมแสง",
+        "email": "s.dear.w@gmail.com",
+        "phone": "082-794-5641",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เข้าร่วม",
+        "note": "",
+        "province": "นครสวรรค์",
+        "lat": 15.8856,
+        "lng": 100.3061,
+        "sheetMemberId": 275,
+        "thaifammedId": 1763
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลชุมแสง"
     },
     {
       "id": 276,
@@ -20312,7 +20780,31 @@ window.INITIAL_DATA = {
       "photoDriveId": "1__7zPD7XaO5AzKstptibyQbpRRsRY4-0",
       "photoUrl": "https://lh3.googleusercontent.com/d/1__7zPD7XaO5AzKstptibyQbpRRsRY4-0=w500",
       "photoDriveViewUrl": "https://drive.google.com/file/d/1__7zPD7XaO5AzKstptibyQbpRRsRY4-0/view",
-      "consent": "ยินยอม"
+      "consent": "ยินยอม",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 7,
+        "zone": "4",
+        "title": "นายแพทย์",
+        "name": "นิติ อารมณ์ชื่น",
+        "hospital": "โรงพยาบาลพระนครศรีอยุธยา",
+        "position": "ผู้อำนวยการโรงพยาบาลพระนครศรีอยุธยา",
+        "email": "Niti_ar@hotmail.com",
+        "phone": "084-148-2784",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "เป็นกรรมการบริหาร",
+        "province": "พระนครศรีอยุธยา",
+        "lat": 14.354123,
+        "lng": 100.578512,
+        "sheetMemberId": 288,
+        "thaifammedId": 2119
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลพระนครศรีอยุธยา"
     },
     {
       "id": 289,
@@ -20676,7 +21168,31 @@ window.INITIAL_DATA = {
       "photoDriveId": "1Sr5OdYB5d3ac-_37gkez8hj436U_EUAl",
       "photoUrl": "https://lh3.googleusercontent.com/d/1Sr5OdYB5d3ac-_37gkez8hj436U_EUAl=w500",
       "photoDriveViewUrl": "https://drive.google.com/file/d/1Sr5OdYB5d3ac-_37gkez8hj436U_EUAl/view",
-      "consent": "ยินยอม"
+      "consent": "ยินยอม",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 18,
+        "zone": "10",
+        "title": "แพทย์หญิง",
+        "name": "สุมลมาลย์ แสนทวีสุข",
+        "hospital": "โรงพยาบาลสรรพสิทธิประสงค์",
+        "position": "ผู้อำนวยการโรงพยาบาลสรรพสิทธิประสงค์",
+        "email": "sumonman.s@gmail.com",
+        "phone": "088-560-2655",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เข้าร่วม",
+        "note": "",
+        "province": "อุบลราชธานี",
+        "lat": 15.228512,
+        "lng": 104.858512,
+        "sheetMemberId": 295,
+        "thaifammedId": 3311
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลสรรพสิทธิประสงค์"
     },
     {
       "id": 296,
@@ -31714,11 +32230,36 @@ window.INITIAL_DATA = {
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดกรุงเทพมหานคร",
-      "lat": 13.7668,
-      "lng": 100.4563,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดกรุงเทพมหานคร"
+      "workplace": "โรงพยาบาลราชพิพัฒน์",
+      "lat": 13.746512,
+      "lng": 100.354123,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดกรุงเทพมหานคร",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 23,
+        "zone": "13",
+        "title": "นายแพทย์",
+        "name": "พรสิทธิ์ พันธุ์พานิช",
+        "hospital": "โรงพยาบาลราชพิพัฒน์",
+        "position": "ผู้อำนวยการโรงพยาบาลราชพิพัฒน์",
+        "email": "pornsitii@gmail.com",
+        "phone": "082-952-1491",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เข้าร่วม",
+        "note": "",
+        "province": "กรุงเทพมหานคร",
+        "lat": 13.746512,
+        "lng": 100.354123,
+        "thaifammedId": 422
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลราชพิพัฒน์",
+      "mobilePhone": "082-952-1491",
+      "email": "pornsitii@gmail.com"
     },
     {
       "id": 423,
@@ -51580,17 +52121,40 @@ window.INITIAL_DATA = {
       "cleanName": "จตุภูมิ นีละศรี",
       "fpNo": "1964",
       "gpNo": "1929",
-      "province": "นครปฐม",
+      "province": "เพชรบุรี",
       "healthZone": "5",
       "note": "",
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดนครปฐม",
-      "lat": 13.7881,
-      "lng": 100.0461,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดนครปฐม"
+      "workplace": "โรงพยาบาลท่ายาง",
+      "lat": 12.9664,
+      "lng": 99.9803,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดนครปฐม",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 10,
+        "zone": "5",
+        "title": "นายแพทย์",
+        "name": "จตุภูมิ นีละศรี",
+        "hospital": "โรงพยาบาลท่ายาง",
+        "position": "ผู้อำนวยการโรงพยาบาลท่ายาง",
+        "email": "",
+        "phone": "",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "เป็นกรรมการบริหาร",
+        "province": "เพชรบุรี",
+        "lat": 12.9664,
+        "lng": 99.9803,
+        "thaifammedId": 1526
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลท่ายาง"
     },
     {
       "id": 1527,
@@ -51749,10 +52313,36 @@ window.INITIAL_DATA = {
       "matchedMemberId": 181,
       "photoUrl": "https://lh3.googleusercontent.com/d/19s6viVJ2WXEQDNN7fPsvWJ8uZn8lnkZK=w500",
       "workplace": "โรงพยาบาลสามพราน",
-      "lat": 13.7408942,
-      "lng": 100.2998394,
-      "coordSource": "sheet_member",
-      "facilityName": "โรงพยาบาลสามพราน"
+      "lat": 13.7258,
+      "lng": 100.2172,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลสามพราน",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 9,
+        "zone": "5",
+        "title": "นายแพทย์",
+        "name": "ปิติ ชาคริยานุโยค",
+        "hospital": "โรงพยาบาลสามพราน",
+        "position": "ผู้อำนวยการโรงพยาบาลสามพราน",
+        "email": "mooy069@hotmail.com",
+        "phone": "085-914-5153",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "ไม่เข้าร่วม",
+        "note": "",
+        "province": "นครปฐม",
+        "lat": 13.7258,
+        "lng": 100.2172,
+        "sheetMemberId": 181,
+        "thaifammedId": 1535
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลสามพราน",
+      "mobilePhone": "085-914-5153",
+      "email": "mooy069@hotmail.com"
     },
     {
       "id": 1536,
@@ -55853,10 +56443,36 @@ window.INITIAL_DATA = {
       "matchedMemberId": 275,
       "photoUrl": "https://lh3.googleusercontent.com/d/1m6A0bFmX3skcNhasypdolg5OyhPPVEwt=w500",
       "workplace": "โรงพยาบาลชุมแสง",
-      "lat": 15.8650655,
-      "lng": 100.2721774,
-      "coordSource": "sheet_member",
-      "facilityName": "โรงพยาบาลชุมแสง"
+      "lat": 15.8856,
+      "lng": 100.3061,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลชุมแสง",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 6,
+        "zone": "3",
+        "title": "นายแพทย์",
+        "name": "ศุภโชค วีระวัฒน์โสภณ",
+        "hospital": "โรงพยาบาลชุมแสง",
+        "position": "ผู้อำนวยการโรงพยาบาลชุมแสง",
+        "email": "s.dear.w@gmail.com",
+        "phone": "082-794-5641",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เข้าร่วม",
+        "note": "",
+        "province": "นครสวรรค์",
+        "lat": 15.8856,
+        "lng": 100.3061,
+        "sheetMemberId": 275,
+        "thaifammedId": 1763
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลชุมแสง",
+      "mobilePhone": "082-794-5641",
+      "email": "s.dear.w@gmail.com"
     },
     {
       "id": 1764,
@@ -62044,11 +62660,36 @@ window.INITIAL_DATA = {
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดพระนครศรีอยุธยา",
-      "lat": 14.4022,
-      "lng": 100.5754,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดพระนครศรีอยุธยา"
+      "workplace": "โรงพยาบาลพระนครศรีอยุธยา",
+      "lat": 14.354123,
+      "lng": 100.578512,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดพระนครศรีอยุธยา",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 8,
+        "zone": "4",
+        "title": "นายแพทย์",
+        "name": "กช พิทักษ์วงศ์โรจน์",
+        "hospital": "โรงพยาบาลพระนครศรีอยุธยา",
+        "position": "ผู้อำนวยการโรงพยาบาลพระนครศรีอยุธยา",
+        "email": "kod.phi@gmail.com",
+        "phone": "089-575-0888",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "ไม่เข้าร่วม",
+        "note": "",
+        "province": "พระนครศรีอยุธยา",
+        "lat": 14.354123,
+        "lng": 100.578512,
+        "thaifammedId": 2107
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลพระนครศรีอยุธยา",
+      "mobilePhone": "089-575-0888",
+      "email": "kod.phi@gmail.com"
     },
     {
       "id": 2108,
@@ -62260,11 +62901,37 @@ window.INITIAL_DATA = {
       "isUpdated": true,
       "matchedMemberId": 288,
       "photoUrl": "https://lh3.googleusercontent.com/d/1__7zPD7XaO5AzKstptibyQbpRRsRY4-0=w500",
-      "workplace": "กลุ่มงานเวชกรรมสังคม โรงพยาบาลพระนครศรีอยุธยา",
-      "lat": 14.3592951,
-      "lng": 100.5539063,
-      "coordSource": "sheet_member",
-      "facilityName": "กลุ่มงานเวชกรรมสังคม โรงพยาบาลพระนครศรีอยุธยา"
+      "workplace": "โรงพยาบาลพระนครศรีอยุธยา",
+      "lat": 14.354123,
+      "lng": 100.578512,
+      "coordSource": "hospital_exact",
+      "facilityName": "กลุ่มงานเวชกรรมสังคม โรงพยาบาลพระนครศรีอยุธยา",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 7,
+        "zone": "4",
+        "title": "นายแพทย์",
+        "name": "นิติ อารมณ์ชื่น",
+        "hospital": "โรงพยาบาลพระนครศรีอยุธยา",
+        "position": "ผู้อำนวยการโรงพยาบาลพระนครศรีอยุธยา",
+        "email": "Niti_ar@hotmail.com",
+        "phone": "084-148-2784",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "เป็นกรรมการบริหาร",
+        "province": "พระนครศรีอยุธยา",
+        "lat": 14.354123,
+        "lng": 100.578512,
+        "sheetMemberId": 288,
+        "thaifammedId": 2119
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลพระนครศรีอยุธยา",
+      "mobilePhone": "084-148-2784",
+      "email": "Niti_ar@hotmail.com"
     },
     {
       "id": 2120,
@@ -65464,11 +66131,36 @@ window.INITIAL_DATA = {
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดภูเก็ต",
-      "lat": 7.8349,
-      "lng": 98.3888,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดภูเก็ต"
+      "workplace": "โรงพยาบาลวชิระภูเก็ต",
+      "lat": 7.898512,
+      "lng": 98.384512,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดภูเก็ต",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 19,
+        "zone": "11",
+        "title": "นายแพทย์",
+        "name": "ธีรพงศ์ อร่ามเรือง",
+        "hospital": "โรงพยาบาลวชิระภูเก็ต",
+        "position": "ผู้อำนวยการโรงพยาบาลวชิระภูเก็ต",
+        "email": "teesaurus@hotmail.com",
+        "phone": "061-782-9999",
+        "hotel": "พักเดี่ยว (เช็คอิน 19 เช็คเอาท์ 23)",
+        "hotelCheckIn": "19",
+        "hotelCheckOut": "23",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "เช็คอิน 19 เช็คเอาท์ 23",
+        "province": "ภูเก็ต",
+        "lat": 7.898512,
+        "lng": 98.384512,
+        "thaifammedId": 2297
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลวชิระภูเก็ต",
+      "mobilePhone": "061-782-9999",
+      "email": "teesaurus@hotmail.com"
     },
     {
       "id": 2298,
@@ -66022,11 +66714,36 @@ window.INITIAL_DATA = {
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดมหาสารคาม",
-      "lat": 16.1393,
-      "lng": 103.2972,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดมหาสารคาม"
+      "workplace": "โรงพยาบาลแกดำ",
+      "lat": 16.0372,
+      "lng": 103.3831,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดมหาสารคาม",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 11,
+        "zone": "7",
+        "title": "แพทย์หญิง",
+        "name": "ฐิตาภรณ์ ภูตเขต",
+        "hospital": "โรงพยาบาลแกดำ",
+        "position": "ผู้อำนวยการโรงพยาบาลแกดำ",
+        "email": "Phutakhet@gmail.com",
+        "phone": "093-614-2287",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "ไม่เข้าร่วม",
+        "note": "",
+        "province": "มหาสารคาม",
+        "lat": 16.0372,
+        "lng": 103.3831,
+        "thaifammedId": 2328
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลแกดำ",
+      "mobilePhone": "093-614-2287",
+      "email": "Phutakhet@gmail.com"
     },
     {
       "id": 2329,
@@ -71074,17 +71791,42 @@ window.INITIAL_DATA = {
       "cleanName": "วีรกร ยองจา",
       "fpNo": "3463",
       "gpNo": "3578",
-      "province": "ลำพูน",
+      "province": "เชียงใหม่",
       "healthZone": "1",
       "note": "",
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดลำพูน",
-      "lat": 18.5359,
-      "lng": 99.0542,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดลำพูน"
+      "workplace": "โรงพยาบาลจอมทอง",
+      "lat": 18.421523,
+      "lng": 98.675412,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดลำพูน",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 2,
+        "zone": "1",
+        "title": "นายแพทย์",
+        "name": "วีรกร ยองจา",
+        "hospital": "โรงพยาบาลจอมทอง",
+        "position": "ผู้อำนวยการโรงพยาบาลจอมทอง",
+        "email": "weerakornjames@gmail.com",
+        "phone": "085-040-3431",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "โทรแล้ว ไม่รับ",
+        "province": "เชียงใหม่",
+        "lat": 18.421523,
+        "lng": 98.675412,
+        "thaifammedId": 2609
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลจอมทอง",
+      "mobilePhone": "085-040-3431",
+      "email": "weerakornjames@gmail.com"
     },
     {
       "id": 2610,
@@ -78184,17 +78926,42 @@ window.INITIAL_DATA = {
       "cleanName": "ปิยวรรณ ลิ้มสุขสมบูรณ์",
       "fpNo": "3189",
       "gpNo": "3352",
-      "province": "สุราษฎร์ธานี",
-      "healthZone": "11",
+      "province": "สงขลา",
+      "healthZone": "12",
       "note": "",
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดสุราษฎร์ธานี",
-      "lat": 9.1802,
-      "lng": 99.2797,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดสุราษฎร์ธานี"
+      "workplace": "โรงพยาบาลหาดใหญ่",
+      "lat": 7.014512,
+      "lng": 100.468512,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดสุราษฎร์ธานี",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 21,
+        "zone": "12",
+        "title": "แพทย์หญิง",
+        "name": "ปิยวรรณ ลิ้มสุขสมบูรณ์",
+        "hospital": "โรงพยาบาลหาดใหญ่",
+        "position": "ผู้อำนวยการโรงพยาบาลหาดใหญ่",
+        "email": "p.limsuksomboon@gmail.com",
+        "phone": "086-941-7264",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "ไม่เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "ไม่เข้าร่วม",
+        "note": "โทรแล้ว ไม่รับ",
+        "province": "สงขลา",
+        "lat": 7.014512,
+        "lng": 100.468512,
+        "thaifammedId": 3004
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลหาดใหญ่",
+      "mobilePhone": "086-941-7264",
+      "email": "p.limsuksomboon@gmail.com"
     },
     {
       "id": 3005,
@@ -79900,11 +80667,36 @@ window.INITIAL_DATA = {
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดสุโขทัย",
-      "lat": 17.0608,
-      "lng": 99.8334,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดสุโขทัย"
+      "workplace": "โรงพยาบาลสวรรคโลก",
+      "lat": 17.3155,
+      "lng": 99.8322,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดสุโขทัย",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 4,
+        "zone": "2",
+        "title": "นายแพทย์",
+        "name": "ยุทธศาสตร์ สุทธรินทร์",
+        "hospital": "โรงพยาบาลสวรรคโลก",
+        "position": "ผู้อำนวยการโรงพยาบาลสวรรคโลก",
+        "email": "Unitpegasus@gmail.com",
+        "phone": "080-517-3238",
+        "hotel": "เช็คอิน 19 เช็คเอาท์ 22",
+        "hotelCheckIn": "19",
+        "hotelCheckOut": "22",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เข้าร่วม",
+        "note": "เช็คอิน 19 เช็คเอาท์ 22",
+        "province": "สุโขทัย",
+        "lat": 17.3155,
+        "lng": 99.8322,
+        "thaifammedId": 3099
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลสวรรคโลก",
+      "mobilePhone": "080-517-3238",
+      "email": "Unitpegasus@gmail.com"
     },
     {
       "id": 3100,
@@ -81934,11 +82726,36 @@ window.INITIAL_DATA = {
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดอุดรธานี",
-      "lat": 17.4243,
-      "lng": 102.7417,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดอุดรธานี"
+      "workplace": "โรงพยาบาลหนองหาน",
+      "lat": 17.3619,
+      "lng": 103.1114,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดอุดรธานี",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 13,
+        "zone": "8",
+        "title": "แพทย์หญิง",
+        "name": "เรืองหทัย ปัณณราช",
+        "hospital": "โรงพยาบาลหนองหาน",
+        "position": "ผู้อำนวยการโรงพยาบาลหนองหาน",
+        "email": "Reunghathai@fammedkkh.com",
+        "phone": "081-320-9769",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "โทรแล้ว ไม่รับ",
+        "province": "อุดรธานี",
+        "lat": 17.3619,
+        "lng": 103.1114,
+        "thaifammedId": 3212
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลหนองหาน",
+      "mobilePhone": "081-320-9769",
+      "email": "Reunghathai@fammedkkh.com"
     },
     {
       "id": 3213,
@@ -83716,11 +84533,37 @@ window.INITIAL_DATA = {
       "isUpdated": true,
       "matchedMemberId": 295,
       "photoUrl": "https://lh3.googleusercontent.com/d/1Sr5OdYB5d3ac-_37gkez8hj436U_EUAl=w500",
-      "workplace": "กลุ่มงานเวชกรรมสังคม โรงพยาบาลสรรพสิทธิประสงค์",
-      "lat": 15.2448453,
-      "lng": 104.8472995,
-      "coordSource": "sheet_member",
-      "facilityName": "กลุ่มงานเวชกรรมสังคม โรงพยาบาลสรรพสิทธิประสงค์"
+      "workplace": "โรงพยาบาลสรรพสิทธิประสงค์",
+      "lat": 15.228512,
+      "lng": 104.858512,
+      "coordSource": "hospital_exact",
+      "facilityName": "กลุ่มงานเวชกรรมสังคม โรงพยาบาลสรรพสิทธิประสงค์",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 18,
+        "zone": "10",
+        "title": "แพทย์หญิง",
+        "name": "สุมลมาลย์ แสนทวีสุข",
+        "hospital": "โรงพยาบาลสรรพสิทธิประสงค์",
+        "position": "ผู้อำนวยการโรงพยาบาลสรรพสิทธิประสงค์",
+        "email": "sumonman.s@gmail.com",
+        "phone": "088-560-2655",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เข้าร่วม",
+        "note": "",
+        "province": "อุบลราชธานี",
+        "lat": 15.228512,
+        "lng": 104.858512,
+        "sheetMemberId": 295,
+        "thaifammedId": 3311
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลสรรพสิทธิประสงค์",
+      "mobilePhone": "088-560-2655",
+      "email": "sumonman.s@gmail.com"
     },
     {
       "id": 3312,
@@ -86704,11 +87547,36 @@ window.INITIAL_DATA = {
       "isUpdated": false,
       "matchedMemberId": null,
       "photoUrl": "",
-      "workplace": "จังหวัดเชียงใหม่",
-      "lat": 18.7498,
-      "lng": 99.0308,
-      "coordSource": "province_centroid",
-      "facilityName": "จังหวัดเชียงใหม่"
+      "workplace": "โรงพยาบาลสันป่าตอง",
+      "lat": 18.625412,
+      "lng": 98.895412,
+      "coordSource": "hospital_exact",
+      "facilityName": "จังหวัดเชียงใหม่",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 1,
+        "zone": "1",
+        "title": "นายแพทย์",
+        "name": "ธนาสิทธิ์ วิจิตราพันธ์",
+        "hospital": "โรงพยาบาลสันป่าตอง",
+        "position": "ผู้อำนวยการโรงพยาบาลสันป่าตอง",
+        "email": "tanasit.bird@gmail.com",
+        "phone": "086-919-7939",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เข้าร่วม",
+        "note": "ถ้าติดธุระจะส่งน้องมาเข้าแทน ทั้งหมด",
+        "province": "เชียงใหม่",
+        "lat": 18.625412,
+        "lng": 98.895412,
+        "thaifammedId": 3477
+      },
+      "position": "ผู้อำนวยการโรงพยาบาลสันป่าตอง",
+      "mobilePhone": "086-919-7939",
+      "email": "tanasit.bird@gmail.com"
     },
     {
       "id": 3478,
@@ -91623,6 +92491,393 @@ window.INITIAL_DATA = {
       "lng": 97.9724,
       "coordSource": "province_centroid",
       "facilityName": "จังหวัดแม่ฮ่องสอน"
+    },
+    {
+      "id": 3751,
+      "name": "แพทย์หญิง พีรยา ขจรพันธ์",
+      "cleanName": "พีรยา ขจรพันธ์",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "สุโขทัย",
+      "healthZone": "2",
+      "note": "",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลสุโขทัย",
+      "position": "ผู้อำนวยการโรงพยาบาลสุโขทัย",
+      "mobilePhone": "",
+      "email": "",
+      "lat": 17.012541,
+      "lng": 99.824512,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลสุโขทัย",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 3,
+        "zone": "2",
+        "title": "แพทย์หญิง",
+        "name": "พีรยา ขจรพันธ์",
+        "hospital": "โรงพยาบาลสุโขทัย",
+        "position": "ผู้อำนวยการโรงพยาบาลสุโขทัย",
+        "email": "",
+        "phone": "",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "",
+        "province": "สุโขทัย",
+        "lat": 17.012541,
+        "lng": 99.824512,
+        "thaifammedId": 3751
+      }
+    },
+    {
+      "id": 3752,
+      "name": "แพทย์หญิง พิมพ์ศิริ ใจบุญ",
+      "cleanName": "พิมพ์ศิริ ใจบุญ",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "พิจิตร",
+      "healthZone": "3",
+      "note": "",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลบึงนาราง",
+      "position": "ผู้อำนวยการโรงพยาบาลบึงนาราง",
+      "mobilePhone": "080-115-6751",
+      "email": "",
+      "lat": 16.1772,
+      "lng": 100.1775,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลบึงนาราง",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 5,
+        "zone": "3",
+        "title": "แพทย์หญิง",
+        "name": "พิมพ์ศิริ ใจบุญ",
+        "hospital": "โรงพยาบาลบึงนาราง",
+        "position": "ผู้อำนวยการโรงพยาบาลบึงนาราง",
+        "email": "",
+        "phone": "080-115-6751",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "",
+        "province": "พิจิตร",
+        "lat": 16.1772,
+        "lng": 100.1775,
+        "thaifammedId": 3752
+      }
+    },
+    {
+      "id": 3753,
+      "name": "แพทย์หญิง รัชวิภา สังขเภท",
+      "cleanName": "รัชวิภา สังขเภท",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "มหาสารคาม",
+      "healthZone": "7",
+      "note": "",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลวาปีปทุม",
+      "position": "ผู้อำนวยการโรงพยาบาลวาปีปทุม",
+      "mobilePhone": "087-490-7100",
+      "email": "breeze.siri@gmail.com",
+      "lat": 15.8453,
+      "lng": 103.3769,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลวาปีปทุม",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 12,
+        "zone": "7",
+        "title": "แพทย์หญิง",
+        "name": "รัชวิภา สังขเภท",
+        "hospital": "โรงพยาบาลวาปีปทุม",
+        "position": "ผู้อำนวยการโรงพยาบาลวาปีปทุม",
+        "email": "breeze.siri@gmail.com",
+        "phone": "087-490-7100",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เดี๋ยวแจ้งอีกที",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เดี๋ยวแจ้งอีกที",
+        "note": "",
+        "province": "มหาสารคาม",
+        "lat": 15.8453,
+        "lng": 103.3769,
+        "thaifammedId": 3753
+      }
+    },
+    {
+      "id": 3754,
+      "name": "แพทย์หญิง ปิยลักษณ์ ห้าวหาญ",
+      "cleanName": "ปิยลักษณ์ ห้าวหาญ",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "อุดรธานี",
+      "healthZone": "8",
+      "note": "",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลอุดรธานี",
+      "position": "ผู้อำนวยการโรงพยาบาลอุดรธานี",
+      "mobilePhone": "080-749-5973",
+      "email": "piyaluck.haw65@thaifammed.org",
+      "lat": 17.412541,
+      "lng": 102.784512,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลอุดรธานี",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 14,
+        "zone": "8",
+        "title": "แพทย์หญิง",
+        "name": "ปิยลักษณ์ ห้าวหาญ",
+        "hospital": "โรงพยาบาลอุดรธานี",
+        "position": "ผู้อำนวยการโรงพยาบาลอุดรธานี",
+        "email": "piyaluck.haw65@thaifammed.org",
+        "phone": "080-749-5973",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "เข้าร่วม",
+        "note": "",
+        "province": "อุดรธานี",
+        "lat": 17.412541,
+        "lng": 102.784512,
+        "thaifammedId": 3754
+      }
+    },
+    {
+      "id": 3755,
+      "name": "แพทย์หญิง ปิยวรรณ ตั้งกิจจากุล",
+      "cleanName": "ปิยวรรณ ตั้งกิจจากุล",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "นครราชสีมา",
+      "healthZone": "9",
+      "note": "",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลโนนสูง",
+      "position": "ผู้อำนวยการโรงพยาบาลโนนสูง",
+      "mobilePhone": "",
+      "email": "",
+      "lat": 15.1822,
+      "lng": 102.2575,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลโนนสูง",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 15,
+        "zone": "9",
+        "title": "แพทย์หญิง",
+        "name": "ปิยวรรณ ตั้งกิจจากุล",
+        "hospital": "โรงพยาบาลโนนสูง",
+        "position": "ผู้อำนวยการโรงพยาบาลโนนสูง",
+        "email": "",
+        "phone": "",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "",
+        "province": "นครราชสีมา",
+        "lat": 15.1822,
+        "lng": 102.2575,
+        "thaifammedId": 3755
+      }
+    },
+    {
+      "id": 3756,
+      "name": "แพทย์หญิง อุษณีษ์ ปอยสูงเนิน",
+      "cleanName": "อุษณีษ์ ปอยสูงเนิน",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "นครราชสีมา",
+      "healthZone": "9",
+      "note": "in 20 out22",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลจักราช",
+      "position": "ผู้อำนวยการโรงพยาบาลจักราช",
+      "mobilePhone": "",
+      "email": "usanee.poy@gmail.com",
+      "lat": 15.0069,
+      "lng": 102.4131,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลจักราช",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 16,
+        "zone": "9",
+        "title": "แพทย์หญิง",
+        "name": "อุษณีษ์ ปอยสูงเนิน",
+        "hospital": "โรงพยาบาลจักราช",
+        "position": "ผู้อำนวยการโรงพยาบาลจักราช",
+        "email": "usanee.poy@gmail.com",
+        "phone": "",
+        "hotel": "พักเดี่ยว (in 20 out 22)",
+        "hotelCheckIn": "20",
+        "hotelCheckOut": "22",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "in 20 out22",
+        "province": "นครราชสีมา",
+        "lat": 15.0069,
+        "lng": 102.4131,
+        "thaifammedId": 3756
+      }
+    },
+    {
+      "id": 3757,
+      "name": "แพทย์หญิง ณัฐวรรณ มีประเสริฐสกุล",
+      "cleanName": "ณัฐวรรณ มีประเสริฐสกุล",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "ศรีสะเกษ",
+      "healthZone": "10",
+      "note": "",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลกันทรลักษ์",
+      "position": "ผู้อำนวยการโรงพยาบาลกันทรลักษ์",
+      "mobilePhone": "087-696-4146",
+      "email": "aimmy_3873@hotmail.com",
+      "lat": 14.641254,
+      "lng": 104.654123,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลกันทรลักษ์",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 17,
+        "zone": "10",
+        "title": "แพทย์หญิง",
+        "name": "ณัฐวรรณ มีประเสริฐสกุล",
+        "hospital": "โรงพยาบาลกันทรลักษ์",
+        "position": "ผู้อำนวยการโรงพยาบาลกันทรลักษ์",
+        "email": "aimmy_3873@hotmail.com",
+        "phone": "087-696-4146",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "ไม่เข้าร่วม",
+        "note": "",
+        "province": "ศรีสะเกษ",
+        "lat": 14.641254,
+        "lng": 104.654123,
+        "thaifammedId": 3757
+      }
+    },
+    {
+      "id": 3758,
+      "name": "แพทย์หญิง ศิวกร ไชยสมาน",
+      "cleanName": "ศิวกร ไชยสมาน",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "ยะลา",
+      "healthZone": "12",
+      "note": "",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลยะลา",
+      "position": "ผู้อำนวยการโรงพยาบาลยะลา",
+      "mobilePhone": "",
+      "email": "",
+      "lat": 6.541254,
+      "lng": 101.284512,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลยะลา",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 20,
+        "zone": "12",
+        "title": "แพทย์หญิง",
+        "name": "ศิวกร ไชยสมาน",
+        "hospital": "โรงพยาบาลยะลา",
+        "position": "ผู้อำนวยการโรงพยาบาลยะลา",
+        "email": "",
+        "phone": "",
+        "hotel": "",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "",
+        "mainConference": "",
+        "partyNight": "",
+        "note": "",
+        "province": "ยะลา",
+        "lat": 6.541254,
+        "lng": 101.284512,
+        "thaifammedId": 3758
+      }
+    },
+    {
+      "id": 3759,
+      "name": "แพทย์หญิง ชาลิสา สมใจสุข",
+      "cleanName": "ชาลิสา สมใจสุข",
+      "fpNo": "",
+      "gpNo": "",
+      "province": "กรุงเทพมหานคร",
+      "healthZone": "13",
+      "note": "",
+      "isUpdated": true,
+      "matchedMemberId": null,
+      "photoUrl": "",
+      "workplace": "โรงพยาบาลจุฬาลงกรณ์",
+      "position": "ผู้อำนวยการโรงพยาบาลจุฬาลงกรณ์",
+      "mobilePhone": "089-694-7005",
+      "email": "",
+      "lat": 13.731792,
+      "lng": 100.534241,
+      "coordSource": "hospital_exact",
+      "facilityName": "โรงพยาบาลจุฬาลงกรณ์",
+      "isZoneDelegate": true,
+      "zoneDelegateData": {
+        "order": 22,
+        "zone": "13",
+        "title": "แพทย์หญิง",
+        "name": "ชาลิสา สมใจสุข",
+        "hospital": "โรงพยาบาลจุฬาลงกรณ์",
+        "position": "ผู้อำนวยการโรงพยาบาลจุฬาลงกรณ์",
+        "email": "",
+        "phone": "089-694-7005",
+        "hotel": "ไม่จอง",
+        "hotelCheckIn": "",
+        "hotelCheckOut": "",
+        "preConference": "เข้าร่วม",
+        "mainConference": "เข้าร่วม",
+        "partyNight": "ไม่เข้าร่วม",
+        "note": "",
+        "province": "กรุงเทพมหานคร",
+        "lat": 13.731792,
+        "lng": 100.534241,
+        "thaifammedId": 3759
+      }
     }
   ],
   "thaifammedStats": {
@@ -91726,8 +92981,548 @@ window.INITIAL_DATA = {
       "แม่ฮ่องสอน": 8
     },
     "sourceUrl": "https://database.thaifammed.org/thai_family_physicians_fp.php"
+  },
+  "zoneDelegates": [
+    {
+      "order": 1,
+      "zone": "1",
+      "title": "นายแพทย์",
+      "name": "ธนาสิทธิ์ วิจิตราพันธ์",
+      "hospital": "โรงพยาบาลสันป่าตอง",
+      "position": "ผู้อำนวยการโรงพยาบาลสันป่าตอง",
+      "email": "tanasit.bird@gmail.com",
+      "phone": "086-919-7939",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "เข้าร่วม",
+      "note": "ถ้าติดธุระจะส่งน้องมาเข้าแทน ทั้งหมด",
+      "province": "เชียงใหม่",
+      "lat": 18.625412,
+      "lng": 98.895412,
+      "thaifammedId": 3477
+    },
+    {
+      "order": 2,
+      "zone": "1",
+      "title": "นายแพทย์",
+      "name": "วีรกร ยองจา",
+      "hospital": "โรงพยาบาลจอมทอง",
+      "position": "ผู้อำนวยการโรงพยาบาลจอมทอง",
+      "email": "weerakornjames@gmail.com",
+      "phone": "085-040-3431",
+      "hotel": "",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "โทรแล้ว ไม่รับ",
+      "province": "เชียงใหม่",
+      "lat": 18.421523,
+      "lng": 98.675412,
+      "thaifammedId": 2609
+    },
+    {
+      "order": 3,
+      "zone": "2",
+      "title": "แพทย์หญิง",
+      "name": "พีรยา ขจรพันธ์",
+      "hospital": "โรงพยาบาลสุโขทัย",
+      "position": "ผู้อำนวยการโรงพยาบาลสุโขทัย",
+      "email": "",
+      "phone": "",
+      "hotel": "",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "",
+      "province": "สุโขทัย",
+      "lat": 17.012541,
+      "lng": 99.824512,
+      "thaifammedId": 3751
+    },
+    {
+      "order": 4,
+      "zone": "2",
+      "title": "นายแพทย์",
+      "name": "ยุทธศาสตร์ สุทธรินทร์",
+      "hospital": "โรงพยาบาลสวรรคโลก",
+      "position": "ผู้อำนวยการโรงพยาบาลสวรรคโลก",
+      "email": "Unitpegasus@gmail.com",
+      "phone": "080-517-3238",
+      "hotel": "เช็คอิน 19 เช็คเอาท์ 22",
+      "hotelCheckIn": "19",
+      "hotelCheckOut": "22",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "เข้าร่วม",
+      "note": "เช็คอิน 19 เช็คเอาท์ 22",
+      "province": "สุโขทัย",
+      "lat": 17.3155,
+      "lng": 99.8322,
+      "thaifammedId": 3099
+    },
+    {
+      "order": 5,
+      "zone": "3",
+      "title": "แพทย์หญิง",
+      "name": "พิมพ์ศิริ ใจบุญ",
+      "hospital": "โรงพยาบาลบึงนาราง",
+      "position": "ผู้อำนวยการโรงพยาบาลบึงนาราง",
+      "email": "",
+      "phone": "080-115-6751",
+      "hotel": "",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "",
+      "province": "พิจิตร",
+      "lat": 16.1772,
+      "lng": 100.1775,
+      "thaifammedId": 3752
+    },
+    {
+      "order": 6,
+      "zone": "3",
+      "title": "นายแพทย์",
+      "name": "ศุภโชค วีระวัฒน์โสภณ",
+      "hospital": "โรงพยาบาลชุมแสง",
+      "position": "ผู้อำนวยการโรงพยาบาลชุมแสง",
+      "email": "s.dear.w@gmail.com",
+      "phone": "082-794-5641",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "เข้าร่วม",
+      "note": "",
+      "province": "นครสวรรค์",
+      "lat": 15.8856,
+      "lng": 100.3061,
+      "sheetMemberId": 275,
+      "thaifammedId": 1763
+    },
+    {
+      "order": 7,
+      "zone": "4",
+      "title": "นายแพทย์",
+      "name": "นิติ อารมณ์ชื่น",
+      "hospital": "โรงพยาบาลพระนครศรีอยุธยา",
+      "position": "ผู้อำนวยการโรงพยาบาลพระนครศรีอยุธยา",
+      "email": "Niti_ar@hotmail.com",
+      "phone": "084-148-2784",
+      "hotel": "",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "เป็นกรรมการบริหาร",
+      "province": "พระนครศรีอยุธยา",
+      "lat": 14.354123,
+      "lng": 100.578512,
+      "sheetMemberId": 288,
+      "thaifammedId": 2119
+    },
+    {
+      "order": 8,
+      "zone": "4",
+      "title": "นายแพทย์",
+      "name": "กช พิทักษ์วงศ์โรจน์",
+      "hospital": "โรงพยาบาลพระนครศรีอยุธยา",
+      "position": "ผู้อำนวยการโรงพยาบาลพระนครศรีอยุธยา",
+      "email": "kod.phi@gmail.com",
+      "phone": "089-575-0888",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "ไม่เข้าร่วม",
+      "note": "",
+      "province": "พระนครศรีอยุธยา",
+      "lat": 14.354123,
+      "lng": 100.578512,
+      "thaifammedId": 2107
+    },
+    {
+      "order": 9,
+      "zone": "5",
+      "title": "นายแพทย์",
+      "name": "ปิติ ชาคริยานุโยค",
+      "hospital": "โรงพยาบาลสามพราน",
+      "position": "ผู้อำนวยการโรงพยาบาลสามพราน",
+      "email": "mooy069@hotmail.com",
+      "phone": "085-914-5153",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "ไม่เข้าร่วม",
+      "note": "",
+      "province": "นครปฐม",
+      "lat": 13.7258,
+      "lng": 100.2172,
+      "sheetMemberId": 181,
+      "thaifammedId": 1535
+    },
+    {
+      "order": 10,
+      "zone": "5",
+      "title": "นายแพทย์",
+      "name": "จตุภูมิ นีละศรี",
+      "hospital": "โรงพยาบาลท่ายาง",
+      "position": "ผู้อำนวยการโรงพยาบาลท่ายาง",
+      "email": "",
+      "phone": "",
+      "hotel": "",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "เป็นกรรมการบริหาร",
+      "province": "เพชรบุรี",
+      "lat": 12.9664,
+      "lng": 99.9803,
+      "thaifammedId": 1526
+    },
+    {
+      "order": 11,
+      "zone": "7",
+      "title": "แพทย์หญิง",
+      "name": "ฐิตาภรณ์ ภูตเขต",
+      "hospital": "โรงพยาบาลแกดำ",
+      "position": "ผู้อำนวยการโรงพยาบาลแกดำ",
+      "email": "Phutakhet@gmail.com",
+      "phone": "093-614-2287",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "ไม่เข้าร่วม",
+      "note": "",
+      "province": "มหาสารคาม",
+      "lat": 16.0372,
+      "lng": 103.3831,
+      "thaifammedId": 2328
+    },
+    {
+      "order": 12,
+      "zone": "7",
+      "title": "แพทย์หญิง",
+      "name": "รัชวิภา สังขเภท",
+      "hospital": "โรงพยาบาลวาปีปทุม",
+      "position": "ผู้อำนวยการโรงพยาบาลวาปีปทุม",
+      "email": "breeze.siri@gmail.com",
+      "phone": "087-490-7100",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เดี๋ยวแจ้งอีกที",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "เดี๋ยวแจ้งอีกที",
+      "note": "",
+      "province": "มหาสารคาม",
+      "lat": 15.8453,
+      "lng": 103.3769,
+      "thaifammedId": 3753
+    },
+    {
+      "order": 13,
+      "zone": "8",
+      "title": "แพทย์หญิง",
+      "name": "เรืองหทัย ปัณณราช",
+      "hospital": "โรงพยาบาลหนองหาน",
+      "position": "ผู้อำนวยการโรงพยาบาลหนองหาน",
+      "email": "Reunghathai@fammedkkh.com",
+      "phone": "081-320-9769",
+      "hotel": "",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "โทรแล้ว ไม่รับ",
+      "province": "อุดรธานี",
+      "lat": 17.3619,
+      "lng": 103.1114,
+      "thaifammedId": 3212
+    },
+    {
+      "order": 14,
+      "zone": "8",
+      "title": "แพทย์หญิง",
+      "name": "ปิยลักษณ์ ห้าวหาญ",
+      "hospital": "โรงพยาบาลอุดรธานี",
+      "position": "ผู้อำนวยการโรงพยาบาลอุดรธานี",
+      "email": "piyaluck.haw65@thaifammed.org",
+      "phone": "080-749-5973",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "เข้าร่วม",
+      "note": "",
+      "province": "อุดรธานี",
+      "lat": 17.412541,
+      "lng": 102.784512,
+      "thaifammedId": 3754
+    },
+    {
+      "order": 15,
+      "zone": "9",
+      "title": "แพทย์หญิง",
+      "name": "ปิยวรรณ ตั้งกิจจากุล",
+      "hospital": "โรงพยาบาลโนนสูง",
+      "position": "ผู้อำนวยการโรงพยาบาลโนนสูง",
+      "email": "",
+      "phone": "",
+      "hotel": "",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "",
+      "province": "นครราชสีมา",
+      "lat": 15.1822,
+      "lng": 102.2575,
+      "thaifammedId": 3755
+    },
+    {
+      "order": 16,
+      "zone": "9",
+      "title": "แพทย์หญิง",
+      "name": "อุษณีษ์ ปอยสูงเนิน",
+      "hospital": "โรงพยาบาลจักราช",
+      "position": "ผู้อำนวยการโรงพยาบาลจักราช",
+      "email": "usanee.poy@gmail.com",
+      "phone": "",
+      "hotel": "พักเดี่ยว (in 20 out 22)",
+      "hotelCheckIn": "20",
+      "hotelCheckOut": "22",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "in 20 out22",
+      "province": "นครราชสีมา",
+      "lat": 15.0069,
+      "lng": 102.4131,
+      "thaifammedId": 3756
+    },
+    {
+      "order": 17,
+      "zone": "10",
+      "title": "แพทย์หญิง",
+      "name": "ณัฐวรรณ มีประเสริฐสกุล",
+      "hospital": "โรงพยาบาลกันทรลักษ์",
+      "position": "ผู้อำนวยการโรงพยาบาลกันทรลักษ์",
+      "email": "aimmy_3873@hotmail.com",
+      "phone": "087-696-4146",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "ไม่เข้าร่วม",
+      "note": "",
+      "province": "ศรีสะเกษ",
+      "lat": 14.641254,
+      "lng": 104.654123,
+      "thaifammedId": 3757
+    },
+    {
+      "order": 18,
+      "zone": "10",
+      "title": "แพทย์หญิง",
+      "name": "สุมลมาลย์ แสนทวีสุข",
+      "hospital": "โรงพยาบาลสรรพสิทธิประสงค์",
+      "position": "ผู้อำนวยการโรงพยาบาลสรรพสิทธิประสงค์",
+      "email": "sumonman.s@gmail.com",
+      "phone": "088-560-2655",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "เข้าร่วม",
+      "note": "",
+      "province": "อุบลราชธานี",
+      "lat": 15.228512,
+      "lng": 104.858512,
+      "sheetMemberId": 295,
+      "thaifammedId": 3311
+    },
+    {
+      "order": 19,
+      "zone": "11",
+      "title": "นายแพทย์",
+      "name": "ธีรพงศ์ อร่ามเรือง",
+      "hospital": "โรงพยาบาลวชิระภูเก็ต",
+      "position": "ผู้อำนวยการโรงพยาบาลวชิระภูเก็ต",
+      "email": "teesaurus@hotmail.com",
+      "phone": "061-782-9999",
+      "hotel": "พักเดี่ยว (เช็คอิน 19 เช็คเอาท์ 23)",
+      "hotelCheckIn": "19",
+      "hotelCheckOut": "23",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "เช็คอิน 19 เช็คเอาท์ 23",
+      "province": "ภูเก็ต",
+      "lat": 7.898512,
+      "lng": 98.384512,
+      "thaifammedId": 2297
+    },
+    {
+      "order": 20,
+      "zone": "12",
+      "title": "แพทย์หญิง",
+      "name": "ศิวกร ไชยสมาน",
+      "hospital": "โรงพยาบาลยะลา",
+      "position": "ผู้อำนวยการโรงพยาบาลยะลา",
+      "email": "",
+      "phone": "",
+      "hotel": "",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "",
+      "mainConference": "",
+      "partyNight": "",
+      "note": "",
+      "province": "ยะลา",
+      "lat": 6.541254,
+      "lng": 101.284512,
+      "thaifammedId": 3758
+    },
+    {
+      "order": 21,
+      "zone": "12",
+      "title": "แพทย์หญิง",
+      "name": "ปิยวรรณ ลิ้มสุขสมบูรณ์",
+      "hospital": "โรงพยาบาลหาดใหญ่",
+      "position": "ผู้อำนวยการโรงพยาบาลหาดใหญ่",
+      "email": "p.limsuksomboon@gmail.com",
+      "phone": "086-941-7264",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "ไม่เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "ไม่เข้าร่วม",
+      "note": "โทรแล้ว ไม่รับ",
+      "province": "สงขลา",
+      "lat": 7.014512,
+      "lng": 100.468512,
+      "thaifammedId": 3004
+    },
+    {
+      "order": 22,
+      "zone": "13",
+      "title": "แพทย์หญิง",
+      "name": "ชาลิสา สมใจสุข",
+      "hospital": "โรงพยาบาลจุฬาลงกรณ์",
+      "position": "ผู้อำนวยการโรงพยาบาลจุฬาลงกรณ์",
+      "email": "",
+      "phone": "089-694-7005",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "ไม่เข้าร่วม",
+      "note": "",
+      "province": "กรุงเทพมหานคร",
+      "lat": 13.731792,
+      "lng": 100.534241,
+      "thaifammedId": 3759
+    },
+    {
+      "order": 23,
+      "zone": "13",
+      "title": "นายแพทย์",
+      "name": "พรสิทธิ์ พันธุ์พานิช",
+      "hospital": "โรงพยาบาลราชพิพัฒน์",
+      "position": "ผู้อำนวยการโรงพยาบาลราชพิพัฒน์",
+      "email": "pornsitii@gmail.com",
+      "phone": "082-952-1491",
+      "hotel": "ไม่จอง",
+      "hotelCheckIn": "",
+      "hotelCheckOut": "",
+      "preConference": "เข้าร่วม",
+      "mainConference": "เข้าร่วม",
+      "partyNight": "เข้าร่วม",
+      "note": "",
+      "province": "กรุงเทพมหานคร",
+      "lat": 13.746512,
+      "lng": 100.354123,
+      "thaifammedId": 422
+    }
+  ],
+  "zoneDelegatesMeta": {
+    "totalZones": 13,
+    "representedZones": 12,
+    "missingZones": [
+      "6"
+    ],
+    "missingZonesNote": "ขาดตัวแทนเขต 6",
+    "missingZoneDetails": [
+      {
+        "zone": "6",
+        "name": "เขตสุขภาพที่ 6 (ภาคตะวันออก)",
+        "provinces": [
+          "ชลบุรี",
+          "ระยอง",
+          "จันทบุรี",
+          "ตราด",
+          "ฉะเชิงเทรา",
+          "ปราจีนบุรี",
+          "นครนายก",
+          "สระแก้ว",
+          "สมุทรปราการ"
+        ],
+        "status": "ยังไม่มีตัวแทน"
+      }
+    ],
+    "totalDelegates": 23,
+    "stats": {
+      "preConference": {
+        "join": 13,
+        "notJoin": 1,
+        "pending": 1,
+        "unspecified": 8
+      },
+      "mainConference": {
+        "join": 14,
+        "unspecified": 9
+      },
+      "partyNight": {
+        "join": 8,
+        "notJoin": 6,
+        "pending": 1,
+        "unspecified": 8
+      },
+      "hotel": {
+        "notBooked": 14,
+        "single": 3,
+        "unspecified": 6
+      }
+    }
   }
 };
+
   </script>
   <!-- Inlined Dashboard Application Engine -->
   <script>
@@ -91786,6 +93581,7 @@ const STORAGE_KEY_BRANDING = 'MEDICAL_DASHBOARD_BRANDING_V1';
 const STORAGE_KEY_AUTH_USER = 'MEDICAL_DASHBOARD_AUTH_USER_V1';
 const STORAGE_KEY_CREDENTIALS = 'MEDICAL_DASHBOARD_CREDENTIALS_V1';
 const STORAGE_KEY_DELEGATES = 'MEDICAL_DASHBOARD_DELEGATES_V1';
+const STORAGE_KEY_ZONE_DELEGATES = 'MEDICAL_DASHBOARD_ZONE_DELEGATES_V1';
 
 // Default GAS Endpoint (realtime Google Apps Script Web App API for Sheet 1PVM2q...)
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyBksJGl_Nzlu4pv2yY63EPRpq9zHWEt_Rwicc7j_9nFBZI1-1TiBRqCErA0lRKWYFa/exec';
@@ -92071,6 +93867,20 @@ function initData() {
   });
   AppState.provinces = Array.from(provSet).sort((a, b) => a.localeCompare(b, 'th'));
 
+  // Zone Delegates & Annual Conference Data
+  AppState.zoneDelegates = window.INITIAL_DATA ? JSON.parse(JSON.stringify(window.INITIAL_DATA.zoneDelegates || [])) : [];
+  AppState.zoneDelegatesMeta = window.INITIAL_DATA ? window.INITIAL_DATA.zoneDelegatesMeta : null;
+  const savedZoneDelegates = localStorage.getItem(STORAGE_KEY_ZONE_DELEGATES);
+  if (savedZoneDelegates) {
+    try {
+      AppState.zoneDelegates = JSON.parse(savedZoneDelegates);
+    } catch(e) {}
+  }
+  const badgeDel = document.getElementById('sidebar-delegates-badge');
+  if (badgeDel && AppState.zoneDelegates) {
+    badgeDel.innerText = `${AppState.zoneDelegates.length} ท่าน`;
+  }
+
   document.getElementById('sidebar-member-badge').innerText = `${AppState.members.length} คน`;
 }
 
@@ -92200,7 +94010,7 @@ function switchView(viewName) {
   }
   AppState.currentView = viewName;
 
-  const views = ['dashboard', 'map', 'directory', 'thaifammed', 'gallery', 'geo', 'management'];
+  const views = ['dashboard', 'map', 'directory', 'thaifammed', 'gallery', 'geo', 'management', 'delegates'];
   views.forEach(v => {
     const el = document.getElementById(`view-${v}`);
     const navBtn = document.getElementById(`nav-${v}`);
@@ -92250,6 +94060,8 @@ function switchView(viewName) {
     renderPhotoGallery();
   } else if (viewName === 'geo') {
     renderGeoTable();
+  } else if (viewName === 'delegates') {
+    renderZoneDelegates();
   }
 }
 
@@ -92774,7 +94586,26 @@ function autoFillHospitalDetails(query) {
 }
 
 /* ================= INTERACTIVE MAP & MARKER RENDERING ================= */
-function getMarkerIcon(type, certGroup, isRelocating = false, isUpdated = false) {
+let mapFilterDelegatesOnly = false;
+
+function toggleMapDelegatesOnly() {
+  mapFilterDelegatesOnly = !mapFilterDelegatesOnly;
+  const btn = document.getElementById('map-btn-delegates-only');
+  if (btn) {
+    if (mapFilterDelegatesOnly) {
+      btn.className = 'py-1.5 px-3 rounded-xl border border-amber-500 bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm';
+      showToast('แสดงเฉพาะหมุดผู้แทนเขตสุขภาพ (23 ท่าน)', 'info');
+    } else {
+      btn.className = 'py-1.5 px-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold text-xs flex items-center gap-1.5 transition shadow-2xs';
+    }
+  }
+  renderMapMarkers();
+  if (mapFilterDelegatesOnly) {
+    setTimeout(fitMapBounds, 250);
+  }
+}
+
+function getMarkerIcon(type, certGroup, isRelocating = false, isUpdated = false, isDelegate = false) {
   if (isRelocating) {
     return L.divIcon({
       className: 'custom-div-icon',
@@ -92782,6 +94613,16 @@ function getMarkerIcon(type, certGroup, isRelocating = false, isUpdated = false)
       iconSize: [40, 40],
       iconAnchor: [20, 20],
       popupAnchor: [0, -20]
+    });
+  }
+
+  if (isDelegate) {
+    return L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div class="custom-pin w-9 h-9" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: 2px solid #fff; box-shadow: 0 4px 12px rgba(217,119,6,0.5); position:relative"><i class="fa-solid fa-user-tie text-xs"></i><span style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:8px;display:flex;align-items:center;justify-content:center;font-weight:bold"><i class="fa-solid fa-star text-[7px]"></i></span></div>`,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -18]
     });
   }
 
@@ -92871,10 +94712,14 @@ function renderMapMarkers() {
         if (!queryTarget.includes(searchQuery)) return;
       }
 
+      // Filter Zone Delegates
+      const isDelegate = m.isZoneDelegate || (AppState.zoneDelegates && AppState.zoneDelegates.some(d => (m.fullNameTh && m.fullNameTh.includes(d.name)) || (d.name && d.name.includes(m.fullNameTh || ''))));
+      if (mapFilterDelegatesOnly && !isDelegate) return;
+
       count++;
 
       const memberIsUpdated = updatedMemberIds.has(String(m.id));
-      const icon = getMarkerIcon('sheet', m.certGroup, false, memberIsUpdated);
+      const icon = getMarkerIcon('sheet', m.certGroup, false, memberIsUpdated, isDelegate);
       const marker = L.marker([m.lat, m.lng], { icon: icon });
 
       // แสดงชื่อแพทย์บนหมุดพิกัด (Requirement: แสดงชื่อบนหมุดเพื่อให้ทราบว่าเป็นหมุดพิกัดของใคร)
@@ -92978,9 +94823,13 @@ function renderMapMarkers() {
         if (!queryTarget.includes(searchQuery)) return;
       }
 
+      // Filter Zone Delegates
+      const isDelegate = d.isZoneDelegate || (AppState.zoneDelegates && AppState.zoneDelegates.some(zd => (d.name && d.name.includes(zd.name)) || (zd.name && zd.name.includes(d.name || ''))));
+      if (mapFilterDelegatesOnly && !isDelegate) return;
+
       count++;
 
-      const icon = getMarkerIcon('thaifammed', null, false, d.isUpdated);
+      const icon = getMarkerIcon('thaifammed', null, false, d.isUpdated, isDelegate);
       const marker = L.marker([d.lat, d.lng], { icon: icon });
 
       // แสดงชื่อแพทย์บนหมุดพิกัด (Requirement: แสดงชื่อบนหมุดเพื่อให้ทราบว่าเป็นหมุดพิกัดของใคร)
@@ -94246,6 +96095,586 @@ function focusOnMap(lat, lng, label) {
   }, 250);
 }
 
+/* ================= ZONE DELEGATES & ANNUAL CONFERENCE ================= */
+let currentDelegatesDisplayMode = 'table';
+
+const HEALTH_ZONE_INFO = {
+  '1': { name: 'เขตสุขภาพที่ 1 (ภาคเหนือตอนบน)', desc: 'เชียงใหม่, เชียงราย, แพร่, น่าน, พะเยา, ลำปาง, ลำพูน, แม่ฮ่องสอน', badge: 'bg-emerald-100 text-emerald-800' },
+  '2': { name: 'เขตสุขภาพที่ 2 (ภาคเหนือตอนล่าง)', desc: 'พิษณุโลก, เพชรบูรณ์, สุโขทัย, ตาก, อุตรดิตถ์', badge: 'bg-teal-100 text-teal-800' },
+  '3': { name: 'เขตสุขภาพที่ 3 (ภาคกลางตอนบน)', desc: 'นครสวรรค์, กำแพงเพชร, พิจิตร, ชัยนาท, อุทัยธานี', badge: 'bg-sky-100 text-sky-800' },
+  '4': { name: 'เขตสุขภาพที่ 4 (ภาคกลาง)', desc: 'สระบุรี, นนทบุรี, ลพบุรี, อ่างทอง, อยุธยา, ปทุมธานี, นครนายก, สิงห์บุรี', badge: 'bg-blue-100 text-blue-800' },
+  '5': { name: 'เขตสุขภาพที่ 5 (ภาคตะวันตก)', desc: 'ราชบุรี, นครปฐม, สุพรรณบุรี, กาญจนบุรี, สมุทรสาคร, สมุทรสงคราม, เพชรบุรี, ประจวบคีรีขันธ์', badge: 'bg-indigo-100 text-indigo-800' },
+  '6': { name: 'เขตสุขภาพที่ 6 (ภาคตะวันออก)', desc: 'ชลบุรี, ระยอง, จันทบุรี, ตราด, ฉะเชิงเทรา, ปราจีนบุรี, สระแก้ว, สมุทรปราการ', badge: 'bg-rose-100 text-rose-800' },
+  '7': { name: 'เขตสุขภาพที่ 7 (ร้อยแก่นสารสินธุ์)', desc: 'ขอนแก่น, กาฬสินธุ์, มหาสารคาม, ร้อยเอ็ด', badge: 'bg-amber-100 text-amber-800' },
+  '8': { name: 'เขตสุขภาพที่ 8 (อุดรธานี / อีสานตอนบน)', desc: 'อุดรธานี, สกลนคร, นครพนม, เลย, หนองคาย, หนองบัวลำภู, บึงกาฬ', badge: 'bg-orange-100 text-orange-800' },
+  '9': { name: 'เขตสุขภาพที่ 9 (นครชัยบุรินทร์)', desc: 'นครราชสีมา, ชัยภูมิ, บุรีรัมย์, สุรินทร์', badge: 'bg-lime-100 text-lime-800' },
+  '10': { name: 'เขตสุขภาพที่ 10 (อุบลราชธานี / อีสานตอนล่าง)', desc: 'อุบลราชธานี, ศรีสะเกษ, ยโสธร, อำนาจเจริญ, มุกดาหาร', badge: 'bg-cyan-100 text-cyan-800' },
+  '11': { name: 'เขตสุขภาพที่ 11 (ภาคใต้ตอนบน)', desc: 'สุราษฎร์ธานี, นครศรีธรรมราช, ภูเก็ต, กระบี่, พังงา, ระนอง, ชุมพร', badge: 'bg-violet-100 text-violet-800' },
+  '12': { name: 'เขตสุขภาพที่ 12 (ภาคใต้ตอนล่าง)', desc: 'สงขลา, สตูล, ตรัง, พัทลุง, ปัตตานี, ยะลา, นราธิวาส', badge: 'bg-fuchsia-100 text-fuchsia-800' },
+  '13': { name: 'เขตสุขภาพที่ 13 (กรุงเทพมหานคร)', desc: 'กรุงเทพมหานคร (กทม.)', badge: 'bg-purple-100 text-purple-800' }
+};
+
+function renderZoneDelegates() {
+  const delegates = AppState.zoneDelegates || [];
+
+  // 1. Calculate & Render KPIs
+  const totalCount = delegates.length;
+  const preJoin = delegates.filter(d => d.preConference === 'เข้าร่วม').length;
+  const preNo = delegates.filter(d => d.preConference === 'ไม่เข้าร่วม').length;
+  const preLater = delegates.filter(d => (d.preConference || '').includes('แจ้งอีกที')).length;
+  const preOther = totalCount - preJoin - preNo - preLater;
+
+  const mainJoin = delegates.filter(d => d.mainConference === 'เข้าร่วม').length;
+  const mainNo = delegates.filter(d => d.mainConference === 'ไม่เข้าร่วม').length;
+  const mainOther = totalCount - mainJoin - mainNo;
+
+  const partyJoin = delegates.filter(d => d.partyNight === 'เข้าร่วม').length;
+  const partyNo = delegates.filter(d => d.partyNight === 'ไม่เข้าร่วม').length;
+  const partyLater = delegates.filter(d => (d.partyNight || '').includes('แจ้งอีกที')).length;
+  const partyOther = totalCount - partyJoin - partyNo - partyLater;
+
+  const hotelNotBooked = delegates.filter(d => (d.hotel || '').includes('ไม่จอง')).length;
+  const hotelSingle = delegates.filter(d => (d.hotel || '').includes('พักเดี่ยว')).length;
+  const hotelOther = totalCount - hotelNotBooked - hotelSingle;
+
+  const uniqueZones = new Set(delegates.map(d => String(d.zone)).filter(Boolean));
+  const hasZone6 = uniqueZones.has('6');
+
+  if (document.getElementById('kpi-delegate-count')) {
+    document.getElementById('kpi-delegate-count').innerText = `${totalCount} ท่าน`;
+  }
+  const badgeDel = document.getElementById('sidebar-delegates-badge');
+  if (badgeDel) badgeDel.innerText = `${totalCount} ท่าน`;
+
+  if (document.getElementById('kpi-pre-join')) document.getElementById('kpi-pre-join').innerText = `${preJoin} ท่าน`;
+  if (document.getElementById('kpi-pre-detail')) document.getElementById('kpi-pre-detail').innerText = `ไม่เข้า ${preNo} • รอแจ้ง ${preLater} • อื่นๆ ${preOther}`;
+
+  if (document.getElementById('kpi-main-join')) document.getElementById('kpi-main-join').innerText = `${mainJoin} ท่าน`;
+  if (document.getElementById('kpi-main-detail')) document.getElementById('kpi-main-detail').innerText = `เข้าร่วม ${mainJoin} • ยังไม่ระบุ ${mainOther}`;
+
+  if (document.getElementById('kpi-party-join')) document.getElementById('kpi-party-join').innerText = `${partyJoin} ท่าน`;
+  if (document.getElementById('kpi-party-detail')) document.getElementById('kpi-party-detail').innerText = `ไม่เข้า ${partyNo} • รอแจ้ง ${partyLater} • อื่นๆ ${partyOther}`;
+
+  if (document.getElementById('kpi-hotel-info')) document.getElementById('kpi-hotel-info').innerText = `${hotelNotBooked} ไม่จอง`;
+  if (document.getElementById('kpi-hotel-detail')) document.getElementById('kpi-hotel-detail').innerText = `พักเดี่ยว ${hotelSingle} ท่าน • ยังไม่ระบุ ${hotelOther}`;
+
+  // Toggle Missing Zone 6 Alert Banner
+  const alertZone6 = document.getElementById('delegates-missing-zone-alert');
+  if (alertZone6) {
+    if (hasZone6) {
+      alertZone6.classList.add('hidden');
+    } else {
+      alertZone6.classList.remove('hidden');
+    }
+  }
+
+  // 2. Filter delegates
+  const query = (document.getElementById('delegates-search')?.value || '').trim().toLowerCase();
+  const zoneFilter = document.getElementById('delegates-filter-zone')?.value || 'all';
+  const preFilter = document.getElementById('delegates-filter-pre')?.value || 'all';
+  const hotelFilter = document.getElementById('delegates-filter-hotel')?.value || 'all';
+
+  let filtered = delegates.filter(d => {
+    if (zoneFilter !== 'all' && String(d.zone) !== zoneFilter) return false;
+    if (preFilter !== 'all') {
+      if (preFilter === 'ยังไม่ระบุ' && d.preConference) return false;
+      if (preFilter !== 'ยังไม่ระบุ' && d.preConference !== preFilter) return false;
+    }
+    if (hotelFilter !== 'all') {
+      if (hotelFilter === 'ยังไม่ระบุ' && d.hotel) return false;
+      if (hotelFilter !== 'ยังไม่ระบุ' && !(d.hotel || '').includes(hotelFilter)) return false;
+    }
+    if (query) {
+      const target = `${d.title} ${d.name} ${d.hospital} ${d.position} ${d.province} ${d.phone} ${d.email} ${d.note} ${d.zone}`.toLowerCase();
+      if (!target.includes(query)) return false;
+    }
+    return true;
+  });
+
+  // 3. Render Table
+  const tbody = document.getElementById('delegates-table-body');
+  const countEl = document.getElementById('delegates-table-count');
+  if (countEl) countEl.innerText = `แสดงผล ${filtered.length} จากทั้งหมด ${totalCount} รายการ`;
+
+  if (tbody) {
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="11" class="py-12 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขการค้นหา</td></tr>`;
+    } else {
+      tbody.innerHTML = filtered.map((d, idx) => {
+        const preBadge = d.preConference === 'เข้าร่วม' 
+          ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]"><i class="fa-solid fa-check mr-1 text-[9px]"></i>เข้าร่วม</span>' 
+          : (d.preConference === 'ไม่เข้าร่วม' 
+            ? '<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px]"><i class="fa-solid fa-xmark mr-1 text-[9px]"></i>ไม่เข้าร่วม</span>' 
+            : (d.preConference 
+              ? `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">${escapeHtml(d.preConference)}</span>` 
+              : '<span class="text-slate-300">-</span>'));
+
+        const mainBadge = d.mainConference === 'เข้าร่วม' 
+          ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]"><i class="fa-solid fa-check mr-1 text-[9px]"></i>เข้าร่วม</span>' 
+          : (d.mainConference 
+            ? `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px]">${escapeHtml(d.mainConference)}</span>` 
+            : '<span class="text-slate-300">-</span>');
+
+        const partyBadge = d.partyNight === 'เข้าร่วม' 
+          ? '<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-bold text-[10px]"><i class="fa-solid fa-champagne-glasses mr-1 text-[9px]"></i>เข้าร่วม</span>' 
+          : (d.partyNight === 'ไม่เข้าร่วม' 
+            ? '<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px]"><i class="fa-solid fa-xmark mr-1 text-[9px]"></i>ไม่เข้าร่วม</span>' 
+            : (d.partyNight 
+              ? `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">${escapeHtml(d.partyNight)}</span>` 
+              : '<span class="text-slate-300">-</span>'));
+
+        const hotelBadge = (d.hotel || '').includes('ไม่จอง') 
+          ? '<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px]"><i class="fa-solid fa-ban mr-1 text-[9px]"></i>ไม่จอง</span>' 
+          : ((d.hotel || '').includes('พักเดี่ยว') 
+            ? `<span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[10px]"><i class="fa-solid fa-bed mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
+            : (d.hotel 
+              ? `<span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px]"><i class="fa-solid fa-hotel mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
+              : '<span class="text-slate-300">-</span>'));
+
+        const phoneLink = d.phone 
+          ? `<a href="tel:${escapeHtml(d.phone)}" class="text-emerald-700 font-mono hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[9px]"></i> ${escapeHtml(d.phone)}</a>` 
+          : '';
+        const emailLink = d.email 
+          ? `<a href="mailto:${escapeHtml(d.email)}" class="text-sky-700 font-mono text-[10px] hover:underline flex items-center gap-1 truncate max-w-[150px]"><i class="fa-solid fa-envelope text-[9px]"></i> ${escapeHtml(d.email)}</a>` 
+          : '';
+
+        const docId = d.sheetMemberId ? String(d.sheetMemberId) : (d.thaifammedId ? 'tf_' + d.thaifammedId : d.name);
+
+        return `
+          <tr class="hover:bg-amber-50/40 transition">
+            <td class="py-3 px-3 text-center text-slate-400 font-mono">${d.order || (idx + 1)}</td>
+            <td class="py-3 px-3 text-center">
+              <span class="px-2 py-0.5 rounded-md font-bold text-[11px] bg-amber-100 text-amber-900 border border-amber-200">เขต ${escapeHtml(d.zone)}</span>
+            </td>
+            <td class="py-3 px-4">
+              <div class="font-bold text-slate-900 text-xs">${escapeHtml(d.title)} ${escapeHtml(d.name)}</div>
+              <div class="text-[10px] text-amber-700 font-medium">${escapeHtml(d.position || 'ผู้อำนวยการโรงพยาบาล')}</div>
+            </td>
+            <td class="py-3 px-4">
+              <div class="font-semibold text-slate-800 text-xs">${escapeHtml(d.hospital)}</div>
+              <div class="text-[10px] text-slate-500">จ.${escapeHtml(d.province || '-')}</div>
+            </td>
+            <td class="py-3 px-4 space-y-0.5">
+              ${phoneLink || '<span class="text-slate-300 text-[10px]">-</span>'}
+              ${emailLink}
+            </td>
+            <td class="py-3 px-3">${hotelBadge}</td>
+            <td class="py-3 px-3 text-center">${preBadge}</td>
+            <td class="py-3 px-3 text-center">${mainBadge}</td>
+            <td class="py-3 px-3 text-center">${partyBadge}</td>
+            <td class="py-3 px-4">
+              ${d.note ? `<span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[10px] inline-block leading-relaxed">${escapeHtml(d.note)}</span>` : '<span class="text-slate-300">-</span>'}
+            </td>
+            <td class="py-3 px-3 text-center">
+              <div class="flex items-center justify-center gap-1">
+                <button type="button" onclick="openMemberDetailModal('${escapeHtml(docId)}')" class="p-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 transition" title="ดูโปรไฟล์">
+                  <i class="fa-solid fa-address-card"></i>
+                </button>
+                <button type="button" onclick="focusOnMap(${d.lat || 13.7367}, ${d.lng || 100.5231}, '${escapeHtml(d.title)} ${escapeHtml(d.name)} - ${escapeHtml(d.hospital)}')" class="p-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 transition" title="ดูบนแผนที่">
+                  <i class="fa-solid fa-location-dot"></i>
+                </button>
+                <button type="button" onclick="openEditDelegateModal(${d.order})" class="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition" title="แก้ไข">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button type="button" onclick="deleteDelegate(${d.order})" class="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition" title="ลบ">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // 4. Render Zone Cards view
+  renderZoneDelegatesCards(filtered);
+}
+
+function renderZoneDelegatesCards(list) {
+  const container = document.getElementById('delegates-cards-container');
+  if (!container) return;
+
+  const zoneFilter = document.getElementById('delegates-filter-zone')?.value || 'all';
+
+  let zonesToRender = [];
+  if (zoneFilter !== 'all') {
+    zonesToRender = [zoneFilter];
+  } else {
+    for (let z = 1; z <= 13; z++) zonesToRender.push(String(z));
+  }
+
+  let html = '';
+
+  zonesToRender.forEach(z => {
+    const info = HEALTH_ZONE_INFO[z] || { name: `เขตสุขภาพที่ ${z}`, desc: '', badge: 'bg-slate-100 text-slate-800' };
+    const delegatesInZone = list.filter(d => String(d.zone) === z);
+
+    html += `
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-4 sm:p-5 space-y-3.5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-lg font-bold text-xs ${info.badge}">เขต ${z}</span>
+              <h4 class="font-bold text-slate-900 text-sm font-heading">${info.name}</h4>
+              <span class="text-xs text-slate-400 font-mono">(${delegatesInZone.length} ท่าน)</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">${info.desc}</p>
+          </div>
+          <div class="flex items-center gap-1.5 self-start sm:self-auto">
+            <button onclick="showDelegatesOnMap('${z}')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium transition flex items-center gap-1">
+              <i class="fa-solid fa-map-pin text-[10px]"></i> ดูหมุดเขตนี้
+            </button>
+            <button onclick="openAddDelegateModal('${z}')" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-medium transition flex items-center gap-1">
+              <i class="fa-solid fa-plus text-[10px]"></i> เพิ่มตัวแทน
+            </button>
+          </div>
+        </div>
+    `;
+
+    if (delegatesInZone.length === 0) {
+      if (z === '6') {
+        html += `
+          <div class="p-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-amber-200/80 text-amber-800 flex items-center justify-center text-sm font-bold shrink-0">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <div class="font-bold text-amber-900 text-xs">ขาดตัวแทนเขตสุขภาพที่ 6 (ภาคตะวันออก)</div>
+                <div class="text-[11px] text-amber-700">ชลบุรี, ระยอง, จันทบุรี, ตราด, ฉะเชิงเทรา, ปราจีนบุรี, สระแก้ว, สมุทรปราการ</div>
+              </div>
+            </div>
+            <button onclick="openAddDelegateModal('6')" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs shadow-xs transition active:scale-95 flex items-center gap-1.5 shrink-0">
+              <i class="fa-solid fa-user-plus"></i> ระบุตัวแทนเขต 6
+            </button>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="py-6 text-center text-slate-400 text-xs italic">
+            ไม่พบข้อมูลผู้แทนในเขตนี้ตามเงื่อนไขที่เลือก
+          </div>
+        `;
+      }
+    } else {
+      html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">`;
+      delegatesInZone.forEach(d => {
+        const docId = d.sheetMemberId ? String(d.sheetMemberId) : (d.thaifammedId ? 'tf_' + d.thaifammedId : d.name);
+
+        const hotelBadge = (d.hotel || '').includes('ไม่จอง') 
+          ? '<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px]">ไม่จองโรงแรม</span>' 
+          : ((d.hotel || '').includes('พักเดี่ยว') 
+            ? `<span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[10px]"><i class="fa-solid fa-bed mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
+            : (d.hotel 
+              ? `<span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px]"><i class="fa-solid fa-hotel mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
+              : '<span class="text-slate-400 text-[10px]">(ไม่ระบุโรงแรม)</span>'));
+
+        html += `
+          <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/40 hover:border-amber-300 hover:shadow-xs transition space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                  <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <div>
+                  <div class="font-bold text-slate-900 text-xs">${escapeHtml(d.title)} ${escapeHtml(d.name)}</div>
+                  <div class="text-[10px] text-amber-700 font-medium">${escapeHtml(d.position || 'ผู้อำนวยการโรงพยาบาล')}</div>
+                  <div class="text-[10px] text-slate-500 font-semibold">${escapeHtml(d.hospital)} (จ.${escapeHtml(d.province || '-')})</div>
+                </div>
+              </div>
+              <span class="text-slate-400 font-mono text-[10px]">#${d.order}</span>
+            </div>
+
+            <!-- Contact & Hotel -->
+            <div class="grid grid-cols-2 gap-2 text-[10px] pt-1 border-t border-slate-100">
+              <div class="space-y-1">
+                ${d.phone ? `<a href="tel:${escapeHtml(d.phone)}" class="text-emerald-700 font-mono hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[9px]"></i> ${escapeHtml(d.phone)}</a>` : '<span class="text-slate-400"><i class="fa-solid fa-phone text-[9px] mr-1"></i> -</span>'}
+                ${d.email ? `<a href="mailto:${escapeHtml(d.email)}" class="text-sky-700 font-mono hover:underline flex items-center gap-1 truncate"><i class="fa-solid fa-envelope text-[9px]"></i> ${escapeHtml(d.email)}</a>` : '<span class="text-slate-400"><i class="fa-solid fa-envelope text-[9px] mr-1"></i> -</span>'}
+              </div>
+              <div class="space-y-1 text-right sm:text-left">
+                <div>${hotelBadge}</div>
+                ${d.note ? `<div class="text-amber-800 font-medium truncate text-[10px]" title="${escapeHtml(d.note)}"><i class="fa-regular fa-note-sticky mr-1"></i>${escapeHtml(d.note)}</div>` : ''}
+              </div>
+            </div>
+
+            <!-- Conference Attendance Badges -->
+            <div class="flex items-center flex-wrap gap-1.5 pt-1.5 border-t border-slate-100 text-[10px]">
+              <span class="text-slate-400 font-medium">ประชุม:</span>
+              <span class="px-2 py-0.5 rounded-full ${d.preConference === 'เข้าร่วม' ? 'bg-emerald-100 text-emerald-800 font-bold' : (d.preConference === 'ไม่เข้าร่วม' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600')}">
+                Pre: ${escapeHtml(d.preConference || 'ไม่ระบุ')}
+              </span>
+              <span class="px-2 py-0.5 rounded-full ${d.mainConference === 'เข้าร่วม' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-slate-100 text-slate-600'}">
+                Main: ${escapeHtml(d.mainConference || 'ไม่ระบุ')}
+              </span>
+              <span class="px-2 py-0.5 rounded-full ${d.partyNight === 'เข้าร่วม' ? 'bg-purple-100 text-purple-800 font-bold' : (d.partyNight === 'ไม่เข้าร่วม' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600')}">
+                Party: ${escapeHtml(d.partyNight || 'ไม่ระบุ')}
+              </span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100">
+              <button type="button" onclick="openMemberDetailModal('${escapeHtml(docId)}')" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-semibold transition flex items-center gap-1">
+                <i class="fa-solid fa-address-card text-[10px]"></i> โปรไฟล์
+              </button>
+              <button type="button" onclick="focusOnMap(${d.lat || 13.7367}, ${d.lng || 100.5231}, '${escapeHtml(d.title)} ${escapeHtml(d.name)} - ${escapeHtml(d.hospital)}')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-semibold transition flex items-center gap-1">
+                <i class="fa-solid fa-location-dot text-[10px]"></i> แผนที่
+              </button>
+              <button type="button" onclick="openEditDelegateModal(${d.order})" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition flex items-center gap-1">
+                <i class="fa-solid fa-pen text-[10px]"></i> แก้ไข
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function filterZoneDelegates() {
+  renderZoneDelegates();
+}
+
+function switchDelegatesDisplayMode(mode) {
+  currentDelegatesDisplayMode = mode;
+  const tableContainer = document.getElementById('delegates-table-container');
+  const cardsContainer = document.getElementById('delegates-cards-container');
+  const btnTable = document.getElementById('btn-delegates-view-table');
+  const btnCards = document.getElementById('btn-delegates-view-cards');
+
+  if (mode === 'table') {
+    if (tableContainer) tableContainer.classList.remove('hidden');
+    if (cardsContainer) cardsContainer.classList.add('hidden');
+    if (btnTable) btnTable.className = 'flex-1 py-1.5 px-2.5 rounded-lg bg-white text-slate-900 font-bold shadow-2xs text-xs transition';
+    if (btnCards) btnCards.className = 'flex-1 py-1.5 px-2.5 rounded-lg text-slate-600 hover:text-slate-900 font-medium text-xs transition';
+  } else {
+    if (tableContainer) tableContainer.classList.add('hidden');
+    if (cardsContainer) cardsContainer.classList.remove('hidden');
+    if (btnTable) btnTable.className = 'flex-1 py-1.5 px-2.5 rounded-lg text-slate-600 hover:text-slate-900 font-medium text-xs transition';
+    if (btnCards) btnCards.className = 'flex-1 py-1.5 px-2.5 rounded-lg bg-white text-slate-900 font-bold shadow-2xs text-xs transition';
+  }
+}
+
+function showDelegatesOnMap(targetZone) {
+  switchView('map');
+  mapFilterDelegatesOnly = true;
+  const btn = document.getElementById('map-btn-delegates-only');
+  if (btn) {
+    btn.className = 'py-1.5 px-3 rounded-xl border border-amber-500 bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm';
+  }
+  if (targetZone) {
+    const zoneSelect = document.getElementById('map-filter-zone');
+    if (zoneSelect) {
+      zoneSelect.value = String(targetZone);
+      if (typeof handleMapZoneChange === 'function') {
+        handleMapZoneChange(String(targetZone));
+      }
+    }
+  }
+  renderMapMarkers();
+  setTimeout(fitMapBounds, 250);
+}
+
+function exportZoneDelegatesCsv() {
+  const delegates = AppState.zoneDelegates || [];
+  if (delegates.length === 0) {
+    showToast('ไม่มีข้อมูลผู้แทนเขตสุขภาพให้ส่งออก', 'warning');
+    return;
+  }
+
+  const headers = ['ลำดับ', 'เขตสุขภาพ', 'คำนำหน้า', 'ชื่อ-นามสกุล', 'ต้นสังกัด', 'เรียน', 'Email', 'เบอร์โทร', 'โรงแรม', 'Pre-Conference', 'Main Conference', 'Party Night', 'หมายเหตุ'];
+  
+  let csvContent = '\uFEFF' + headers.join(',') + '\n';
+
+  delegates.forEach((d, idx) => {
+    const row = [
+      d.order || (idx + 1),
+      `"เขต ${d.zone || ''}"`,
+      `"${(d.title || '').replace(/"/g, '""')}"`,
+      `"${(d.name || '').replace(/"/g, '""')}"`,
+      `"${(d.hospital || '').replace(/"/g, '""')}"`,
+      `"${(d.position || '').replace(/"/g, '""')}"`,
+      `"${(d.email || '').replace(/"/g, '""')}"`,
+      `"${(d.phone || '').replace(/"/g, '""')}"`,
+      `"${(d.hotel || '').replace(/"/g, '""')}"`,
+      `"${(d.preConference || '').replace(/"/g, '""')}"`,
+      `"${(d.mainConference || '').replace(/"/g, '""')}"`,
+      `"${(d.partyNight || '').replace(/"/g, '""')}"`,
+      `"${(d.note || '').replace(/"/g, '""')}"`
+    ];
+    csvContent += row.join(',') + '\n';
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `06_Health_Zone_Delegates_Conference_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('ดาวน์โหลดไฟล์ CSV ผู้แทนเขตสุขภาพเรียบร้อย', 'success');
+}
+
+function openAddDelegateModal(zone) {
+  openModal('delegateEditModal');
+  const titleEl = document.getElementById('delegate-modal-title');
+  if (titleEl) titleEl.innerText = 'เพิ่มข้อมูลผู้แทนเขตสุขภาพ';
+
+  document.getElementById('form-delegate-order').value = '';
+  document.getElementById('form-delegate-zone').value = zone ? String(zone) : '1';
+  document.getElementById('form-delegate-title').value = 'นายแพทย์';
+  document.getElementById('form-delegate-name').value = '';
+  document.getElementById('form-delegate-hospital').value = '';
+  document.getElementById('form-delegate-position').value = 'ผู้อำนวยการโรงพยาบาล';
+  document.getElementById('form-delegate-phone').value = '';
+  document.getElementById('form-delegate-email').value = '';
+  document.getElementById('form-delegate-pre').value = '';
+  document.getElementById('form-delegate-main').value = '';
+  document.getElementById('form-delegate-party').value = '';
+  document.getElementById('form-delegate-hotel').value = '';
+  document.getElementById('form-delegate-note').value = '';
+}
+
+function openEditDelegateModal(order) {
+  const d = (AppState.zoneDelegates || []).find(item => Number(item.order) === Number(order));
+  if (!d) {
+    showToast('ไม่พบข้อมูลผู้แทนที่ต้องการแก้ไข', 'error');
+    return;
+  }
+
+  openModal('delegateEditModal');
+  const titleEl = document.getElementById('delegate-modal-title');
+  if (titleEl) titleEl.innerText = `แก้ไขข้อมูลผู้แทนเขต ${d.zone}: ${d.title} ${d.name}`;
+
+  document.getElementById('form-delegate-order').value = d.order;
+  document.getElementById('form-delegate-zone').value = String(d.zone || '1');
+  document.getElementById('form-delegate-title').value = d.title || 'นายแพทย์';
+  document.getElementById('form-delegate-name').value = d.name || '';
+  document.getElementById('form-delegate-hospital').value = d.hospital || '';
+  document.getElementById('form-delegate-position').value = d.position || 'ผู้อำนวยการโรงพยาบาล';
+  document.getElementById('form-delegate-phone').value = d.phone || '';
+  document.getElementById('form-delegate-email').value = d.email || '';
+  document.getElementById('form-delegate-pre').value = d.preConference || '';
+  document.getElementById('form-delegate-main').value = d.mainConference || '';
+  document.getElementById('form-delegate-party').value = d.partyNight || '';
+  document.getElementById('form-delegate-hotel').value = d.hotel || '';
+  document.getElementById('form-delegate-note').value = d.note || '';
+}
+
+function saveDelegateFromModal(event) {
+  event.preventDefault();
+  const orderVal = document.getElementById('form-delegate-order').value;
+  const zone = document.getElementById('form-delegate-zone').value;
+  const title = document.getElementById('form-delegate-title').value;
+  const name = document.getElementById('form-delegate-name').value.trim();
+  const hospital = document.getElementById('form-delegate-hospital').value.trim();
+  const position = document.getElementById('form-delegate-position').value.trim();
+  const phone = document.getElementById('form-delegate-phone').value.trim();
+  const email = document.getElementById('form-delegate-email').value.trim();
+  const preConference = document.getElementById('form-delegate-pre').value;
+  const mainConference = document.getElementById('form-delegate-main').value;
+  const partyNight = document.getElementById('form-delegate-party').value;
+  const hotel = document.getElementById('form-delegate-hotel').value.trim();
+  const note = document.getElementById('form-delegate-note').value.trim();
+
+  if (!AppState.zoneDelegates) AppState.zoneDelegates = [];
+
+  if (orderVal) {
+    // Edit existing
+    const idx = AppState.zoneDelegates.findIndex(d => Number(d.order) === Number(orderVal));
+    if (idx !== -1) {
+      AppState.zoneDelegates[idx] = {
+        ...AppState.zoneDelegates[idx],
+        zone,
+        title,
+        name,
+        hospital,
+        position,
+        phone,
+        email,
+        preConference,
+        mainConference,
+        partyNight,
+        hotel,
+        note
+      };
+    }
+  } else {
+    // New delegate
+    const maxOrder = AppState.zoneDelegates.reduce((max, d) => Math.max(max, Number(d.order) || 0), 0);
+    const newOrder = maxOrder + 1;
+    
+    // Guess lat/lng from hospital if available
+    let lat = 13.7367;
+    let lng = 100.5231;
+    let province = '';
+
+    if (window.GOV_HEALTH_FACILITIES && window.GOV_HEALTH_FACILITIES.hospitals) {
+      const matchHosp = window.GOV_HEALTH_FACILITIES.hospitals.find(h => h.name && h.name.includes(hospital));
+      if (matchHosp) {
+        lat = matchHosp.lat;
+        lng = matchHosp.lng;
+        province = matchHosp.province || '';
+      }
+    }
+
+    const newDelegate = {
+      order: newOrder,
+      zone,
+      title,
+      name,
+      hospital,
+      position: position || 'ผู้อำนวยการโรงพยาบาล',
+      email,
+      phone,
+      hotel,
+      hotelCheckIn: '',
+      hotelCheckOut: '',
+      preConference,
+      mainConference,
+      partyNight,
+      note,
+      province,
+      lat,
+      lng,
+      isZoneDelegate: true
+    };
+    AppState.zoneDelegates.push(newDelegate);
+  }
+
+  // Save to LocalStorage
+  try {
+    localStorage.setItem(STORAGE_KEY_ZONE_DELEGATES, JSON.stringify(AppState.zoneDelegates));
+  } catch(e) {}
+
+  closeModal('delegateEditModal');
+  renderZoneDelegates();
+  if (AppState.map) {
+    renderMapMarkers();
+  }
+  showToast('บันทึกข้อมูลผู้แทนเขตสุขภาพเรียบร้อยแล้ว', 'success');
+}
+
+function deleteDelegate(order) {
+  if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลผู้แทนท่านนี้?')) return;
+  AppState.zoneDelegates = (AppState.zoneDelegates || []).filter(d => Number(d.order) !== Number(order));
+  try {
+    localStorage.setItem(STORAGE_KEY_ZONE_DELEGATES, JSON.stringify(AppState.zoneDelegates));
+  } catch(e) {}
+
+  renderZoneDelegates();
+  if (AppState.map) {
+    renderMapMarkers();
+  }
+  showToast('ลบข้อมูลผู้แทนเรียบร้อย', 'info');
+}
+
 /* ================= MODALS & CRUD OPERATIONS ================= */
 function getDisplayPhone(m, mType = 'sheet') {
   const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord(mType, m.id));
@@ -94484,6 +96913,44 @@ function openMemberDetailModal(id) {
   const elEmail = document.getElementById('detail-email');
   const elChan = document.getElementById('detail-channels');
   if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
+
+  // Zone Delegate & Annual Conference Highlights
+  const delSection = document.getElementById('detail-zone-delegate-section');
+  if (delSection) {
+    const cleanDocName = (m.fullNameTh || (tfDoc && tfDoc.name) || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง)\s*/, '').replace(/\s+/g, '');
+    let delData = m.zoneDelegateData || (tfDoc && tfDoc.zoneDelegateData);
+    if (!delData && AppState.zoneDelegates) {
+      delData = AppState.zoneDelegates.find(d => cleanDocName.includes(d.name.replace(/\s+/g, '')) || d.name.replace(/\s+/g, '').includes(cleanDocName));
+    }
+
+    if (delData) {
+      delSection.classList.remove('hidden');
+      const elDelZone = document.getElementById('detail-delegate-zone-title');
+      if (elDelZone) elDelZone.innerText = `ผู้แทนแพทย์ประจำเขตสุขภาพที่ ${delData.zone} (${delData.hospital})`;
+      const elDelRole = document.getElementById('detail-delegate-role-badge');
+      if (elDelRole) elDelRole.innerText = delData.position || 'ผู้อำนวยการโรงพยาบาล';
+
+      const elPre = document.getElementById('detail-delegate-pre');
+      if (elPre) elPre.innerText = delData.preConference || '(ยังไม่ระบุ)';
+      const elMain = document.getElementById('detail-delegate-main');
+      if (elMain) elMain.innerText = delData.mainConference || '(ยังไม่ระบุ)';
+      const elParty = document.getElementById('detail-delegate-party');
+      if (elParty) elParty.innerText = delData.partyNight || '(ยังไม่ระบุ)';
+      const elHotel = document.getElementById('detail-delegate-hotel');
+      if (elHotel) elHotel.innerText = delData.hotel || '(ยังไม่ระบุ)';
+
+      const noteBox = document.getElementById('detail-delegate-note-box');
+      const noteText = document.getElementById('detail-delegate-note-text');
+      if (delData.note && delData.note.trim()) {
+        if (noteBox) noteBox.classList.remove('hidden');
+        if (noteText) noteText.innerText = delData.note;
+      } else {
+        if (noteBox) noteBox.classList.add('hidden');
+      }
+    } else {
+      delSection.classList.add('hidden');
+    }
+  }
 
   // Contact Privacy Logic & Admin Unrestricted View
   const isAdmin = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
@@ -96451,7 +98918,8 @@ function setupEventListeners() {
     'gasConfigModal',
     'provinceDoctorsModal',
     'adminPasswordManagerModal',
-    'adminMemberPickerModal'
+    'adminMemberPickerModal',
+    'delegateEditModal'
   ];
 
   allModalIds.forEach(id => {

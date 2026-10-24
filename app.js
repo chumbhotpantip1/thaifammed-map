@@ -53,6 +53,7 @@ const STORAGE_KEY_BRANDING = 'MEDICAL_DASHBOARD_BRANDING_V1';
 const STORAGE_KEY_AUTH_USER = 'MEDICAL_DASHBOARD_AUTH_USER_V1';
 const STORAGE_KEY_CREDENTIALS = 'MEDICAL_DASHBOARD_CREDENTIALS_V1';
 const STORAGE_KEY_DELEGATES = 'MEDICAL_DASHBOARD_DELEGATES_V1';
+const STORAGE_KEY_ZONE_DELEGATES = 'MEDICAL_DASHBOARD_ZONE_DELEGATES_V1';
 
 // Default GAS Endpoint (realtime Google Apps Script Web App API for Sheet 1PVM2q...)
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyBksJGl_Nzlu4pv2yY63EPRpq9zHWEt_Rwicc7j_9nFBZI1-1TiBRqCErA0lRKWYFa/exec';
@@ -338,6 +339,20 @@ function initData() {
   });
   AppState.provinces = Array.from(provSet).sort((a, b) => a.localeCompare(b, 'th'));
 
+  // Zone Delegates & Annual Conference Data
+  AppState.zoneDelegates = window.INITIAL_DATA ? JSON.parse(JSON.stringify(window.INITIAL_DATA.zoneDelegates || [])) : [];
+  AppState.zoneDelegatesMeta = window.INITIAL_DATA ? window.INITIAL_DATA.zoneDelegatesMeta : null;
+  const savedZoneDelegates = localStorage.getItem(STORAGE_KEY_ZONE_DELEGATES);
+  if (savedZoneDelegates) {
+    try {
+      AppState.zoneDelegates = JSON.parse(savedZoneDelegates);
+    } catch(e) {}
+  }
+  const badgeDel = document.getElementById('sidebar-delegates-badge');
+  if (badgeDel && AppState.zoneDelegates) {
+    badgeDel.innerText = `${AppState.zoneDelegates.length} ท่าน`;
+  }
+
   document.getElementById('sidebar-member-badge').innerText = `${AppState.members.length} คน`;
 }
 
@@ -467,7 +482,7 @@ function switchView(viewName) {
   }
   AppState.currentView = viewName;
 
-  const views = ['dashboard', 'map', 'directory', 'thaifammed', 'gallery', 'geo', 'management'];
+  const views = ['dashboard', 'map', 'directory', 'thaifammed', 'gallery', 'geo', 'management', 'delegates'];
   views.forEach(v => {
     const el = document.getElementById(`view-${v}`);
     const navBtn = document.getElementById(`nav-${v}`);
@@ -517,6 +532,8 @@ function switchView(viewName) {
     renderPhotoGallery();
   } else if (viewName === 'geo') {
     renderGeoTable();
+  } else if (viewName === 'delegates') {
+    renderZoneDelegates();
   }
 }
 
@@ -1041,7 +1058,26 @@ function autoFillHospitalDetails(query) {
 }
 
 /* ================= INTERACTIVE MAP & MARKER RENDERING ================= */
-function getMarkerIcon(type, certGroup, isRelocating = false, isUpdated = false) {
+let mapFilterDelegatesOnly = false;
+
+function toggleMapDelegatesOnly() {
+  mapFilterDelegatesOnly = !mapFilterDelegatesOnly;
+  const btn = document.getElementById('map-btn-delegates-only');
+  if (btn) {
+    if (mapFilterDelegatesOnly) {
+      btn.className = 'py-1.5 px-3 rounded-xl border border-amber-500 bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm';
+      showToast('แสดงเฉพาะหมุดผู้แทนเขตสุขภาพ (23 ท่าน)', 'info');
+    } else {
+      btn.className = 'py-1.5 px-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold text-xs flex items-center gap-1.5 transition shadow-2xs';
+    }
+  }
+  renderMapMarkers();
+  if (mapFilterDelegatesOnly) {
+    setTimeout(fitMapBounds, 250);
+  }
+}
+
+function getMarkerIcon(type, certGroup, isRelocating = false, isUpdated = false, isDelegate = false) {
   if (isRelocating) {
     return L.divIcon({
       className: 'custom-div-icon',
@@ -1049,6 +1085,16 @@ function getMarkerIcon(type, certGroup, isRelocating = false, isUpdated = false)
       iconSize: [40, 40],
       iconAnchor: [20, 20],
       popupAnchor: [0, -20]
+    });
+  }
+
+  if (isDelegate) {
+    return L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div class="custom-pin w-9 h-9" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: 2px solid #fff; box-shadow: 0 4px 12px rgba(217,119,6,0.5); position:relative"><i class="fa-solid fa-user-tie text-xs"></i><span style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:8px;display:flex;align-items:center;justify-content:center;font-weight:bold"><i class="fa-solid fa-star text-[7px]"></i></span></div>`,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -18]
     });
   }
 
@@ -1138,10 +1184,14 @@ function renderMapMarkers() {
         if (!queryTarget.includes(searchQuery)) return;
       }
 
+      // Filter Zone Delegates
+      const isDelegate = m.isZoneDelegate || (AppState.zoneDelegates && AppState.zoneDelegates.some(d => (m.fullNameTh && m.fullNameTh.includes(d.name)) || (d.name && d.name.includes(m.fullNameTh || ''))));
+      if (mapFilterDelegatesOnly && !isDelegate) return;
+
       count++;
 
       const memberIsUpdated = updatedMemberIds.has(String(m.id));
-      const icon = getMarkerIcon('sheet', m.certGroup, false, memberIsUpdated);
+      const icon = getMarkerIcon('sheet', m.certGroup, false, memberIsUpdated, isDelegate);
       const marker = L.marker([m.lat, m.lng], { icon: icon });
 
       // แสดงชื่อแพทย์บนหมุดพิกัด (Requirement: แสดงชื่อบนหมุดเพื่อให้ทราบว่าเป็นหมุดพิกัดของใคร)
@@ -1245,9 +1295,13 @@ function renderMapMarkers() {
         if (!queryTarget.includes(searchQuery)) return;
       }
 
+      // Filter Zone Delegates
+      const isDelegate = d.isZoneDelegate || (AppState.zoneDelegates && AppState.zoneDelegates.some(zd => (d.name && d.name.includes(zd.name)) || (zd.name && zd.name.includes(d.name || ''))));
+      if (mapFilterDelegatesOnly && !isDelegate) return;
+
       count++;
 
-      const icon = getMarkerIcon('thaifammed', null, false, d.isUpdated);
+      const icon = getMarkerIcon('thaifammed', null, false, d.isUpdated, isDelegate);
       const marker = L.marker([d.lat, d.lng], { icon: icon });
 
       // แสดงชื่อแพทย์บนหมุดพิกัด (Requirement: แสดงชื่อบนหมุดเพื่อให้ทราบว่าเป็นหมุดพิกัดของใคร)
@@ -2513,6 +2567,586 @@ function focusOnMap(lat, lng, label) {
   }, 250);
 }
 
+/* ================= ZONE DELEGATES & ANNUAL CONFERENCE ================= */
+let currentDelegatesDisplayMode = 'table';
+
+const HEALTH_ZONE_INFO = {
+  '1': { name: 'เขตสุขภาพที่ 1 (ภาคเหนือตอนบน)', desc: 'เชียงใหม่, เชียงราย, แพร่, น่าน, พะเยา, ลำปาง, ลำพูน, แม่ฮ่องสอน', badge: 'bg-emerald-100 text-emerald-800' },
+  '2': { name: 'เขตสุขภาพที่ 2 (ภาคเหนือตอนล่าง)', desc: 'พิษณุโลก, เพชรบูรณ์, สุโขทัย, ตาก, อุตรดิตถ์', badge: 'bg-teal-100 text-teal-800' },
+  '3': { name: 'เขตสุขภาพที่ 3 (ภาคกลางตอนบน)', desc: 'นครสวรรค์, กำแพงเพชร, พิจิตร, ชัยนาท, อุทัยธานี', badge: 'bg-sky-100 text-sky-800' },
+  '4': { name: 'เขตสุขภาพที่ 4 (ภาคกลาง)', desc: 'สระบุรี, นนทบุรี, ลพบุรี, อ่างทอง, อยุธยา, ปทุมธานี, นครนายก, สิงห์บุรี', badge: 'bg-blue-100 text-blue-800' },
+  '5': { name: 'เขตสุขภาพที่ 5 (ภาคตะวันตก)', desc: 'ราชบุรี, นครปฐม, สุพรรณบุรี, กาญจนบุรี, สมุทรสาคร, สมุทรสงคราม, เพชรบุรี, ประจวบคีรีขันธ์', badge: 'bg-indigo-100 text-indigo-800' },
+  '6': { name: 'เขตสุขภาพที่ 6 (ภาคตะวันออก)', desc: 'ชลบุรี, ระยอง, จันทบุรี, ตราด, ฉะเชิงเทรา, ปราจีนบุรี, สระแก้ว, สมุทรปราการ', badge: 'bg-rose-100 text-rose-800' },
+  '7': { name: 'เขตสุขภาพที่ 7 (ร้อยแก่นสารสินธุ์)', desc: 'ขอนแก่น, กาฬสินธุ์, มหาสารคาม, ร้อยเอ็ด', badge: 'bg-amber-100 text-amber-800' },
+  '8': { name: 'เขตสุขภาพที่ 8 (อุดรธานี / อีสานตอนบน)', desc: 'อุดรธานี, สกลนคร, นครพนม, เลย, หนองคาย, หนองบัวลำภู, บึงกาฬ', badge: 'bg-orange-100 text-orange-800' },
+  '9': { name: 'เขตสุขภาพที่ 9 (นครชัยบุรินทร์)', desc: 'นครราชสีมา, ชัยภูมิ, บุรีรัมย์, สุรินทร์', badge: 'bg-lime-100 text-lime-800' },
+  '10': { name: 'เขตสุขภาพที่ 10 (อุบลราชธานี / อีสานตอนล่าง)', desc: 'อุบลราชธานี, ศรีสะเกษ, ยโสธร, อำนาจเจริญ, มุกดาหาร', badge: 'bg-cyan-100 text-cyan-800' },
+  '11': { name: 'เขตสุขภาพที่ 11 (ภาคใต้ตอนบน)', desc: 'สุราษฎร์ธานี, นครศรีธรรมราช, ภูเก็ต, กระบี่, พังงา, ระนอง, ชุมพร', badge: 'bg-violet-100 text-violet-800' },
+  '12': { name: 'เขตสุขภาพที่ 12 (ภาคใต้ตอนล่าง)', desc: 'สงขลา, สตูล, ตรัง, พัทลุง, ปัตตานี, ยะลา, นราธิวาส', badge: 'bg-fuchsia-100 text-fuchsia-800' },
+  '13': { name: 'เขตสุขภาพที่ 13 (กรุงเทพมหานคร)', desc: 'กรุงเทพมหานคร (กทม.)', badge: 'bg-purple-100 text-purple-800' }
+};
+
+function renderZoneDelegates() {
+  const delegates = AppState.zoneDelegates || [];
+
+  // 1. Calculate & Render KPIs
+  const totalCount = delegates.length;
+  const preJoin = delegates.filter(d => d.preConference === 'เข้าร่วม').length;
+  const preNo = delegates.filter(d => d.preConference === 'ไม่เข้าร่วม').length;
+  const preLater = delegates.filter(d => (d.preConference || '').includes('แจ้งอีกที')).length;
+  const preOther = totalCount - preJoin - preNo - preLater;
+
+  const mainJoin = delegates.filter(d => d.mainConference === 'เข้าร่วม').length;
+  const mainNo = delegates.filter(d => d.mainConference === 'ไม่เข้าร่วม').length;
+  const mainOther = totalCount - mainJoin - mainNo;
+
+  const partyJoin = delegates.filter(d => d.partyNight === 'เข้าร่วม').length;
+  const partyNo = delegates.filter(d => d.partyNight === 'ไม่เข้าร่วม').length;
+  const partyLater = delegates.filter(d => (d.partyNight || '').includes('แจ้งอีกที')).length;
+  const partyOther = totalCount - partyJoin - partyNo - partyLater;
+
+  const hotelNotBooked = delegates.filter(d => (d.hotel || '').includes('ไม่จอง')).length;
+  const hotelSingle = delegates.filter(d => (d.hotel || '').includes('พักเดี่ยว')).length;
+  const hotelOther = totalCount - hotelNotBooked - hotelSingle;
+
+  const uniqueZones = new Set(delegates.map(d => String(d.zone)).filter(Boolean));
+  const hasZone6 = uniqueZones.has('6');
+
+  if (document.getElementById('kpi-delegate-count')) {
+    document.getElementById('kpi-delegate-count').innerText = `${totalCount} ท่าน`;
+  }
+  const badgeDel = document.getElementById('sidebar-delegates-badge');
+  if (badgeDel) badgeDel.innerText = `${totalCount} ท่าน`;
+
+  if (document.getElementById('kpi-pre-join')) document.getElementById('kpi-pre-join').innerText = `${preJoin} ท่าน`;
+  if (document.getElementById('kpi-pre-detail')) document.getElementById('kpi-pre-detail').innerText = `ไม่เข้า ${preNo} • รอแจ้ง ${preLater} • อื่นๆ ${preOther}`;
+
+  if (document.getElementById('kpi-main-join')) document.getElementById('kpi-main-join').innerText = `${mainJoin} ท่าน`;
+  if (document.getElementById('kpi-main-detail')) document.getElementById('kpi-main-detail').innerText = `เข้าร่วม ${mainJoin} • ยังไม่ระบุ ${mainOther}`;
+
+  if (document.getElementById('kpi-party-join')) document.getElementById('kpi-party-join').innerText = `${partyJoin} ท่าน`;
+  if (document.getElementById('kpi-party-detail')) document.getElementById('kpi-party-detail').innerText = `ไม่เข้า ${partyNo} • รอแจ้ง ${partyLater} • อื่นๆ ${partyOther}`;
+
+  if (document.getElementById('kpi-hotel-info')) document.getElementById('kpi-hotel-info').innerText = `${hotelNotBooked} ไม่จอง`;
+  if (document.getElementById('kpi-hotel-detail')) document.getElementById('kpi-hotel-detail').innerText = `พักเดี่ยว ${hotelSingle} ท่าน • ยังไม่ระบุ ${hotelOther}`;
+
+  // Toggle Missing Zone 6 Alert Banner
+  const alertZone6 = document.getElementById('delegates-missing-zone-alert');
+  if (alertZone6) {
+    if (hasZone6) {
+      alertZone6.classList.add('hidden');
+    } else {
+      alertZone6.classList.remove('hidden');
+    }
+  }
+
+  // 2. Filter delegates
+  const query = (document.getElementById('delegates-search')?.value || '').trim().toLowerCase();
+  const zoneFilter = document.getElementById('delegates-filter-zone')?.value || 'all';
+  const preFilter = document.getElementById('delegates-filter-pre')?.value || 'all';
+  const hotelFilter = document.getElementById('delegates-filter-hotel')?.value || 'all';
+
+  let filtered = delegates.filter(d => {
+    if (zoneFilter !== 'all' && String(d.zone) !== zoneFilter) return false;
+    if (preFilter !== 'all') {
+      if (preFilter === 'ยังไม่ระบุ' && d.preConference) return false;
+      if (preFilter !== 'ยังไม่ระบุ' && d.preConference !== preFilter) return false;
+    }
+    if (hotelFilter !== 'all') {
+      if (hotelFilter === 'ยังไม่ระบุ' && d.hotel) return false;
+      if (hotelFilter !== 'ยังไม่ระบุ' && !(d.hotel || '').includes(hotelFilter)) return false;
+    }
+    if (query) {
+      const target = `${d.title} ${d.name} ${d.hospital} ${d.position} ${d.province} ${d.phone} ${d.email} ${d.note} ${d.zone}`.toLowerCase();
+      if (!target.includes(query)) return false;
+    }
+    return true;
+  });
+
+  // 3. Render Table
+  const tbody = document.getElementById('delegates-table-body');
+  const countEl = document.getElementById('delegates-table-count');
+  if (countEl) countEl.innerText = `แสดงผล ${filtered.length} จากทั้งหมด ${totalCount} รายการ`;
+
+  if (tbody) {
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="11" class="py-12 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขการค้นหา</td></tr>`;
+    } else {
+      tbody.innerHTML = filtered.map((d, idx) => {
+        const preBadge = d.preConference === 'เข้าร่วม' 
+          ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]"><i class="fa-solid fa-check mr-1 text-[9px]"></i>เข้าร่วม</span>' 
+          : (d.preConference === 'ไม่เข้าร่วม' 
+            ? '<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px]"><i class="fa-solid fa-xmark mr-1 text-[9px]"></i>ไม่เข้าร่วม</span>' 
+            : (d.preConference 
+              ? `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">${escapeHtml(d.preConference)}</span>` 
+              : '<span class="text-slate-300">-</span>'));
+
+        const mainBadge = d.mainConference === 'เข้าร่วม' 
+          ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]"><i class="fa-solid fa-check mr-1 text-[9px]"></i>เข้าร่วม</span>' 
+          : (d.mainConference 
+            ? `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px]">${escapeHtml(d.mainConference)}</span>` 
+            : '<span class="text-slate-300">-</span>');
+
+        const partyBadge = d.partyNight === 'เข้าร่วม' 
+          ? '<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-bold text-[10px]"><i class="fa-solid fa-champagne-glasses mr-1 text-[9px]"></i>เข้าร่วม</span>' 
+          : (d.partyNight === 'ไม่เข้าร่วม' 
+            ? '<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px]"><i class="fa-solid fa-xmark mr-1 text-[9px]"></i>ไม่เข้าร่วม</span>' 
+            : (d.partyNight 
+              ? `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">${escapeHtml(d.partyNight)}</span>` 
+              : '<span class="text-slate-300">-</span>'));
+
+        const hotelBadge = (d.hotel || '').includes('ไม่จอง') 
+          ? '<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px]"><i class="fa-solid fa-ban mr-1 text-[9px]"></i>ไม่จอง</span>' 
+          : ((d.hotel || '').includes('พักเดี่ยว') 
+            ? `<span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[10px]"><i class="fa-solid fa-bed mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
+            : (d.hotel 
+              ? `<span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px]"><i class="fa-solid fa-hotel mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
+              : '<span class="text-slate-300">-</span>'));
+
+        const phoneLink = d.phone 
+          ? `<a href="tel:${escapeHtml(d.phone)}" class="text-emerald-700 font-mono hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[9px]"></i> ${escapeHtml(d.phone)}</a>` 
+          : '';
+        const emailLink = d.email 
+          ? `<a href="mailto:${escapeHtml(d.email)}" class="text-sky-700 font-mono text-[10px] hover:underline flex items-center gap-1 truncate max-w-[150px]"><i class="fa-solid fa-envelope text-[9px]"></i> ${escapeHtml(d.email)}</a>` 
+          : '';
+
+        const docId = d.sheetMemberId ? String(d.sheetMemberId) : (d.thaifammedId ? 'tf_' + d.thaifammedId : d.name);
+
+        return `
+          <tr class="hover:bg-amber-50/40 transition">
+            <td class="py-3 px-3 text-center text-slate-400 font-mono">${d.order || (idx + 1)}</td>
+            <td class="py-3 px-3 text-center">
+              <span class="px-2 py-0.5 rounded-md font-bold text-[11px] bg-amber-100 text-amber-900 border border-amber-200">เขต ${escapeHtml(d.zone)}</span>
+            </td>
+            <td class="py-3 px-4">
+              <div class="font-bold text-slate-900 text-xs">${escapeHtml(d.title)} ${escapeHtml(d.name)}</div>
+              <div class="text-[10px] text-amber-700 font-medium">${escapeHtml(d.position || 'ผู้อำนวยการโรงพยาบาล')}</div>
+            </td>
+            <td class="py-3 px-4">
+              <div class="font-semibold text-slate-800 text-xs">${escapeHtml(d.hospital)}</div>
+              <div class="text-[10px] text-slate-500">จ.${escapeHtml(d.province || '-')}</div>
+            </td>
+            <td class="py-3 px-4 space-y-0.5">
+              ${phoneLink || '<span class="text-slate-300 text-[10px]">-</span>'}
+              ${emailLink}
+            </td>
+            <td class="py-3 px-3">${hotelBadge}</td>
+            <td class="py-3 px-3 text-center">${preBadge}</td>
+            <td class="py-3 px-3 text-center">${mainBadge}</td>
+            <td class="py-3 px-3 text-center">${partyBadge}</td>
+            <td class="py-3 px-4">
+              ${d.note ? `<span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[10px] inline-block leading-relaxed">${escapeHtml(d.note)}</span>` : '<span class="text-slate-300">-</span>'}
+            </td>
+            <td class="py-3 px-3 text-center">
+              <div class="flex items-center justify-center gap-1">
+                <button type="button" onclick="openMemberDetailModal('${escapeHtml(docId)}')" class="p-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 transition" title="ดูโปรไฟล์">
+                  <i class="fa-solid fa-address-card"></i>
+                </button>
+                <button type="button" onclick="focusOnMap(${d.lat || 13.7367}, ${d.lng || 100.5231}, '${escapeHtml(d.title)} ${escapeHtml(d.name)} - ${escapeHtml(d.hospital)}')" class="p-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 transition" title="ดูบนแผนที่">
+                  <i class="fa-solid fa-location-dot"></i>
+                </button>
+                <button type="button" onclick="openEditDelegateModal(${d.order})" class="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition" title="แก้ไข">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button type="button" onclick="deleteDelegate(${d.order})" class="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition" title="ลบ">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // 4. Render Zone Cards view
+  renderZoneDelegatesCards(filtered);
+}
+
+function renderZoneDelegatesCards(list) {
+  const container = document.getElementById('delegates-cards-container');
+  if (!container) return;
+
+  const zoneFilter = document.getElementById('delegates-filter-zone')?.value || 'all';
+
+  let zonesToRender = [];
+  if (zoneFilter !== 'all') {
+    zonesToRender = [zoneFilter];
+  } else {
+    for (let z = 1; z <= 13; z++) zonesToRender.push(String(z));
+  }
+
+  let html = '';
+
+  zonesToRender.forEach(z => {
+    const info = HEALTH_ZONE_INFO[z] || { name: `เขตสุขภาพที่ ${z}`, desc: '', badge: 'bg-slate-100 text-slate-800' };
+    const delegatesInZone = list.filter(d => String(d.zone) === z);
+
+    html += `
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-4 sm:p-5 space-y-3.5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-lg font-bold text-xs ${info.badge}">เขต ${z}</span>
+              <h4 class="font-bold text-slate-900 text-sm font-heading">${info.name}</h4>
+              <span class="text-xs text-slate-400 font-mono">(${delegatesInZone.length} ท่าน)</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">${info.desc}</p>
+          </div>
+          <div class="flex items-center gap-1.5 self-start sm:self-auto">
+            <button onclick="showDelegatesOnMap('${z}')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium transition flex items-center gap-1">
+              <i class="fa-solid fa-map-pin text-[10px]"></i> ดูหมุดเขตนี้
+            </button>
+            <button onclick="openAddDelegateModal('${z}')" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-medium transition flex items-center gap-1">
+              <i class="fa-solid fa-plus text-[10px]"></i> เพิ่มตัวแทน
+            </button>
+          </div>
+        </div>
+    `;
+
+    if (delegatesInZone.length === 0) {
+      if (z === '6') {
+        html += `
+          <div class="p-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-amber-200/80 text-amber-800 flex items-center justify-center text-sm font-bold shrink-0">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <div class="font-bold text-amber-900 text-xs">ขาดตัวแทนเขตสุขภาพที่ 6 (ภาคตะวันออก)</div>
+                <div class="text-[11px] text-amber-700">ชลบุรี, ระยอง, จันทบุรี, ตราด, ฉะเชิงเทรา, ปราจีนบุรี, สระแก้ว, สมุทรปราการ</div>
+              </div>
+            </div>
+            <button onclick="openAddDelegateModal('6')" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs shadow-xs transition active:scale-95 flex items-center gap-1.5 shrink-0">
+              <i class="fa-solid fa-user-plus"></i> ระบุตัวแทนเขต 6
+            </button>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="py-6 text-center text-slate-400 text-xs italic">
+            ไม่พบข้อมูลผู้แทนในเขตนี้ตามเงื่อนไขที่เลือก
+          </div>
+        `;
+      }
+    } else {
+      html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">`;
+      delegatesInZone.forEach(d => {
+        const docId = d.sheetMemberId ? String(d.sheetMemberId) : (d.thaifammedId ? 'tf_' + d.thaifammedId : d.name);
+
+        const hotelBadge = (d.hotel || '').includes('ไม่จอง') 
+          ? '<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px]">ไม่จองโรงแรม</span>' 
+          : ((d.hotel || '').includes('พักเดี่ยว') 
+            ? `<span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[10px]"><i class="fa-solid fa-bed mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
+            : (d.hotel 
+              ? `<span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px]"><i class="fa-solid fa-hotel mr-1 text-[9px]"></i>${escapeHtml(d.hotel)}</span>` 
+              : '<span class="text-slate-400 text-[10px]">(ไม่ระบุโรงแรม)</span>'));
+
+        html += `
+          <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/40 hover:border-amber-300 hover:shadow-xs transition space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                  <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <div>
+                  <div class="font-bold text-slate-900 text-xs">${escapeHtml(d.title)} ${escapeHtml(d.name)}</div>
+                  <div class="text-[10px] text-amber-700 font-medium">${escapeHtml(d.position || 'ผู้อำนวยการโรงพยาบาล')}</div>
+                  <div class="text-[10px] text-slate-500 font-semibold">${escapeHtml(d.hospital)} (จ.${escapeHtml(d.province || '-')})</div>
+                </div>
+              </div>
+              <span class="text-slate-400 font-mono text-[10px]">#${d.order}</span>
+            </div>
+
+            <!-- Contact & Hotel -->
+            <div class="grid grid-cols-2 gap-2 text-[10px] pt-1 border-t border-slate-100">
+              <div class="space-y-1">
+                ${d.phone ? `<a href="tel:${escapeHtml(d.phone)}" class="text-emerald-700 font-mono hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[9px]"></i> ${escapeHtml(d.phone)}</a>` : '<span class="text-slate-400"><i class="fa-solid fa-phone text-[9px] mr-1"></i> -</span>'}
+                ${d.email ? `<a href="mailto:${escapeHtml(d.email)}" class="text-sky-700 font-mono hover:underline flex items-center gap-1 truncate"><i class="fa-solid fa-envelope text-[9px]"></i> ${escapeHtml(d.email)}</a>` : '<span class="text-slate-400"><i class="fa-solid fa-envelope text-[9px] mr-1"></i> -</span>'}
+              </div>
+              <div class="space-y-1 text-right sm:text-left">
+                <div>${hotelBadge}</div>
+                ${d.note ? `<div class="text-amber-800 font-medium truncate text-[10px]" title="${escapeHtml(d.note)}"><i class="fa-regular fa-note-sticky mr-1"></i>${escapeHtml(d.note)}</div>` : ''}
+              </div>
+            </div>
+
+            <!-- Conference Attendance Badges -->
+            <div class="flex items-center flex-wrap gap-1.5 pt-1.5 border-t border-slate-100 text-[10px]">
+              <span class="text-slate-400 font-medium">ประชุม:</span>
+              <span class="px-2 py-0.5 rounded-full ${d.preConference === 'เข้าร่วม' ? 'bg-emerald-100 text-emerald-800 font-bold' : (d.preConference === 'ไม่เข้าร่วม' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600')}">
+                Pre: ${escapeHtml(d.preConference || 'ไม่ระบุ')}
+              </span>
+              <span class="px-2 py-0.5 rounded-full ${d.mainConference === 'เข้าร่วม' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-slate-100 text-slate-600'}">
+                Main: ${escapeHtml(d.mainConference || 'ไม่ระบุ')}
+              </span>
+              <span class="px-2 py-0.5 rounded-full ${d.partyNight === 'เข้าร่วม' ? 'bg-purple-100 text-purple-800 font-bold' : (d.partyNight === 'ไม่เข้าร่วม' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600')}">
+                Party: ${escapeHtml(d.partyNight || 'ไม่ระบุ')}
+              </span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100">
+              <button type="button" onclick="openMemberDetailModal('${escapeHtml(docId)}')" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-semibold transition flex items-center gap-1">
+                <i class="fa-solid fa-address-card text-[10px]"></i> โปรไฟล์
+              </button>
+              <button type="button" onclick="focusOnMap(${d.lat || 13.7367}, ${d.lng || 100.5231}, '${escapeHtml(d.title)} ${escapeHtml(d.name)} - ${escapeHtml(d.hospital)}')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-semibold transition flex items-center gap-1">
+                <i class="fa-solid fa-location-dot text-[10px]"></i> แผนที่
+              </button>
+              <button type="button" onclick="openEditDelegateModal(${d.order})" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition flex items-center gap-1">
+                <i class="fa-solid fa-pen text-[10px]"></i> แก้ไข
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function filterZoneDelegates() {
+  renderZoneDelegates();
+}
+
+function switchDelegatesDisplayMode(mode) {
+  currentDelegatesDisplayMode = mode;
+  const tableContainer = document.getElementById('delegates-table-container');
+  const cardsContainer = document.getElementById('delegates-cards-container');
+  const btnTable = document.getElementById('btn-delegates-view-table');
+  const btnCards = document.getElementById('btn-delegates-view-cards');
+
+  if (mode === 'table') {
+    if (tableContainer) tableContainer.classList.remove('hidden');
+    if (cardsContainer) cardsContainer.classList.add('hidden');
+    if (btnTable) btnTable.className = 'flex-1 py-1.5 px-2.5 rounded-lg bg-white text-slate-900 font-bold shadow-2xs text-xs transition';
+    if (btnCards) btnCards.className = 'flex-1 py-1.5 px-2.5 rounded-lg text-slate-600 hover:text-slate-900 font-medium text-xs transition';
+  } else {
+    if (tableContainer) tableContainer.classList.add('hidden');
+    if (cardsContainer) cardsContainer.classList.remove('hidden');
+    if (btnTable) btnTable.className = 'flex-1 py-1.5 px-2.5 rounded-lg text-slate-600 hover:text-slate-900 font-medium text-xs transition';
+    if (btnCards) btnCards.className = 'flex-1 py-1.5 px-2.5 rounded-lg bg-white text-slate-900 font-bold shadow-2xs text-xs transition';
+  }
+}
+
+function showDelegatesOnMap(targetZone) {
+  switchView('map');
+  mapFilterDelegatesOnly = true;
+  const btn = document.getElementById('map-btn-delegates-only');
+  if (btn) {
+    btn.className = 'py-1.5 px-3 rounded-xl border border-amber-500 bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm';
+  }
+  if (targetZone) {
+    const zoneSelect = document.getElementById('map-filter-zone');
+    if (zoneSelect) {
+      zoneSelect.value = String(targetZone);
+      if (typeof handleMapZoneChange === 'function') {
+        handleMapZoneChange(String(targetZone));
+      }
+    }
+  }
+  renderMapMarkers();
+  setTimeout(fitMapBounds, 250);
+}
+
+function exportZoneDelegatesCsv() {
+  const delegates = AppState.zoneDelegates || [];
+  if (delegates.length === 0) {
+    showToast('ไม่มีข้อมูลผู้แทนเขตสุขภาพให้ส่งออก', 'warning');
+    return;
+  }
+
+  const headers = ['ลำดับ', 'เขตสุขภาพ', 'คำนำหน้า', 'ชื่อ-นามสกุล', 'ต้นสังกัด', 'เรียน', 'Email', 'เบอร์โทร', 'โรงแรม', 'Pre-Conference', 'Main Conference', 'Party Night', 'หมายเหตุ'];
+  
+  let csvContent = '\uFEFF' + headers.join(',') + '\n';
+
+  delegates.forEach((d, idx) => {
+    const row = [
+      d.order || (idx + 1),
+      `"เขต ${d.zone || ''}"`,
+      `"${(d.title || '').replace(/"/g, '""')}"`,
+      `"${(d.name || '').replace(/"/g, '""')}"`,
+      `"${(d.hospital || '').replace(/"/g, '""')}"`,
+      `"${(d.position || '').replace(/"/g, '""')}"`,
+      `"${(d.email || '').replace(/"/g, '""')}"`,
+      `"${(d.phone || '').replace(/"/g, '""')}"`,
+      `"${(d.hotel || '').replace(/"/g, '""')}"`,
+      `"${(d.preConference || '').replace(/"/g, '""')}"`,
+      `"${(d.mainConference || '').replace(/"/g, '""')}"`,
+      `"${(d.partyNight || '').replace(/"/g, '""')}"`,
+      `"${(d.note || '').replace(/"/g, '""')}"`
+    ];
+    csvContent += row.join(',') + '\n';
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `06_Health_Zone_Delegates_Conference_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('ดาวน์โหลดไฟล์ CSV ผู้แทนเขตสุขภาพเรียบร้อย', 'success');
+}
+
+function openAddDelegateModal(zone) {
+  openModal('delegateEditModal');
+  const titleEl = document.getElementById('delegate-modal-title');
+  if (titleEl) titleEl.innerText = 'เพิ่มข้อมูลผู้แทนเขตสุขภาพ';
+
+  document.getElementById('form-delegate-order').value = '';
+  document.getElementById('form-delegate-zone').value = zone ? String(zone) : '1';
+  document.getElementById('form-delegate-title').value = 'นายแพทย์';
+  document.getElementById('form-delegate-name').value = '';
+  document.getElementById('form-delegate-hospital').value = '';
+  document.getElementById('form-delegate-position').value = 'ผู้อำนวยการโรงพยาบาล';
+  document.getElementById('form-delegate-phone').value = '';
+  document.getElementById('form-delegate-email').value = '';
+  document.getElementById('form-delegate-pre').value = '';
+  document.getElementById('form-delegate-main').value = '';
+  document.getElementById('form-delegate-party').value = '';
+  document.getElementById('form-delegate-hotel').value = '';
+  document.getElementById('form-delegate-note').value = '';
+}
+
+function openEditDelegateModal(order) {
+  const d = (AppState.zoneDelegates || []).find(item => Number(item.order) === Number(order));
+  if (!d) {
+    showToast('ไม่พบข้อมูลผู้แทนที่ต้องการแก้ไข', 'error');
+    return;
+  }
+
+  openModal('delegateEditModal');
+  const titleEl = document.getElementById('delegate-modal-title');
+  if (titleEl) titleEl.innerText = `แก้ไขข้อมูลผู้แทนเขต ${d.zone}: ${d.title} ${d.name}`;
+
+  document.getElementById('form-delegate-order').value = d.order;
+  document.getElementById('form-delegate-zone').value = String(d.zone || '1');
+  document.getElementById('form-delegate-title').value = d.title || 'นายแพทย์';
+  document.getElementById('form-delegate-name').value = d.name || '';
+  document.getElementById('form-delegate-hospital').value = d.hospital || '';
+  document.getElementById('form-delegate-position').value = d.position || 'ผู้อำนวยการโรงพยาบาล';
+  document.getElementById('form-delegate-phone').value = d.phone || '';
+  document.getElementById('form-delegate-email').value = d.email || '';
+  document.getElementById('form-delegate-pre').value = d.preConference || '';
+  document.getElementById('form-delegate-main').value = d.mainConference || '';
+  document.getElementById('form-delegate-party').value = d.partyNight || '';
+  document.getElementById('form-delegate-hotel').value = d.hotel || '';
+  document.getElementById('form-delegate-note').value = d.note || '';
+}
+
+function saveDelegateFromModal(event) {
+  event.preventDefault();
+  const orderVal = document.getElementById('form-delegate-order').value;
+  const zone = document.getElementById('form-delegate-zone').value;
+  const title = document.getElementById('form-delegate-title').value;
+  const name = document.getElementById('form-delegate-name').value.trim();
+  const hospital = document.getElementById('form-delegate-hospital').value.trim();
+  const position = document.getElementById('form-delegate-position').value.trim();
+  const phone = document.getElementById('form-delegate-phone').value.trim();
+  const email = document.getElementById('form-delegate-email').value.trim();
+  const preConference = document.getElementById('form-delegate-pre').value;
+  const mainConference = document.getElementById('form-delegate-main').value;
+  const partyNight = document.getElementById('form-delegate-party').value;
+  const hotel = document.getElementById('form-delegate-hotel').value.trim();
+  const note = document.getElementById('form-delegate-note').value.trim();
+
+  if (!AppState.zoneDelegates) AppState.zoneDelegates = [];
+
+  if (orderVal) {
+    // Edit existing
+    const idx = AppState.zoneDelegates.findIndex(d => Number(d.order) === Number(orderVal));
+    if (idx !== -1) {
+      AppState.zoneDelegates[idx] = {
+        ...AppState.zoneDelegates[idx],
+        zone,
+        title,
+        name,
+        hospital,
+        position,
+        phone,
+        email,
+        preConference,
+        mainConference,
+        partyNight,
+        hotel,
+        note
+      };
+    }
+  } else {
+    // New delegate
+    const maxOrder = AppState.zoneDelegates.reduce((max, d) => Math.max(max, Number(d.order) || 0), 0);
+    const newOrder = maxOrder + 1;
+    
+    // Guess lat/lng from hospital if available
+    let lat = 13.7367;
+    let lng = 100.5231;
+    let province = '';
+
+    if (window.GOV_HEALTH_FACILITIES && window.GOV_HEALTH_FACILITIES.hospitals) {
+      const matchHosp = window.GOV_HEALTH_FACILITIES.hospitals.find(h => h.name && h.name.includes(hospital));
+      if (matchHosp) {
+        lat = matchHosp.lat;
+        lng = matchHosp.lng;
+        province = matchHosp.province || '';
+      }
+    }
+
+    const newDelegate = {
+      order: newOrder,
+      zone,
+      title,
+      name,
+      hospital,
+      position: position || 'ผู้อำนวยการโรงพยาบาล',
+      email,
+      phone,
+      hotel,
+      hotelCheckIn: '',
+      hotelCheckOut: '',
+      preConference,
+      mainConference,
+      partyNight,
+      note,
+      province,
+      lat,
+      lng,
+      isZoneDelegate: true
+    };
+    AppState.zoneDelegates.push(newDelegate);
+  }
+
+  // Save to LocalStorage
+  try {
+    localStorage.setItem(STORAGE_KEY_ZONE_DELEGATES, JSON.stringify(AppState.zoneDelegates));
+  } catch(e) {}
+
+  closeModal('delegateEditModal');
+  renderZoneDelegates();
+  if (AppState.map) {
+    renderMapMarkers();
+  }
+  showToast('บันทึกข้อมูลผู้แทนเขตสุขภาพเรียบร้อยแล้ว', 'success');
+}
+
+function deleteDelegate(order) {
+  if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลผู้แทนท่านนี้?')) return;
+  AppState.zoneDelegates = (AppState.zoneDelegates || []).filter(d => Number(d.order) !== Number(order));
+  try {
+    localStorage.setItem(STORAGE_KEY_ZONE_DELEGATES, JSON.stringify(AppState.zoneDelegates));
+  } catch(e) {}
+
+  renderZoneDelegates();
+  if (AppState.map) {
+    renderMapMarkers();
+  }
+  showToast('ลบข้อมูลผู้แทนเรียบร้อย', 'info');
+}
+
 /* ================= MODALS & CRUD OPERATIONS ================= */
 function getDisplayPhone(m, mType = 'sheet') {
   const isOwnerOrAdmin = typeof AuthManager !== 'undefined' && (AuthManager.isAdmin() || AuthManager.isMyRecord(mType, m.id));
@@ -2751,6 +3385,44 @@ function openMemberDetailModal(id) {
   const elEmail = document.getElementById('detail-email');
   const elChan = document.getElementById('detail-channels');
   if (elChan) elChan.innerText = m.contactChannels || 'ที่อยู่ปัจจุบัน / E-mail';
+
+  // Zone Delegate & Annual Conference Highlights
+  const delSection = document.getElementById('detail-zone-delegate-section');
+  if (delSection) {
+    const cleanDocName = (m.fullNameTh || (tfDoc && tfDoc.name) || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง)\s*/, '').replace(/\s+/g, '');
+    let delData = m.zoneDelegateData || (tfDoc && tfDoc.zoneDelegateData);
+    if (!delData && AppState.zoneDelegates) {
+      delData = AppState.zoneDelegates.find(d => cleanDocName.includes(d.name.replace(/\s+/g, '')) || d.name.replace(/\s+/g, '').includes(cleanDocName));
+    }
+
+    if (delData) {
+      delSection.classList.remove('hidden');
+      const elDelZone = document.getElementById('detail-delegate-zone-title');
+      if (elDelZone) elDelZone.innerText = `ผู้แทนแพทย์ประจำเขตสุขภาพที่ ${delData.zone} (${delData.hospital})`;
+      const elDelRole = document.getElementById('detail-delegate-role-badge');
+      if (elDelRole) elDelRole.innerText = delData.position || 'ผู้อำนวยการโรงพยาบาล';
+
+      const elPre = document.getElementById('detail-delegate-pre');
+      if (elPre) elPre.innerText = delData.preConference || '(ยังไม่ระบุ)';
+      const elMain = document.getElementById('detail-delegate-main');
+      if (elMain) elMain.innerText = delData.mainConference || '(ยังไม่ระบุ)';
+      const elParty = document.getElementById('detail-delegate-party');
+      if (elParty) elParty.innerText = delData.partyNight || '(ยังไม่ระบุ)';
+      const elHotel = document.getElementById('detail-delegate-hotel');
+      if (elHotel) elHotel.innerText = delData.hotel || '(ยังไม่ระบุ)';
+
+      const noteBox = document.getElementById('detail-delegate-note-box');
+      const noteText = document.getElementById('detail-delegate-note-text');
+      if (delData.note && delData.note.trim()) {
+        if (noteBox) noteBox.classList.remove('hidden');
+        if (noteText) noteText.innerText = delData.note;
+      } else {
+        if (noteBox) noteBox.classList.add('hidden');
+      }
+    } else {
+      delSection.classList.add('hidden');
+    }
+  }
 
   // Contact Privacy Logic & Admin Unrestricted View
   const isAdmin = typeof AuthManager !== 'undefined' && AuthManager.isAdmin();
@@ -4718,7 +5390,8 @@ function setupEventListeners() {
     'gasConfigModal',
     'provinceDoctorsModal',
     'adminPasswordManagerModal',
-    'adminMemberPickerModal'
+    'adminMemberPickerModal',
+    'delegateEditModal'
   ];
 
   allModalIds.forEach(id => {
