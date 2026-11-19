@@ -47,7 +47,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- Custom Stylesheet (Versioned for cache busting) -->
-  <link rel="stylesheet" href="styles.css?v=20261001_1010">
+  <link rel="stylesheet" href="styles.css?v=20261119_2130">
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
@@ -510,7 +510,7 @@
                     <option value="sheet">สมาชิก Sheet (314 ราย)</option>
                     <option value="thaifammed">แพทย์ Thaifammed (3,750 ราย)</option>
                     <option value="cup70">เครือข่าย CUP 70 (120 แห่ง)</option>
-                    <option value="all" selected>รวมทั้งหมด (3,750 + Sheet)</option>
+                    <option value="all" selected>รวมทั้งหมด (3,750 + Sheet + CUP 70)</option>
                   </select>
                 </div>
 
@@ -934,12 +934,18 @@
           <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 class="font-bold text-slate-900 text-lg font-heading">ฐานข้อมูลพิกัดภูมิศาสตร์ (Tab: Geo)</h3>
-                <p class="text-xs text-slate-500">ฐานข้อมูลพิกัดตำบล อำเภอ จังหวัด ใช้สำหรับการปักหมุดและระบุพิกัดอัตโนมัติ</p>
+                <h3 class="font-bold text-slate-900 text-lg font-heading">ฐานข้อมูลพิกัดภูมิศาสตร์ (Tab: Geo & CUP 70)</h3>
+                <p class="text-xs text-slate-500">ฐานข้อมูลพิกัดตำบล อำเภอ จังหวัด และพิกัด รพ.แม่ข่าย CUP 70 ทั้ง 120 แห่ง ใช้สำหรับการปักหมุดอัตโนมัติ</p>
               </div>
-              <div class="relative w-64">
-                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" id="geo-search" oninput="renderGeoTable()" placeholder="ค้นหาตำบล, อำเภอ, จังหวัด..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-sky-500">
+              <div class="flex items-center flex-wrap gap-2">
+                <div class="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+                  <button type="button" id="btn-geo-mode-geo" onclick="switchGeoTableMode('geo')" class="py-1 px-2.5 rounded-lg bg-white text-slate-900 font-bold shadow-2xs transition">พิกัด Geo Master</button>
+                  <button type="button" id="btn-geo-mode-cup70" onclick="switchGeoTableMode('cup70')" class="py-1 px-2.5 rounded-lg text-slate-600 hover:text-emerald-800 font-medium transition">พิกัด CUP 70 (120)</button>
+                </div>
+                <div class="relative w-56">
+                  <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                  <input type="text" id="geo-search" oninput="renderGeoTable()" placeholder="ค้นหาตำบล, อำเภอ, รพ., จังหวัด..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-sky-500">
+                </div>
               </div>
             </div>
 
@@ -1468,7 +1474,8 @@
                     <i class="fa-solid fa-file-spreadsheet"></i> Google Sheet เชื่อมโยงสด
                   </div>
                   <p class="text-[11px] text-slate-300">
-                    <a href="https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link" target="_blank" class="text-emerald-400 font-bold underline hover:text-emerald-300">Master DB (18sXvaCY...)</a>: ฐานข้อมูลหลัก 5 แท็บ รวมแพทย์ 3,750 คน, สมาชิก 314 คน, รพ.รัฐ 135 แห่ง, 77 จังหวัด
+                    <a href="https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link" target="_blank" class="text-emerald-400 font-bold underline hover:text-emerald-300">Master DB</a> (แพทย์ 3,750 คน, สมาชิก 314 คน) &bull;
+                    <a href="https://docs.google.com/spreadsheets/d/15dS9lujvxAScArxnrvxY_xFudgkhrovL-gVx8dadV3c/edit?usp=sharing" target="_blank" class="text-teal-300 font-bold underline hover:text-teal-200">ข้อมูลพื้นฐาน CUP 70</a> (120 CUP • 1,779 PCU/NPCU • 1,014 แพทย์)
                   </p>
                 </div>
                 <div class="bg-black/25 p-3 rounded-xl border border-white/10">
@@ -3218,6 +3225,15 @@
         <span id="province-doctor-count" class="px-3 py-1 rounded-full bg-sky-100 text-sky-800 font-bold text-xs shrink-0">0 คน</span>
       </div>
 
+      <!-- CUP 70 Networks in this Province/Cluster -->
+      <div id="province-modal-cup70-bar" class="hidden px-4 py-2.5 bg-emerald-50/90 border-b border-emerald-200 space-y-1.5">
+        <div class="text-[11px] font-bold text-emerald-900 flex items-center gap-1.5">
+          <i class="fa-solid fa-house-medical text-emerald-600"></i>
+          <span>เครือข่ายหน่วยบริการปฐมภูมิ CUP 70 ในพื้นที่นี้:</span>
+        </div>
+        <div id="province-modal-cup70-chips" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
       <!-- Doctor Cards Container -->
       <div id="province-doctors-list-container" class="p-4 overflow-y-auto space-y-2.5 flex-1 divide-y divide-slate-100">
         <!-- Populated dynamically -->
@@ -3242,6 +3258,10 @@
     <button onclick="switchView('thaifammed')" id="bnav-thaifammed" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
       <i class="fa-solid fa-hospital-user text-lg mb-0.5"></i>
       <span class="text-[10px] leading-none">แพทย์ไทย</span>
+    </button>
+    <button onclick="switchView('cup70')" id="bnav-cup70" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
+      <i class="fa-solid fa-house-medical text-lg mb-0.5 text-emerald-400"></i>
+      <span class="text-[10px] leading-none">CUP 70</span>
     </button>
     <button onclick="toggleSidebar()" class="flex flex-col items-center justify-center flex-1 py-1 transition text-slate-400 hover:text-white active:scale-95">
       <i class="fa-solid fa-bars text-lg mb-0.5"></i>
@@ -3347,8 +3367,8 @@
   </div>
 
   <!-- Load Data Bundle and App Logic (Versioned for anti-cache instant updates) -->
-  <script src="gov_hospitals.js?v=20261001_1010"></script>
-  <script src="data.js?v=20261001_1010"></script>
-  <script src="app.js?v=20261001_1010"></script>
+  <script src="gov_hospitals.js?v=20261119_2130"></script>
+  <script src="data.js?v=20261119_2130"></script>
+  <script src="app.js?v=20261119_2130"></script>
 </body>
 </html>

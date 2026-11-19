@@ -356,6 +356,7 @@ function initData() {
   // CUP 70 Primary Care Baseline Data
   AppState.cup70 = window.INITIAL_DATA ? (window.INITIAL_DATA.cup70 || []) : [];
   AppState.cup70Stats = window.INITIAL_DATA ? (window.INITIAL_DATA.cup70Stats || null) : null;
+  buildCup70Indexes();
   const badgeCup = document.getElementById('sidebar-cup70-badge');
   if (badgeCup && AppState.cup70) {
     badgeCup.innerText = `${AppState.cup70.length} CUP`;
@@ -521,7 +522,7 @@ function switchView(viewName) {
   });
 
   // Sync Mobile Bottom Navigation Active Tab
-  const bottomNavItems = ['dashboard', 'map', 'directory', 'thaifammed'];
+  const bottomNavItems = ['dashboard', 'map', 'directory', 'thaifammed', 'cup70'];
   bottomNavItems.forEach(v => {
     const bEl = document.getElementById(`bnav-${v}`);
     if (bEl) {
@@ -968,20 +969,22 @@ function initMap() {
       ? cluster.getAllChildMarkers() 
       : [];
     const doctors = childMarkers.map(m => m.doctorData).filter(Boolean);
+    const clusterCups = childMarkers.map(m => m.cupData).filter(Boolean);
     AppState.currentClusterBounds = (cluster && typeof cluster.getBounds === 'function') 
       ? cluster.getBounds() 
       : null;
 
-    // Determine primary province name from markers
+    // Determine primary province name from markers (doctors + CUP 70)
     const provCounts = {};
     doctors.forEach(d => {
-      if (d.province) {
-        provCounts[d.province] = (provCounts[d.province] || 0) + 1;
-      }
+      if (d.province) provCounts[d.province] = (provCounts[d.province] || 0) + 1;
+    });
+    clusterCups.forEach(c => {
+      if (c.province) provCounts[c.province] = (provCounts[c.province] || 0) + 1;
     });
     const topProv = Object.keys(provCounts).sort((x, y) => provCounts[y] - provCounts[x])[0] || 'ในพื้นที่นี้';
 
-    openProvinceDoctorsModal(topProv, doctors);
+    openProvinceDoctorsModal(topProv, doctors, clusterCups);
   });
 
   AppState.map.addLayer(AppState.markerClusterGroup);
@@ -1313,6 +1316,7 @@ function renderMapMarkers() {
             <div><i class="fa-solid fa-hospital text-sky-600 mr-1.5"></i> ${escapeHtml(wp.name || '-')}</div>
             <div><i class="fa-solid fa-location-dot text-rose-500 mr-1.5"></i> จ.${escapeHtml(mProv || '-')} (เขตสุขภาพ ${escapeHtml(m.healthZone || '-')})</div>
             ${m.mobilePhone ? `<div><i class="fa-solid fa-phone text-emerald-600 mr-1.5"></i> <span class="font-mono text-[11px]">${escapeHtml(getDisplayPhone(m))}</span></div>` : ''}
+            ${renderCup70InlineBadge(findCup70ForDoctor({ id: m.id, licenseNo: m.licenseNo, name: m.fullNameTh }), true)}
           </div>
           <div class="pt-2 flex items-center space-x-2">
             <button onclick="openMemberDetailModal('${m.id}')" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold text-center transition">
@@ -1421,6 +1425,7 @@ function renderMapMarkers() {
             <div><i class="fa-solid fa-hospital text-teal-600 mr-1.5"></i> ${escapeHtml(d.workplace || 'ไม่ระบุสถานที่ทำงาน')}</div>
             <div><i class="fa-solid fa-location-dot text-rose-500 mr-1.5"></i> จ.${escapeHtml(d.province || '-')} (เขตสุขภาพ ${escapeHtml(d.healthZone || '-')})</div>
             ${d.note ? `<div class="text-[11px] text-amber-600"><i class="fa-solid fa-circle-info mr-1"></i> ${escapeHtml(d.note)}</div>` : ''}
+            ${renderCup70InlineBadge(findCup70ForDoctor({ id: 'tf_' + d.id, matchedMemberId: d.matchedMemberId, licenseNo: d.gpNo, name: d.name }), true)}
           </div>
           <div class="pt-2 flex items-center space-x-2">
             ${isUpdated && d.matchedMemberId ? `
@@ -1454,8 +1459,8 @@ function renderMapMarkers() {
     });
   }
 
-  // 3. Render CUP 70 Primary Care Network Markers
-  if (mapFilterCup70Only || sourceFilter === 'cup70') {
+  // 3. Render CUP 70 Primary Care Network Markers (show in CUP 70 mode OR All mode unless delegates-only is active)
+  if (mapFilterCup70Only || sourceFilter === 'cup70' || (sourceFilter === 'all' && !mapFilterDelegatesOnly)) {
     (AppState.cup70 || []).forEach(c => {
       if (!c.lat || !c.lng) return;
       if (zoneFilter !== 'all' && String(c.zone) !== zoneFilter) return;
@@ -1467,6 +1472,7 @@ function renderMapMarkers() {
 
       count++;
       const marker = L.marker([c.lat, c.lng], { icon: getCup70MarkerIcon() });
+      marker.cupData = c;
       marker.bindTooltip(escapeHtml(c.hospital), {
         permanent: true,
         direction: 'bottom',
@@ -2037,7 +2043,7 @@ function focusProvinceOnMap(provName) {
 }
 
 // Requirement 6.2: Modal แสดงรายชื่อแพทย์ทุกคนในจังหวัด / หมุดกลุ่ม
-function openProvinceDoctorsModal(provinceName, doctors) {
+function openProvinceDoctorsModal(provinceName, doctors, clusterCups = []) {
   AppState.currentProvinceDoctors = doctors || [];
 
   const titleEl = document.getElementById('province-modal-title');
@@ -2045,10 +2051,38 @@ function openProvinceDoctorsModal(provinceName, doctors) {
   const countEl = document.getElementById('province-doctor-count');
   const searchInput = document.getElementById('province-doctor-search');
 
-  if (titleEl) titleEl.textContent = `รายชื่อแพทย์ใน จ.${provinceName}`;
-  if (subEl) subEl.textContent = `พบแพทย์ทั้งหมด ${doctors.length} ท่าน ในหมุดกลุ่มพื้นที่นี้`;
-  if (countEl) countEl.textContent = `${doctors.length} คน`;
+  // Gather CUP 70 networks from cluster or by province name
+  const cupMap = new Map();
+  (clusterCups || []).forEach(c => { if (c && c.id) cupMap.set(c.id, c); });
+  if (provinceName && provinceName !== 'ในพื้นที่นี้') {
+    ((AppState.cup70ByProvince && AppState.cup70ByProvince[provinceName]) || []).forEach(c => {
+      if (c && c.id) cupMap.set(c.id, c);
+    });
+  }
+  const matchedCups = Array.from(cupMap.values());
+
+  if (titleEl) titleEl.textContent = `ข้อมูลในพื้นที่ จ.${provinceName}`;
+  if (subEl) subEl.textContent = `พบแพทย์ ${doctors.length} ท่าน${matchedCups.length ? ` และเครือข่าย CUP 70 จำนวน ${matchedCups.length} แห่ง` : ''}`;
+  if (countEl) countEl.textContent = `${doctors.length} คน${matchedCups.length ? ` • ${matchedCups.length} CUP` : ''}`;
   if (searchInput) searchInput.value = '';
+
+  const cupBar = document.getElementById('province-modal-cup70-bar');
+  const cupChips = document.getElementById('province-modal-cup70-chips');
+  if (cupBar && cupChips) {
+    if (matchedCups.length > 0) {
+      cupBar.classList.remove('hidden');
+      cupChips.innerHTML = matchedCups.map(c => `
+        <button type="button" onclick="closeModal('provinceDoctorsModal'); openCupDetailModal('${escapeHtml(c.id)}')" class="px-2.5 py-1 rounded-xl bg-white hover:bg-emerald-600 hover:text-white text-emerald-900 border border-emerald-300 text-[11px] font-semibold transition shadow-2xs flex items-center gap-1.5">
+          <i class="fa-solid fa-house-medical text-emerald-600 group-hover:text-white text-[10px]"></i>
+          <span>${escapeHtml(c.hospital)}</span>
+          <span class="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] font-mono">${c.unitCount} หน่วย</span>
+        </button>
+      `).join('');
+    } else {
+      cupBar.classList.add('hidden');
+      cupChips.innerHTML = '';
+    }
+  }
 
   renderProvinceDoctorsList(doctors);
   openModal('provinceDoctorsModal');
@@ -2446,6 +2480,7 @@ function renderDirectoryCards(members) {
                 <span class="font-mono text-[11px]">${escapeHtml(getDisplayPhone(m))}</span>
               </div>
             ` : ''}
+            ${renderCup70InlineBadge(findCup70ForDoctor({ id: m.id, licenseNo: m.licenseNo, name: m.fullNameTh }), false)}
           </div>
         </div>
 
@@ -2536,12 +2571,13 @@ function renderDirectoryTable(members) {
           </div>
         </td>
         <td class="py-2.5 px-4">
-          <div class="font-bold text-slate-900 flex items-center gap-1.5">
+          <div class="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
             ${escapeHtml(m.fullNameTh)}
             ${isRecentlyUpdated ? `<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] rounded font-bold border border-emerald-300">เพิ่งอัปเดต</span>` : ''}
             ${isMyRecord ? `<span class="px-1.5 py-0.2 bg-sky-100 text-sky-700 text-[10px] rounded font-semibold">คุณ</span>` : ''}
           </div>
           <div class="text-[11px] text-slate-400">${escapeHtml(m.fullNameEn || '-')}</div>
+          ${renderCup70InlineBadge(findCup70ForDoctor({ id: m.id, licenseNo: m.licenseNo, name: m.fullNameTh }), true)}
         </td>
         <td class="py-2.5 px-4 font-mono font-medium">${m.licenseNo ? 'ว. ' + escapeHtml(m.licenseNo) : '-'}</td>
         <td class="py-2.5 px-4">
@@ -2657,6 +2693,7 @@ function renderPhotoGallery() {
         <div class="p-3 text-xs">
           <h5 class="font-bold text-slate-900 truncate">${m.fullNameTh}</h5>
           <p class="text-[11px] text-slate-500 font-mono truncate">${m.workplace.province || 'ไม่ระบุจังหวัด'}</p>
+          ${renderCup70InlineBadge(findCup70ForDoctor({ id: m.id, licenseNo: m.licenseNo, name: m.fullNameTh }), true)}
         </div>
       </div>
     `;
@@ -2664,10 +2701,49 @@ function renderPhotoGallery() {
 }
 
 /* ================= GEO MASTER DATA ================= */
+let currentGeoTableMode = 'geo';
+
+function switchGeoTableMode(mode) {
+  currentGeoTableMode = mode;
+  const btnGeo = document.getElementById('btn-geo-mode-geo');
+  const btnCup = document.getElementById('btn-geo-mode-cup70');
+  if (btnGeo) btnGeo.className = mode === 'geo' ? 'py-1 px-2.5 rounded-lg bg-white text-slate-900 font-bold shadow-2xs transition' : 'py-1 px-2.5 rounded-lg text-slate-600 hover:text-slate-900 font-medium transition';
+  if (btnCup) btnCup.className = mode === 'cup70' ? 'py-1 px-2.5 rounded-lg bg-emerald-600 text-white font-bold shadow-2xs transition' : 'py-1 px-2.5 rounded-lg text-slate-600 hover:text-emerald-800 font-medium transition';
+  renderGeoTable();
+}
+
 function renderGeoTable() {
   const search = (document.getElementById('geo-search')?.value || '').toLowerCase().trim();
   const tbody = document.getElementById('geo-table-body');
   if (!tbody) return;
+
+  if (currentGeoTableMode === 'cup70') {
+    const filteredCups = (AppState.cup70 || []).filter(c => {
+      if (!search) return true;
+      return `${c.hospital} ${c.district} ${c.province} เขต ${c.zone} ${c.hospitalCode9}`.toLowerCase().includes(search);
+    });
+    const countEl = document.getElementById('geo-table-count');
+    if (countEl) countEl.innerText = `${filteredCups.length} CUP 70`;
+    tbody.innerHTML = filteredCups.map((c, idx) => `
+      <tr class="hover:bg-emerald-50/40 transition">
+        <td class="py-2 px-4 text-slate-400 font-mono">${idx + 1}</td>
+        <td class="py-2 px-4 font-semibold text-emerald-900">
+          <button type="button" onclick="openCupDetailModal('${escapeHtml(c.id)}')" class="hover:underline text-left">${escapeHtml(c.hospital)}</button>
+          <span class="ml-1 px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[10px]">เขต ${escapeHtml(c.zone)}</span>
+        </td>
+        <td class="py-2 px-4">${escapeHtml(c.district || '-')}</td>
+        <td class="py-2 px-4">${escapeHtml(c.province || '-')}</td>
+        <td class="py-2 px-4 font-mono text-emerald-700">${c.lat}</td>
+        <td class="py-2 px-4 font-mono text-emerald-700">${c.lng}</td>
+        <td class="py-2 px-4 text-center">
+          <button type="button" onclick="focusCup70OnMap('${escapeHtml(c.id)}')" class="p-1 px-2 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition font-medium">
+            <i class="fa-solid fa-location-arrow mr-1"></i> ดูหมุด CUP
+          </button>
+        </td>
+      </tr>
+    `).join('');
+    return;
+  }
 
   const filtered = AppState.geoMaster.filter(g => {
     if (!search) return true;
@@ -2827,6 +2903,7 @@ function renderZoneDelegates() {
             <td class="py-3 px-4">
               <div class="font-semibold text-slate-800 text-xs">${escapeHtml(d.hospital)}</div>
               <div class="text-[10px] text-slate-500">จ.${escapeHtml(d.province || '-')}</div>
+              ${renderCup70HospitalBadge(findCup70ForHospital(d.hospital, d.province))}
             </td>
             <td class="py-3 px-4 space-y-0.5">
               ${phoneLink || '<span class="text-slate-300 text-[10px]">-</span>'}
@@ -2944,6 +3021,7 @@ function renderZoneDelegatesCards(list) {
                 <div>
                   <div class="font-bold text-slate-900 text-xs">${escapeHtml(d.title)} ${escapeHtml(d.name)}</div>
                   <div class="text-[10px] text-slate-500 font-semibold">${escapeHtml(d.hospital)} (จ.${escapeHtml(d.province || '-')})</div>
+                  ${renderCup70HospitalBadge(findCup70ForHospital(d.hospital, d.province))}
                 </div>
               </div>
               <span class="text-slate-400 font-mono text-[10px]">#${d.order}</span>
@@ -3223,6 +3301,143 @@ let cup70ZoneChart = null;
 let cup70CertChart = null;
 let cup70FilteredUnitsCache = [];
 let cup70FilteredDoctorsCache = [];
+
+function cleanThaiPersonName(name) {
+  return String(name || '')
+    .replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง|ดร\.)\s*/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+function cleanThaiHospName(name) {
+  return String(name || '')
+    .replace(/^รพ\.\s*/g, 'โรงพยาบาล')
+    .replace(/โรงพยาบาล/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+function buildCup70Indexes() {
+  const byLic = {};
+  const byId = {};
+  const byName = {};
+  const byProv = {};
+  const byHosp = {};
+
+  (AppState.cup70 || []).forEach(c => {
+    if (c.province) {
+      if (!byProv[c.province]) byProv[c.province] = [];
+      byProv[c.province].push(c);
+    }
+    const hn = cleanThaiHospName(c.hospital);
+    if (hn) {
+      byHosp[`${c.province || ''}|${hn}`] = c;
+      if (!byHosp[hn]) byHosp[hn] = c;
+    }
+
+    (c.doctors || []).forEach(d => {
+      const entry = { cup: c, doc: d };
+      if (d.licenseNo) {
+        const lic = String(d.licenseNo).replace(/\D/g, '');
+        if (lic) {
+          if (!byLic[lic]) byLic[lic] = [];
+          byLic[lic].push(entry);
+        }
+      }
+      if (d.matchedId) {
+        const mid = String(d.matchedId);
+        if (!byId[mid]) byId[mid] = [];
+        byId[mid].push(entry);
+      }
+      const cn = cleanThaiPersonName(d.name);
+      if (cn.length >= 4) {
+        if (!byName[cn]) byName[cn] = [];
+        byName[cn].push(entry);
+      }
+    });
+  });
+
+  AppState.cup70ByLicense = byLic;
+  AppState.cup70ByMatchedId = byId;
+  AppState.cup70ByCleanName = byName;
+  AppState.cup70ByProvince = byProv;
+  AppState.cup70ByHospital = byHosp;
+}
+
+function findCup70ForDoctor(docInfo) {
+  if (!docInfo || !AppState.cup70 || AppState.cup70.length === 0) return [];
+  if (!AppState.cup70ByLicense) buildCup70Indexes();
+
+  const seen = new Set();
+  const res = [];
+  const pushAll = (arr) => {
+    if (!arr) return;
+    arr.forEach(item => {
+      const key = `${item.cup.id}|${item.doc.unitName || ''}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        res.push(item);
+      }
+    });
+  };
+
+  if (docInfo.id) pushAll(AppState.cup70ByMatchedId[String(docInfo.id)]);
+  if (docInfo.matchedMemberId) pushAll(AppState.cup70ByMatchedId[String(docInfo.matchedMemberId)]);
+  if (docInfo.licenseNo) {
+    const lic = String(docInfo.licenseNo).replace(/\D/g, '');
+    if (lic) pushAll(AppState.cup70ByLicense[lic]);
+  }
+  if (docInfo.name) {
+    const cn = cleanThaiPersonName(docInfo.name);
+    if (cn.length >= 4) pushAll(AppState.cup70ByCleanName[cn]);
+  }
+  return res;
+}
+
+function findCup70ForHospital(hospName, province) {
+  if (!hospName || !AppState.cup70 || AppState.cup70.length === 0) return null;
+  if (!AppState.cup70ByHospital) buildCup70Indexes();
+  const hn = cleanThaiHospName(hospName);
+  if (!hn) return null;
+  if (province && AppState.cup70ByHospital[`${province}|${hn}`]) {
+    return AppState.cup70ByHospital[`${province}|${hn}`];
+  }
+  if (AppState.cup70ByHospital[hn]) return AppState.cup70ByHospital[hn];
+  // Partial match within same province
+  const provCups = (province && AppState.cup70ByProvince[province]) ? AppState.cup70ByProvince[province] : AppState.cup70;
+  return provCups.find(c => {
+    const cn = cleanThaiHospName(c.hospital);
+    return cn && hn && (cn.includes(hn) || hn.includes(cn));
+  }) || null;
+}
+
+function renderCup70InlineBadge(matches, compact = false) {
+  if (!matches || matches.length === 0) return '';
+  const first = matches[0];
+  const label = compact
+    ? `CUP 70: ${first.doc.unitName || first.cup.hospital}`
+    : `CUP 70 (${first.cup.hospital}): ${first.doc.unitName || '-'}`;
+  return `
+    <div class="mt-1">
+      <button type="button" onclick="event.stopPropagation(); openCupDetailModal('${escapeHtml(first.cup.id)}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-800 border border-emerald-300 text-[10px] font-semibold transition max-w-full" title="คลิกเพื่อดูข้อมูล CUP 70: ${escapeHtml(first.cup.hospital)}">
+        <i class="fa-solid fa-house-medical text-[9px] shrink-0"></i>
+        <span class="truncate">${escapeHtml(label)}</span>
+      </button>
+    </div>
+  `;
+}
+
+function renderCup70HospitalBadge(cup) {
+  if (!cup) return '';
+  return `
+    <div class="mt-1">
+      <button type="button" onclick="event.stopPropagation(); openCupDetailModal('${escapeHtml(cup.id)}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-800 border border-emerald-300 text-[10px] font-semibold transition" title="ดูรายละเอียดเครือข่าย CUP 70">
+        <i class="fa-solid fa-house-medical text-[9px]"></i>
+        <span>CUP 70 (${cup.unitCount} หน่วย • ${(cup.totalPopulation || 0).toLocaleString()} คน)</span>
+      </button>
+    </div>
+  `;
+}
 
 function getCup70CertBadge(cert) {
   const c = (cert || '').trim();
@@ -3772,7 +3987,7 @@ function openCupDetailModal(cupId) {
   openModal('cupDetailModal');
 }
 
-function showCup70OnMap(targetZone) {
+function showCup70OnMap(targetZone, skipFit = false) {
   switchView('map');
   mapFilterDelegatesOnly = false;
   mapFilterCup70Only = true;
@@ -3791,14 +4006,14 @@ function showCup70OnMap(targetZone) {
   }
   setTimeout(() => {
     renderMapMarkers();
-    setTimeout(fitMapBounds, 250);
-  }, 200);
+    if (!skipFit) setTimeout(fitMapBounds, 200);
+  }, 220);
 }
 
 function focusCup70OnMap(cupId) {
   const c = (AppState.cup70 || []).find(item => item.id === cupId);
   if (!c) return;
-  showCup70OnMap();
+  showCup70OnMap(null, true);
   setTimeout(() => {
     if (AppState.map) {
       AppState.map.setView([c.lat, c.lng], 12);
@@ -3807,7 +4022,7 @@ function focusCup70OnMap(cupId) {
         .setContent(`<div class="p-2 font-sans text-xs space-y-1"><div class="font-bold text-emerald-800">${escapeHtml(c.hospital)}</div><div class="text-slate-600">เขต ${escapeHtml(c.zone)} • อ.${escapeHtml(c.district || '-')} จ.${escapeHtml(c.province)}</div><div class="text-[11px] text-slate-500">หน่วยบริการ ${c.unitCount} แห่ง • ประชากร ${(c.totalPopulation || 0).toLocaleString()} คน</div><button onclick="openCupDetailModal('${escapeHtml(c.id)}')" class="mt-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[11px] font-semibold">ดูรายละเอียด CUP</button></div>`)
         .openOn(AppState.map);
     }
-  }, 450);
+  }, 380);
 }
 
 function exportCup70Csv(mode = 'cups') {
@@ -6321,6 +6536,7 @@ function renderThaifammed() {
               </div>
               ${d.workplace ? `<div class="text-[11px] text-slate-400 truncate max-w-xs">${escapeHtml(d.workplace)}</div>` : ''}
               ${d.note ? `<div class="text-[10px] text-amber-600 truncate max-w-xs"><i class="fa-solid fa-circle-info mr-0.5"></i> ${escapeHtml(d.note)}</div>` : ''}
+              ${renderCup70InlineBadge(findCup70ForDoctor({ id: 'tf_' + d.id, matchedMemberId: d.matchedMemberId, licenseNo: d.gpNo, name: d.name }), true)}
             </div>
           </div>
         </td>
