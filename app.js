@@ -2482,14 +2482,14 @@ function renderDirectoryCards(members) {
         <div>
           <!-- Header with Avatar & Badge -->
           <div class="flex items-start space-x-3.5 mb-3.5">
-            <div class="relative w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+            <button type="button" onclick="openMemberDetailModal('${m.id}')" class="relative w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 hover:border-sky-400 shrink-0 cursor-pointer transition" title="เปิดโปรไฟล์แพทย์">
               <img src="${photoSrc}" alt="${escapeHtml(m.fullNameTh)}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover avatar-img" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
-            </div>
+            </button>
             <div class="min-w-0 flex-1">
               <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${certBadgeClass} mb-1">
                 ${escapeHtml(cg || 'วุฒิบัตร')}
               </span>
-              <h4 class="font-bold text-slate-900 text-sm leading-snug truncate">${escapeHtml(m.fullNameTh)}</h4>
+              <h4 class="font-bold text-slate-900 text-sm leading-snug truncate"><button type="button" onclick="openMemberDetailModal('${m.id}')" class="hover:text-sky-700 hover:underline text-left truncate max-w-full">${escapeHtml(m.fullNameTh)}</button></h4>
               <p class="text-[11px] text-slate-400 font-mono">${m.licenseNo ? 'ว. ' + escapeHtml(m.licenseNo) : 'ไม่ระบุเลข ว.'}</p>
             </div>
           </div>
@@ -2596,13 +2596,13 @@ function renderDirectoryTable(members) {
     return `
       <tr class="hover:bg-slate-50 transition ${isRecentlyUpdated ? 'bg-emerald-50/70 font-semibold' : (isMyRecord ? 'bg-sky-50/50' : '')}">
         <td class="py-2.5 px-4">
-          <div class="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+          <button type="button" onclick="openMemberDetailModal('${m.id}')" class="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 hover:border-sky-400 cursor-pointer block transition" title="เปิดโปรไฟล์แพทย์">
             <img src="${photoSrc}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
-          </div>
+          </button>
         </td>
         <td class="py-2.5 px-4">
           <div class="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
-            ${escapeHtml(m.fullNameTh)}
+            <button type="button" onclick="openMemberDetailModal('${m.id}')" class="hover:text-sky-700 hover:underline text-left">${escapeHtml(m.fullNameTh)}</button>
             ${isRecentlyUpdated ? `<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] rounded font-bold border border-emerald-300">เพิ่งอัปเดต</span>` : ''}
             ${isMyRecord ? `<span class="px-1.5 py-0.2 bg-sky-100 text-sky-700 text-[10px] rounded font-semibold">คุณ</span>` : ''}
           </div>
@@ -2704,24 +2704,24 @@ function renderPhotoGallery() {
 
     return `
       <div class="group relative bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-md transition">
-        <div class="aspect-square w-full bg-slate-100 overflow-hidden relative">
-          <img src="${photoSrc}" alt="${m.fullNameTh}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 avatar-img" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
+        <div onclick="openMemberDetailModal('${m.id}')" class="aspect-square w-full bg-slate-100 overflow-hidden relative cursor-pointer" title="คลิกเพื่อเปิดโปรไฟล์แพทย์">
+          <img src="${photoSrc}" alt="${escapeHtml(m.fullNameTh)}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 avatar-img" onerror="handleImgError(this, '${driveId}', '${encodedName}')">
           <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition flex items-end p-2.5 gap-1.5">
-            <button onclick="openMemberDetailModal('${m.id}')" class="flex-1 py-1.5 bg-sky-500 hover:bg-sky-400 text-white rounded-lg text-xs font-semibold shadow transition text-center">
+            <button type="button" onclick="event.stopPropagation(); openMemberDetailModal('${m.id}')" class="flex-1 py-1.5 bg-sky-500 hover:bg-sky-400 text-white rounded-lg text-xs font-semibold shadow transition text-center">
               ดูประวัติ
             </button>
             ${canEdit ? `
-              <button onclick="openCameraCaptureModal('gallery', '${m.id}')" class="py-1.5 px-2 bg-sky-600/90 hover:bg-sky-600 text-white rounded-lg text-xs font-semibold shadow transition" title="ถ่ายรูปใหม่ด้วยกล้อง">
+              <button type="button" onclick="event.stopPropagation(); openCameraCaptureModal('gallery', '${m.id}')" class="py-1.5 px-2 bg-sky-600/90 hover:bg-sky-600 text-white rounded-lg text-xs font-semibold shadow transition" title="ถ่ายรูปใหม่ด้วยกล้อง">
                 <i class="fa-solid fa-camera"></i>
               </button>
-              <button onclick="openEditMemberModal('${m.id}')" class="py-1.5 px-2 bg-white/80 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow transition" title="แก้ไขข้อมูล">
+              <button type="button" onclick="event.stopPropagation(); openEditMemberModal('${m.id}')" class="py-1.5 px-2 bg-white/80 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow transition" title="แก้ไขข้อมูล">
                 <i class="fa-solid fa-pen-to-square"></i>
               </button>
             ` : ''}
           </div>
         </div>
         <div class="p-3 text-xs">
-          <h5 class="font-bold text-slate-900 truncate">${m.fullNameTh}</h5>
+          <h5 class="font-bold text-slate-900 truncate"><button type="button" onclick="openMemberDetailModal('${m.id}')" class="hover:text-sky-700 hover:underline text-left truncate max-w-full">${escapeHtml(m.fullNameTh)}</button></h5>
           <p class="text-[11px] text-slate-500 font-mono truncate">${m.workplace.province || 'ไม่ระบุจังหวัด'}</p>
           ${renderCup70InlineBadge(findCup70ForDoctor({ id: m.id, licenseNo: m.licenseNo, name: m.fullNameTh }), true)}
         </div>
@@ -3045,11 +3045,11 @@ function renderZoneDelegatesCards(list) {
           <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/40 hover:border-amber-300 hover:shadow-xs transition space-y-2.5">
             <div class="flex items-start justify-between gap-2">
               <div class="flex items-center gap-2.5">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                  <i class="fa-solid fa-user-doctor"></i>
-                </div>
+                <button type="button" onclick="openMemberDetailModal('${escapeHtml(docId)}')" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 hover:from-amber-600 hover:to-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 cursor-pointer transition" title="เปิดโปรไฟล์แพทย์">
+                  <i class="fa-solid fa-user-doctor pointer-events-none"></i>
+                </button>
                 <div>
-                  <div class="font-bold text-slate-900 text-xs">${escapeHtml(d.title)} ${escapeHtml(d.name)}</div>
+                  <button type="button" onclick="openMemberDetailModal('${escapeHtml(docId)}')" class="font-bold text-slate-900 hover:text-sky-700 hover:underline text-xs text-left">${escapeHtml(d.title)} ${escapeHtml(d.name)}</button>
                   <div class="text-[10px] text-slate-500 font-semibold">${escapeHtml(d.hospital)} (จ.${escapeHtml(d.province || '-')})</div>
                   ${renderCup70HospitalBadge(findCup70ForHospital(d.hospital, d.province))}
                 </div>
@@ -4644,7 +4644,8 @@ function openMemberDetailModal(id) {
       adminPanel.classList.remove('hidden');
 
       // 1. Password & Credentials
-      const creds = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDENTIALS) || '{}');
+      let creds = {};
+      try { creds = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDENTIALS) || '{}') || {}; } catch (e) { creds = {}; }
       const licKey = m.licenseNo || (tfDoc && tfDoc.gpNo) || '';
       const customPass = licKey ? creds[`doc_${licKey}`] : null;
       
@@ -4841,6 +4842,8 @@ function openMemberDetailModal(id) {
     initMiniMap(m.lat, m.lng, wpName || m.fullNameTh);
   }, 200);
 }
+window.openMemberDetailModal = openMemberDetailModal;
+window.openCupDetailModal = openCupDetailModal;
 
 // 100% Free OpenStreetMap Mini Map (No API Required)
 function initMiniMap(lat, lng, label) {
@@ -6694,15 +6697,16 @@ function renderThaifammed() {
       }
     }
 
+    const tfProfileTarget = d.matchedMemberId ? String(d.matchedMemberId) : `tf_${d.id}`;
     html += `
       <tr class="hover:bg-slate-50 transition border-b border-slate-100 ${isMyTf ? 'bg-sky-50/50' : ''}">
         <td class="py-3 px-4 text-center text-slate-400 font-mono text-[11px]">${globalIdx}</td>
         <td class="py-3 px-4">
           <div class="flex items-center gap-2.5">
-            ${avatarHtml}
+            <button type="button" onclick="openMemberDetailModal('${escapeHtml(tfProfileTarget)}')" class="shrink-0 cursor-pointer hover:opacity-85 transition" title="เปิดโปรไฟล์แพทย์">${avatarHtml}</button>
             <div>
               <div class="font-medium text-slate-900 flex items-center gap-1.5">
-                ${escapeHtml(d.name)}
+                <button type="button" onclick="openMemberDetailModal('${escapeHtml(tfProfileTarget)}')" class="hover:text-sky-700 hover:underline text-left font-medium">${escapeHtml(d.name)}</button>
                 ${isMyTf ? `<span class="px-1.5 py-0.2 bg-sky-100 text-sky-700 text-[10px] rounded font-semibold">คุณ</span>` : ''}
               </div>
               ${d.workplace ? `<div class="text-[11px] text-slate-400 truncate max-w-xs">${escapeHtml(d.workplace)}</div>` : ''}
@@ -8894,6 +8898,16 @@ function openSurveyWillingContacts() {
   filterMemberSurvey();
 }
 
+function openSurveyMatchedProfiles() {
+  switchView('survey');
+  const ids = ['survey-search', 'survey-filter-group', 'survey-filter-score', 'survey-filter-willing'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const spEl = document.getElementById('survey-filter-special');
+  if (spEl) spEl.value = 'matched';
+  switchSurveyDisplayMode('table');
+  filterMemberSurvey();
+}
+
 function openSurveyForDoctor(query) {
   switchView('survey');
   const ids = ['survey-filter-group', 'survey-filter-score', 'survey-filter-willing', 'survey-filter-special'];
@@ -8960,7 +8974,7 @@ function renderSurveyPage() {
                       ${profileTargetId
                         ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="font-bold text-slate-900 hover:text-violet-700 hover:underline text-sm text-left">${escapeHtml(r.name)}</button>`
                         : `<span class="text-slate-400 italic font-normal text-sm">ผู้ตอบไม่ระบุชื่อ</span>`}
-                      ${isMatchedDb ? '<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-semibold">เชื่อม DB</span>' : ''}
+                      ${isMatchedDb ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[9px] font-semibold cursor-pointer transition" title="คลิกเพื่อเปิดโปรไฟล์แพทย์ในฐานข้อมูล">เชื่อม DB</button>` : ''}
                       ${r.isDuplicate ? '<span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[9px]">ตอบซ้ำ</span>' : ''}
                     </div>
                     <div class="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -9079,8 +9093,8 @@ function renderSurveyPage() {
               </td>
               <td class="py-2.5 px-3 text-center">
                 <div class="flex items-center justify-center gap-1">
-                  ${profileTargetId ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="px-2 py-1 rounded-lg ${isMatchedDb ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-100 hover:bg-violet-200 text-violet-800'} text-[10px] font-bold transition" title="เปิดโปรไฟล์แพทย์"><i class="fa-solid fa-user-doctor"></i></button>` : '<span class="text-slate-300">-</span>'}
-                  ${r.cupId ? `<button type="button" onclick="openCupDetailModal('${escapeHtml(r.cupId)}')" class="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold transition" title="เปิดข้อมูล CUP 70"><i class="fa-solid fa-house-medical"></i></button>` : ''}
+                  ${profileTargetId ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="px-2.5 py-1 rounded-lg ${isMatchedDb ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-100 hover:bg-violet-200 text-violet-800'} text-[10px] font-bold transition cursor-pointer inline-flex items-center gap-1 whitespace-nowrap" title="เปิดโปรไฟล์แพทย์"><i class="fa-solid fa-user-doctor pointer-events-none"></i><span>โปรไฟล์</span></button>` : '<span class="text-slate-300">-</span>'}
+                  ${r.cupId ? `<button type="button" onclick="openCupDetailModal('${escapeHtml(r.cupId)}')" class="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold transition cursor-pointer inline-flex items-center gap-0.5" title="เปิดข้อมูล CUP 70"><i class="fa-solid fa-house-medical pointer-events-none"></i></button>` : ''}
                 </div>
               </td>
             </tr>
