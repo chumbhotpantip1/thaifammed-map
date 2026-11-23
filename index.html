@@ -47,7 +47,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- Custom Stylesheet (Versioned for cache busting) -->
-  <link rel="stylesheet" href="styles.css?v=20261119_2130">
+  <link rel="stylesheet" href="styles.css?v=20261123_1030">
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
@@ -112,6 +112,12 @@
             <i class="fa-solid fa-house-medical w-5 text-center text-base text-emerald-400"></i>
             <span class="flex-1 text-left">ข้อมูลพื้นฐาน CUP 70</span>
             <span id="sidebar-cup70-badge" class="px-1.5 py-0.5 rounded-md bg-emerald-950 text-emerald-300 text-[10px] font-mono border border-emerald-800">120 CUP</span>
+          </button>
+
+          <button onclick="switchView('survey')" id="nav-survey" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
+            <i class="fa-solid fa-comments w-5 text-center text-base text-violet-400"></i>
+            <span class="flex-1 text-left">ผลสำรวจสมาชิก (Our Voice)</span>
+            <span id="sidebar-survey-badge" class="px-1.5 py-0.5 rounded-md bg-violet-950 text-violet-300 text-[10px] font-mono border border-violet-800">169 ราย</span>
           </button>
 
           <button onclick="switchView('map')" id="nav-map" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/70">
@@ -382,6 +388,37 @@
               </button>
               <button onclick="switchView('cup70')" class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95">
                 <span>เปิดดูข้อมูล CUP 70</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Member Voice & Strategic Survey 2026 Quick Banner -->
+          <div id="dash-survey-banner" class="p-5 rounded-2xl bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 text-white border border-violet-500/30 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-2xl bg-violet-500/20 text-violet-300 border border-violet-400/30 flex items-center justify-center text-2xl shrink-0 shadow-sm">
+                <i class="fa-solid fa-comments"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h4 class="font-bold text-white text-base font-heading">ผลสำรวจความคิดเห็นสมาชิก Our Voice 2026 (ทิศทางเวชศาสตร์ครอบครัวไทย)</h4>
+                  <span id="dash-survey-badge" class="px-2 py-0.5 rounded-full bg-violet-400 text-slate-950 font-bold text-[10px]">169 รายการ • 57 เชื่อมโยง DB</span>
+                  <span class="px-2 py-0.5 rounded-full bg-indigo-500/25 text-indigo-200 border border-indigo-400/30 text-[10px] font-semibold">อัปเดตข้อมูลติดต่อ 55 ท่าน</span>
+                </div>
+                <div class="text-xs text-slate-300 mt-1 flex items-center gap-3 flex-wrap">
+                  <span><i class="fa-solid fa-star-half-stroke text-amber-400 mr-1"></i>คะแนนการยอมรับเฉลี่ย: <strong id="dash-survey-score">2.82 / 5</strong></span>
+                  <span><i class="fa-solid fa-handshake-angle text-emerald-400 mr-1"></i>ยินดีให้ติดต่อ: <strong id="dash-survey-willing">84</strong> ท่าน</span>
+                  <span><i class="fa-solid fa-graduation-cap text-sky-400 mr-1"></i>สนใจเตรียมสอบ อว.: <strong id="dash-survey-board">18</strong> ท่าน</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button onclick="openSurveyWillingContacts()" class="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-violet-100 border border-violet-400/30 font-semibold rounded-xl text-xs transition flex items-center gap-1.5 active:scale-95">
+                <i class="fa-solid fa-address-card"></i>
+                <span>รายชื่อผู้ยินดีให้ติดต่อ</span>
+              </button>
+              <button onclick="switchView('survey')" class="px-4 py-2 bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-violet-500/20 flex items-center justify-center gap-2 active:scale-95">
+                <span>ดูผลสำรวจทั้งหมด</span>
                 <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
@@ -1421,6 +1458,259 @@
 
         </section>
 
+        <!-- ================= VIEW 6.5: MEMBER VOICE SURVEY 2026 ================= -->
+        <section id="view-survey" class="space-y-5 hidden animate-fade-in">
+          <!-- Hero Header -->
+          <div class="bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-xl border border-violet-500/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/20 text-violet-200 text-xs mb-2 border border-violet-400/30">
+                <i class="fa-solid fa-comments"></i>
+                <span id="survey-hero-date-range">แบบสำรวจความคิดเห็นสมาชิก • 18 ก.ย. – 23 ต.ค. 2569</span>
+              </div>
+              <h2 class="text-xl sm:text-2xl font-bold font-heading">Our Voice: ผลสำรวจทิศทางเวชปฏิบัติทั่วไป & เวชศาสตร์ครอบครัวไทย 2026</h2>
+              <p class="text-slate-300 text-xs sm:text-sm mt-1">สรุปเสียงสะท้อนเชิงกลยุทธ์ ประเด็นเร่งด่วน 2–3 ปีข้างหน้า คะแนนการยอมรับ และเชื่อมโยงโปรไฟล์สมาชิกอัตโนมัติ (อัปเดตข้อมูลติดต่อแพทย์เพิ่ม 55 ท่าน)</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <button type="button" onclick="toggleSurveyWillingQuickFilter()" id="btn-survey-quick-willing" class="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-violet-100 border border-violet-400/30 font-semibold rounded-xl text-xs transition flex items-center gap-1.5">
+                <i class="fa-solid fa-handshake-angle text-emerald-400"></i>
+                <span>เฉพาะผู้ยินดีให้ติดต่อ (<span id="survey-quick-willing-num">84</span>)</span>
+              </button>
+              <button type="button" onclick="exportMemberSurveyCsv()" class="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition shadow-md flex items-center gap-1.5">
+                <i class="fa-solid fa-file-csv"></i>
+                <span>ดาวน์โหลด CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 5 Executive KPI Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500">ผู้ตอบแบบสำรวจทั้งหมด</span>
+                <div class="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center"><i class="fa-solid fa-clipboard-check"></i></div>
+              </div>
+              <div class="mt-2.5 flex items-baseline gap-1.5">
+                <span id="survey-kpi-total" class="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">169</span>
+                <span class="text-xs text-slate-400">รายการ</span>
+              </div>
+              <div id="survey-kpi-unique" class="mt-2 text-[11px] text-violet-700 font-medium">168 ท่านไม่ซ้ำ • ระบุชื่อ 84 ท่าน</div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500">คะแนนการยอมรับเฉลี่ย</span>
+                <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-star-half-stroke"></i></div>
+              </div>
+              <div class="mt-2.5 flex items-baseline gap-1.5">
+                <span id="survey-kpi-score" class="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">2.82</span>
+                <span class="text-xs text-slate-400">/ 5.00</span>
+              </div>
+              <div id="survey-kpi-score-sub" class="mt-2 text-[11px] text-rose-600 font-medium">ให้คะแนน 1–2 ถึง 36.8% (57 ราย)</div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500">เป็นสมาชิกสมาคมฯ</span>
+                <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center"><i class="fa-solid fa-id-card"></i></div>
+              </div>
+              <div class="mt-2.5 flex items-baseline gap-1.5">
+                <span id="survey-kpi-members" class="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">108</span>
+                <span class="text-xs text-slate-400">ราย</span>
+              </div>
+              <div id="survey-kpi-members-sub" class="mt-2 text-[11px] text-sky-700 font-medium">63.9% เป็นสมาชิก • ไม่แน่ใจ 30</div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500">สนใจเตรียมสอบ อว.</span>
+                <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div>
+              </div>
+              <div class="mt-2.5 flex items-baseline gap-1.5">
+                <span id="survey-kpi-board" class="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">18</span>
+                <span class="text-xs text-slate-400">ท่าน</span>
+              </div>
+              <div id="survey-kpi-board-sub" class="mt-2 text-[11px] text-teal-700 font-medium">สนใจมาก 13 • สนใจ 5 • ไม่แน่ใจ 8</div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500">ยินดีให้สมาคมฯ ติดต่อ</span>
+                <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-handshake-angle"></i></div>
+              </div>
+              <div class="mt-2.5 flex items-baseline gap-1.5">
+                <span id="survey-kpi-willing" class="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">84</span>
+                <span class="text-xs text-slate-400">ท่าน</span>
+              </div>
+              <div id="survey-kpi-matched-sub" class="mt-2 text-[11px] text-emerald-700 font-medium">เชื่อมโยง DB 57 ท่าน • CUP 70 18 ท่าน</div>
+            </div>
+          </div>
+
+          <!-- Charts Row 1: Top Priorities & Recognition Score Distribution -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm lg:col-span-2 flex flex-col justify-between">
+              <div class="flex items-center justify-between gap-2 mb-3">
+                <div>
+                  <h3 class="font-bold text-slate-900 text-base font-heading">ประเด็นสำคัญที่อยากให้สมาคมฯ ให้ความสำคัญใน 2–3 ปีข้างหน้า</h3>
+                  <p class="text-xs text-slate-400">เลือกได้หลายข้อ (นับจำนวนเสียงสนับสนุนจากผู้ตอบทั้งหมด 169 ราย)</p>
+                </div>
+                <span class="text-[11px] px-2.5 py-1 bg-violet-100 text-violet-800 font-semibold rounded-lg shrink-0">Strategic Priorities</span>
+              </div>
+              <div class="relative h-80">
+                <canvas id="chart-survey-priorities"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-base font-heading">การกระจายคะแนนการยอมรับบทบาท (1–5)</h3>
+                <p class="text-xs text-slate-400 mb-3">ระดับความรู้สึกว่าบทบาทแพทย์ GP/FM ได้รับการยอมรับในระบบสุขภาพ (n=155)</p>
+              </div>
+              <div class="relative h-64">
+                <canvas id="chart-survey-scores"></canvas>
+              </div>
+              <div class="mt-3 pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-center text-[11px]">
+                <div class="p-2 rounded-xl bg-rose-50 text-rose-700">
+                  <div class="font-bold text-sm" id="survey-score-low">57</div>
+                  <div>ต่ำ (1–2)</div>
+                </div>
+                <div class="p-2 rounded-xl bg-amber-50 text-amber-700">
+                  <div class="font-bold text-sm" id="survey-score-mid">56</div>
+                  <div>ปานกลาง (3)</div>
+                </div>
+                <div class="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+                  <div class="font-bold text-sm" id="survey-score-high">42</div>
+                  <div>สูง (4–5)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row 2: Respondent Groups, Work Settings, Experience & Board Prep -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm font-heading">กลุ่มผู้ตอบแบบสำรวจ</h3>
+                <p class="text-xs text-slate-400 mb-2">จำแนกตามคุณวุฒิและสถานะการฝึกอบรม</p>
+              </div>
+              <div class="relative h-60">
+                <canvas id="chart-survey-groups"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm font-heading">บริบท / สถานที่ปฏิบัติงาน (Top 8)</h3>
+                <p class="text-xs text-slate-400 mb-2">ผู้ตอบ 1 ท่านสามารถเลือกได้หลายสถานที่</p>
+              </div>
+              <div class="relative h-60">
+                <canvas id="chart-survey-settings"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm font-heading">อายุการทำงาน & ความต้องการเตรียมสอบ อว.</h3>
+                <p class="text-xs text-slate-400 mb-2">ประสบการณ์การทำงานเป็นแพทย์ (ปี)</p>
+              </div>
+              <div class="relative h-40">
+                <canvas id="chart-survey-experience"></canvas>
+              </div>
+              <div id="survey-board-support-box" class="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-[11px]">
+                <div class="font-bold text-teal-800 flex items-center gap-1.5">
+                  <i class="fa-solid fa-graduation-cap"></i> รูปแบบสนับสนุนเตรียมสอบ อว. ที่ต้องการสูงสุด:
+                </div>
+                <div id="survey-board-support-tags" class="flex flex-wrap gap-1.5"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Filter Bar + View Mode Switcher -->
+          <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-3">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="survey-search" oninput="filterMemberSurvey()" placeholder="ค้นหาเสียงสะท้อน, ข้อเสนอแนะ, สิ่งที่อยากเปลี่ยน, ชื่อแพทย์, สถานที่ทำงาน..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs focus:ring-2 focus:ring-violet-500 focus:bg-white transition">
+              </div>
+              <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl shrink-0">
+                <button type="button" id="btn-survey-mode-cards" onclick="switchSurveyDisplayMode('cards')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 text-white shadow-sm transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-quote-left"></i> การ์ดเสียงสะท้อน
+                </button>
+                <button type="button" id="btn-survey-mode-table" onclick="switchSurveyDisplayMode('table')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-table-list"></i> ตารางสรุป & ผู้ติดต่อ
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+              <select id="survey-filter-group" onchange="filterMemberSurvey()" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 focus:ring-2 focus:ring-violet-500">
+                <option value="">ทุกกลุ่มผู้ตอบ</option>
+              </select>
+              <select id="survey-filter-score" onchange="filterMemberSurvey()" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 focus:ring-2 focus:ring-violet-500">
+                <option value="">ทุกคะแนนการยอมรับ</option>
+                <option value="1">1 คะแนน (น้อยที่สุด)</option>
+                <option value="2">2 คะแนน (น้อย)</option>
+                <option value="3">3 คะแนน (ปานกลาง)</option>
+                <option value="4">4 คะแนน (มาก)</option>
+                <option value="5">5 คะแนน (มากที่สุด)</option>
+                <option value="low">กลุ่มคะแนนต่ำ (1–2)</option>
+                <option value="high">กลุ่มคะแนนสูง (4–5)</option>
+              </select>
+              <select id="survey-filter-willing" onchange="filterMemberSurvey()" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 focus:ring-2 focus:ring-violet-500">
+                <option value="">ทุกสถานะการติดต่อ</option>
+                <option value="ยินดี">ยินดีให้ติดต่อ (84)</option>
+                <option value="ยังไม่แน่ใจ">ยังไม่แน่ใจ (50)</option>
+                <option value="ไม่สะดวก">ไม่สะดวก (35)</option>
+              </select>
+              <select id="survey-filter-special" onchange="filterMemberSurvey()" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 focus:ring-2 focus:ring-violet-500">
+                <option value="">ตัวกรองพิเศษ (ทั้งหมด)</option>
+                <option value="has_voice">มีข้อเสนอแนะ / สิ่งที่อยากเปลี่ยน</option>
+                <option value="matched">เชื่อมโยงโปรไฟล์ในฐานข้อมูลแล้ว (57)</option>
+                <option value="cup70">เชื่อมโยงเครือข่าย CUP 70 (18)</option>
+                <option value="board_prep">สนใจระบบเตรียมสอบ อว.</option>
+                <option value="has_message">มีข้อความเพิ่มเติมถึงสมาคมฯ</option>
+              </select>
+              <button type="button" onclick="resetSurveyFilters()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-rotate-left"></i> ล้างตัวกรอง
+              </button>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-slate-500 border-t border-slate-100">
+              <span id="survey-filter-summary">แสดงผลทั้งหมด 169 รายการ</span>
+              <span class="text-[11px] text-slate-400"><i class="fa-solid fa-shield-halved text-violet-500 mr-1"></i>ข้อมูลเบอร์โทร/อีเมลถูกคุ้มครองความเป็นส่วนตัว (Admin ดูได้ครบถ้วน)</span>
+            </div>
+          </div>
+
+          <!-- Voice Cards Container -->
+          <div id="survey-cards-container" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+
+          <!-- Summary Table Container -->
+          <div id="survey-table-container" class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-100/80 text-slate-700 font-semibold border-b border-slate-200 text-[11px]">
+                  <tr>
+                    <th class="py-3 px-3 text-center w-12">#</th>
+                    <th class="py-3 px-3 min-w-[155px]">ผู้ตอบ / สถานที่ทำงาน</th>
+                    <th class="py-3 px-3 min-w-[130px]">กลุ่ม / ประสบการณ์</th>
+                    <th class="py-3 px-3 text-center w-20">คะแนนยอมรับ</th>
+                    <th class="py-3 px-3 min-w-[260px]">สิ่งที่อยากเปลี่ยน / ข้อเสนอแนะถึงสมาคมฯ</th>
+                    <th class="py-3 px-3 text-center w-24">การติดต่อ</th>
+                    <th class="py-3 px-3 min-w-[150px]">อีเมล / โทรศัพท์</th>
+                    <th class="py-3 px-3 text-center w-24">เชื่อมโยง</th>
+                  </tr>
+                </thead>
+                <tbody id="survey-table-tbody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Pagination Footer -->
+          <div class="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-sm text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
+            <span id="survey-footer-count">แสดงผล 0 รายการ</span>
+            <div id="survey-pagination" class="flex items-center gap-1.5 flex-wrap"></div>
+          </div>
+        </section>
+
 
         <!-- ================= VIEW 7: DATA MANAGEMENT ================= -->
         <section id="view-management" class="space-y-6 hidden">
@@ -1930,6 +2220,15 @@
                   <div class="text-[11px] text-slate-500 mt-1">SQL Relational + Indexes</div>
                   <span class="text-[10px] text-purple-700 font-semibold mt-2 inline-block">ดาวน์โหลด SQLite (2.3 MB) &rarr;</span>
                 </a>
+
+                <a href="09_Member_Survey_2026.csv" download="09_Member_Survey_2026.csv" class="p-3 rounded-xl bg-violet-50/70 hover:bg-violet-100/80 border border-violet-200 hover:border-violet-400 transition block group">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-violet-950 group-hover:text-violet-800 text-xs">09_ผลสำรวจ Our Voice 2026</span>
+                    <i class="fa-solid fa-comments text-violet-600 text-sm"></i>
+                  </div>
+                  <div class="text-[11px] text-slate-600 mt-1">169 รายการ (อัปเดตติดต่อ 55 ท่าน)</div>
+                  <span class="text-[10px] text-violet-700 font-semibold mt-2 inline-block">ดาวน์โหลด CSV (355 KB) &rarr;</span>
+                </a>
               </div>
 
               <!-- Automated Google Sheet Creation Guide -->
@@ -2172,6 +2471,18 @@
             <span class="px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 font-bold text-[10px]">CUP 70</span>
           </div>
           <div id="detail-cup70-list" class="space-y-2 text-[11px]"></div>
+        </div>
+
+        <!-- Member Voice Survey 2026 Feedback Section (Admin / Record Owner Only) -->
+        <div id="detail-survey-section" class="p-4 rounded-2xl bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-300 space-y-2.5 hidden">
+          <div class="flex items-center justify-between border-b border-violet-200 pb-2">
+            <h4 class="font-bold text-violet-950 text-sm flex items-center gap-2">
+              <i class="fa-solid fa-comments text-violet-600"></i>
+              <span>ความคิดเห็นจากแบบสำรวจ Our Voice 2026</span>
+            </h4>
+            <span class="px-2 py-0.5 rounded-full bg-violet-200 text-violet-900 font-bold text-[10px]">Survey 2026</span>
+          </div>
+          <div id="detail-survey-list" class="space-y-2 text-[11px]"></div>
         </div>
 
         <!-- Admin Master Data & Credentials Panel (Exclusive for Admin - ดูได้ทุกอย่าง) -->
@@ -3367,8 +3678,8 @@
   </div>
 
   <!-- Load Data Bundle and App Logic (Versioned for anti-cache instant updates) -->
-  <script src="gov_hospitals.js?v=20261119_2130"></script>
-  <script src="data.js?v=20261119_2130"></script>
-  <script src="app.js?v=20261119_2130"></script>
+  <script src="gov_hospitals.js?v=20261123_1030"></script>
+  <script src="data.js?v=20261123_1030"></script>
+  <script src="app.js?v=20261123_1030"></script>
 </body>
 </html>

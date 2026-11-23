@@ -41,7 +41,14 @@ const AppState = {
   mapRelocateClickHandler: null,
   matchingMarkers: [],
   currentProvinceDoctors: [],
-  currentClusterBounds: null
+  currentClusterBounds: null,
+  memberSurvey: [],
+  memberSurveyStats: null,
+  filteredSurvey: [],
+  surveyDisplayMode: 'cards',
+  surveyCurrentPage: 1,
+  surveyPageSize: 12,
+  surveyFiltersInitialized: false
 };
 
 // Storage Keys
@@ -373,6 +380,26 @@ function initData() {
     if (dDocs) dDocs.innerText = (s.totalDoctors || 0).toLocaleString();
   }
 
+  // Member Voice Survey 2026 Data
+  AppState.memberSurvey = window.INITIAL_DATA ? (window.INITIAL_DATA.memberSurvey || []) : [];
+  AppState.memberSurveyStats = window.INITIAL_DATA ? (window.INITIAL_DATA.memberSurveyStats || null) : null;
+  AppState.filteredSurvey = [...AppState.memberSurvey];
+  const badgeSurvey = document.getElementById('sidebar-survey-badge');
+  if (badgeSurvey && AppState.memberSurvey) {
+    badgeSurvey.innerText = `${AppState.memberSurvey.length} ราย`;
+  }
+  if (AppState.memberSurveyStats) {
+    const ss = AppState.memberSurveyStats;
+    const dsBadge = document.getElementById('dash-survey-badge');
+    if (dsBadge) dsBadge.innerText = `${ss.totalResponses} รายการ • ${ss.matchedCount} เชื่อมโยง DB`;
+    const dsScore = document.getElementById('dash-survey-score');
+    if (dsScore) dsScore.innerText = `${Number(ss.avgRecognitionScore || 0).toFixed(2)} / 5`;
+    const dsWilling = document.getElementById('dash-survey-willing');
+    if (dsWilling) dsWilling.innerText = (ss.willingContactCount || 0).toLocaleString();
+    const dsBoard = document.getElementById('dash-survey-board');
+    if (dsBoard) dsBoard.innerText = (ss.boardPrepInterestedCount || 0).toLocaleString();
+  }
+
   document.getElementById('sidebar-member-badge').innerText = `${AppState.members.length} คน`;
 }
 
@@ -507,7 +534,7 @@ function switchView(viewName) {
   }
   AppState.currentView = viewName;
 
-  const views = ['dashboard', 'map', 'directory', 'thaifammed', 'gallery', 'geo', 'management', 'delegates', 'cup70'];
+  const views = ['dashboard', 'map', 'directory', 'thaifammed', 'gallery', 'geo', 'management', 'delegates', 'cup70', 'survey'];
   views.forEach(v => {
     const el = document.getElementById(`view-${v}`);
     const navBtn = document.getElementById(`nav-${v}`);
@@ -561,6 +588,8 @@ function switchView(viewName) {
     renderZoneDelegates();
   } else if (viewName === 'cup70') {
     renderCup70View();
+  } else if (viewName === 'survey') {
+    renderMemberSurveyView();
   }
 }
 
@@ -4385,6 +4414,44 @@ function openMemberDetailModal(id) {
     } else {
       cupSection.classList.add('hidden');
       cupListEl.innerHTML = '';
+    }
+  }
+
+  // Member Voice Survey 2026 Cross-Link (Visible to Admin or Record Owner only for privacy)
+  const surveySection = document.getElementById('detail-survey-section');
+  const surveyListEl = document.getElementById('detail-survey-list');
+  if (surveySection && surveyListEl) {
+    const canSeeSurvey = typeof AuthManager !== 'undefined' && (
+      AuthManager.isAdmin() ||
+      (m && m.id && AuthManager.isMyRecord('sheet', m.id)) ||
+      (tfDoc && tfDoc.id && AuthManager.isMyRecord('thaifammed', tfDoc.id))
+    );
+    const surveyMatches = canSeeSurvey ? (AppState.memberSurvey || []).filter(s => {
+      if (!s.matchedId) return false;
+      if (m && m.id && String(s.matchedId) === String(m.id)) return true;
+      if (tfDoc && tfDoc.id && String(s.matchedId) === 'tf_' + tfDoc.id) return true;
+      return false;
+    }) : [];
+
+    if (surveyMatches.length > 0) {
+      surveySection.classList.remove('hidden');
+      surveyListEl.innerHTML = surveyMatches.map(s => `
+        <div class="bg-white/90 p-3 rounded-xl border border-violet-200 space-y-1.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="font-bold text-violet-950">${escapeHtml(s.groupShort || s.group || '-')} ${s.experience ? `• ${escapeHtml(s.experience)}` : ''}</span>
+            <div class="flex items-center gap-1.5">
+              ${s.recognitionScore ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.recognitionScore <= 2 ? 'bg-rose-100 text-rose-700' : (s.recognitionScore === 3 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700')}">คะแนนยอมรับ ${s.recognitionScore}/5</span>` : ''}
+              ${s.willingContact === 'ยินดี' ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">ยินดีให้ติดต่อ</span>` : ''}
+            </div>
+          </div>
+          ${s.oneChange ? `<div class="text-slate-700"><strong class="text-violet-900">สิ่งที่อยากเปลี่ยน 1 เรื่อง:</strong> ${escapeHtml(s.oneChange)}</div>` : ''}
+          ${s.messageToAssoc ? `<div class="text-slate-700"><strong class="text-indigo-900">ข้อความถึงสมาคมฯ:</strong> ${escapeHtml(s.messageToAssoc)}</div>` : ''}
+          ${(s.priorities && s.priorities.length) ? `<div class="flex flex-wrap gap-1 pt-0.5">${s.priorities.slice(0, 4).map(p => `<span class="px-1.5 py-0.5 rounded bg-violet-100/80 text-violet-900 text-[10px]">${escapeHtml(p)}</span>`).join('')}${s.priorities.length > 4 ? `<span class="text-[10px] text-slate-400">+${s.priorities.length - 4} ประเด็น</span>` : ''}</div>` : ''}
+        </div>
+      `).join('');
+    } else {
+      surveySection.classList.add('hidden');
+      surveyListEl.innerHTML = '';
     }
   }
 
@@ -8347,4 +8414,617 @@ function toggleContactVisibility() {
     if (mobile) mobile.classList.add('blur-sm', 'select-none');
     if (email) email.classList.add('blur-sm', 'select-none');
   }
+}
+
+/* ================= MEMBER VOICE SURVEY 2026 ANALYTICS MODULE ================= */
+
+function isSurveyContactVisible(rec) {
+  if (typeof AuthManager === 'undefined') return false;
+  if (AuthManager.isAdmin()) return true;
+  if (rec && rec.matchedId) {
+    const idStr = String(rec.matchedId);
+    if (idStr.startsWith('tf_')) {
+      return AuthManager.isMyRecord('thaifammed', idStr.substring(3));
+    }
+    return AuthManager.isMyRecord('sheet', idStr);
+  }
+  return false;
+}
+
+function formatSurveyPhoneDisplay(rec) {
+  const p = (rec && rec.phone) ? String(rec.phone).trim() : '';
+  if (!p) return '-';
+  if (isSurveyContactVisible(rec)) return p;
+  if (p.length >= 9) return p.substring(0, 3) + '-XXX-XXXX';
+  return '***';
+}
+
+function formatSurveyEmailDisplay(rec) {
+  const e = (rec && rec.email) ? String(rec.email).trim() : '';
+  if (!e) return '-';
+  if (isSurveyContactVisible(rec)) return e;
+  if (e.includes('@')) {
+    const parts = e.split('@');
+    const name = parts[0].length > 2 ? parts[0].substring(0, 2) + '***' : '***';
+    return `${name}@***`;
+  }
+  return '***';
+}
+
+function renderMemberSurveyView() {
+  const records = AppState.memberSurvey || [];
+  const stats = AppState.memberSurveyStats || {};
+
+  // Populate KPI cards
+  const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+  const total = stats.totalResponses || records.length;
+  const unique = stats.uniqueRespondents || total;
+  const avgScore = Number(stats.avgRecognitionScore || 0);
+  const dist = stats.scoreDistribution || {};
+  const lowCnt = (dist['1'] || 0) + (dist['2'] || 0);
+  const midCnt = dist['3'] || 0;
+  const highCnt = (dist['4'] || 0) + (dist['5'] || 0);
+  const answered = stats.recognitionAnswered || (lowCnt + midCnt + highCnt) || 1;
+  const lowPct = ((lowCnt / answered) * 100).toFixed(1);
+
+  const mCounts = stats.memberStatusCounts || {};
+  const activeMembers = mCounts['เป็นสมาชิก'] || 0;
+  const unsureMembers = mCounts['ไม่แน่ใจสถานะสมาชิก'] || 0;
+  const activePct = total ? ((activeMembers / total) * 100).toFixed(1) : '0.0';
+
+  const bpCounts = stats.boardPrepCounts || {};
+  const bpHigh = bpCounts['สนใจมาก'] || 0;
+  const bpMed = bpCounts['สนใจ'] || 0;
+  const bpUnsure = bpCounts['ยังไม่แน่ใจ/ต้องการข้อมูลเพิ่มเติม'] || 0;
+
+  setTxt('survey-kpi-total', total.toLocaleString());
+  setTxt('survey-kpi-unique', `${unique.toLocaleString()} ท่านไม่ซ้ำ • ระบุชื่อ ${(stats.identifiedCount || 0).toLocaleString()} ท่าน`);
+  setTxt('survey-kpi-score', avgScore.toFixed(2));
+  setTxt('survey-kpi-score-sub', `ให้คะแนน 1–2 ถึง ${lowPct}% (${lowCnt} ราย)`);
+  setTxt('survey-kpi-members', activeMembers.toLocaleString());
+  setTxt('survey-kpi-members-sub', `${activePct}% เป็นสมาชิก • ไม่แน่ใจ ${unsureMembers}`);
+  setTxt('survey-kpi-board', (bpHigh + bpMed).toLocaleString());
+  setTxt('survey-kpi-board-sub', `สนใจมาก ${bpHigh} • สนใจ ${bpMed} • ไม่แน่ใจ ${bpUnsure}`);
+  setTxt('survey-kpi-willing', (stats.willingContactCount || 0).toLocaleString());
+  setTxt('survey-kpi-matched-sub', `เชื่อมโยง DB ${stats.matchedCount || 0} ท่าน • CUP 70 ${stats.cupLinkedCount || 0} ท่าน`);
+  setTxt('survey-quick-willing-num', (stats.willingContactCount || 0).toLocaleString());
+  setTxt('survey-score-low', lowCnt.toLocaleString());
+  setTxt('survey-score-mid', midCnt.toLocaleString());
+  setTxt('survey-score-high', highCnt.toLocaleString());
+
+  // Populate Board Prep support summary tags
+  const supportEl = document.getElementById('survey-board-support-tags');
+  if (supportEl && stats.boardSupportCounts) {
+    const topSupport = Object.entries(stats.boardSupportCounts).slice(0, 5);
+    supportEl.innerHTML = topSupport.map(([label, cnt]) => {
+      const shortLbl = label.length > 36 ? label.substring(0, 35) + '…' : label;
+      return `<span class="px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-medium" title="${escapeHtml(label)}">${escapeHtml(shortLbl)} <strong class="text-teal-950">(${cnt})</strong></span>`;
+    }).join('');
+  }
+
+  // Initialize Group filter options once
+  if (!AppState.surveyFiltersInitialized) {
+    const grpSelect = document.getElementById('survey-filter-group');
+    if (grpSelect && stats.groupCounts) {
+      grpSelect.innerHTML = '<option value="">ทุกกลุ่มผู้ตอบ</option>' +
+        Object.entries(stats.groupCounts).map(([g, cnt]) =>
+          `<option value="${escapeHtml(g)}">${escapeHtml(g)} (${cnt})</option>`
+        ).join('');
+    }
+    AppState.surveyFiltersInitialized = true;
+  }
+
+  // Render charts & filtered list
+  renderSurveyCharts();
+  filterMemberSurvey();
+}
+
+function renderSurveyCharts() {
+  if (typeof Chart === 'undefined') return;
+  const stats = AppState.memberSurveyStats || {};
+  const destroyChart = (key) => {
+    if (AppState.charts[key]) {
+      AppState.charts[key].destroy();
+      delete AppState.charts[key];
+    }
+  };
+
+  // 1. Strategic Priorities Horizontal Bar (Top 11 canonical items)
+  const pCanvas = document.getElementById('chart-survey-priorities');
+  if (pCanvas && stats.priorityCounts) {
+    destroyChart('surveyPriorities');
+    const entries = Object.entries(stats.priorityCounts)
+      .filter(([, cnt]) => cnt >= 5)
+      .slice(0, 11);
+    const shortLabels = entries.map(([lbl]) => {
+      if (lbl.startsWith('การสนับสนุนแพทย์ทั่วไปที่มีประสบการณ์')) return 'สนับสนุนแพทย์ทั่วไปเตรียมสอบ อว. วชค.';
+      if (lbl.startsWith('การสื่อสารคุณค่าของเวชปฏิบัติทั่วไป')) return 'สื่อสารคุณค่า GP/FM ต่อสังคมและวิชาชีพอื่น';
+      if (lbl.startsWith('การผลักดันการยอมรับและความชัดเจน')) return 'ผลักดันการยอมรับ & ความชัดเจนบทบาทในระบบ';
+      return lbl.length > 42 ? lbl.substring(0, 41) + '…' : lbl;
+    });
+    const values = entries.map(([, cnt]) => cnt);
+    AppState.charts.surveyPriorities = new Chart(pCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: shortLabels,
+        datasets: [{
+          label: 'จำนวนเสียงสนับสนุน (ราย)',
+          data: values,
+          backgroundColor: values.map((_, i) => i < 3 ? '#7c3aed' : (i < 6 ? '#6366f1' : '#38bdf8')),
+          borderRadius: 6,
+          barThickness: 18
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => entries[items[0].dataIndex][0],
+              label: (ctx) => ` ${ctx.raw} ราย (${((ctx.raw / (stats.totalResponses || 169)) * 100).toFixed(1)}%)`
+            }
+          }
+        },
+        scales: {
+          x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } },
+          y: { grid: { display: false }, ticks: { font: { family: 'Sarabun', size: 11 } } }
+        }
+      }
+    });
+  }
+
+  // 2. Recognition Score Distribution (1-5)
+  const sCanvas = document.getElementById('chart-survey-scores');
+  if (sCanvas && stats.scoreDistribution) {
+    destroyChart('surveyScores');
+    const d = stats.scoreDistribution;
+    AppState.charts.surveyScores = new Chart(sCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['1 (น้อยสุด)', '2 (น้อย)', '3 (ปานกลาง)', '4 (มาก)', '5 (มากสุด)'],
+        datasets: [{
+          label: 'จำนวนผู้ตอบ (ราย)',
+          data: [d['1'] || 0, d['2'] || 0, d['3'] || 0, d['4'] || 0, d['5'] || 0],
+          backgroundColor: ['#e11d48', '#fb7185', '#f59e0b', '#10b981', '#059669'],
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 10 } },
+          x: { grid: { display: false }, ticks: { font: { family: 'Sarabun', size: 11 } } }
+        }
+      }
+    });
+  }
+
+  // 3. Respondent Groups Doughnut
+  const gCanvas = document.getElementById('chart-survey-groups');
+  if (gCanvas && stats.groupCounts) {
+    destroyChart('surveyGroups');
+    const entries = Object.entries(stats.groupCounts);
+    AppState.charts.surveyGroups = new Chart(gCanvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: entries.map(([k]) => k),
+        datasets: [{
+          data: entries.map(([, v]) => v),
+          backgroundColor: ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#64748b'],
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '58%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 10, padding: 8, font: { family: 'Sarabun', size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  // 4. Work Settings Horizontal Bar (Top 8)
+  const wCanvas = document.getElementById('chart-survey-settings');
+  if (wCanvas && stats.settingCounts) {
+    destroyChart('surveySettings');
+    const entries = Object.entries(stats.settingCounts).slice(0, 8);
+    AppState.charts.surveySettings = new Chart(wCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: entries.map(([k]) => k.replace('หน่วยบริการปฐมภูมิ/โรงพยาบาลส่งเสริมสุขภาพตำบล (รพ.สต.)', 'ปฐมภูมิ / รพ.สต.').replace('โรงพยาบาลศูนย์/โรงพยาบาลทั่วไป', 'รพศ. / รพท.').replace('โรงพยาบาลมหาวิทยาลัย/โรงเรียนแพทย์', 'รพ.มหาวิทยาลัย / รร.แพทย์')),
+        datasets: [{
+          label: 'จำนวน (ราย)',
+          data: entries.map(([, v]) => v),
+          backgroundColor: '#0d9488',
+          borderRadius: 6,
+          barThickness: 15
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+          y: { grid: { display: false }, ticks: { font: { family: 'Sarabun', size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // 5. Experience Bar
+  const eCanvas = document.getElementById('chart-survey-experience');
+  if (eCanvas && stats.experienceCounts) {
+    destroyChart('surveyExperience');
+    const entries = Object.entries(stats.experienceCounts);
+    AppState.charts.surveyExperience = new Chart(eCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: entries.map(([k]) => k),
+        datasets: [{
+          label: 'จำนวนแพทย์ (ราย)',
+          data: entries.map(([, v]) => v),
+          backgroundColor: ['#38bdf8', '#6366f1', '#8b5cf6', '#a855f7'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 20 } },
+          x: { grid: { display: false }, ticks: { font: { family: 'Sarabun', size: 10 } } }
+        }
+      }
+    });
+  }
+}
+
+function filterMemberSurvey() {
+  const all = AppState.memberSurvey || [];
+  const q = (document.getElementById('survey-search')?.value || '').trim().toLowerCase();
+  const grp = document.getElementById('survey-filter-group')?.value || '';
+  const score = document.getElementById('survey-filter-score')?.value || '';
+  const willing = document.getElementById('survey-filter-willing')?.value || '';
+  const special = document.getElementById('survey-filter-special')?.value || '';
+
+  AppState.filteredSurvey = all.filter(r => {
+    if (grp && r.groupShort !== grp) return false;
+    if (score) {
+      if (score === 'low') {
+        if (!r.recognitionScore || r.recognitionScore > 2) return false;
+      } else if (score === 'high') {
+        if (!r.recognitionScore || r.recognitionScore < 4) return false;
+      } else if (String(r.recognitionScore) !== score) {
+        return false;
+      }
+    }
+    if (willing && r.willingContact !== willing) return false;
+    if (special === 'has_voice' && !(r.oneChange || r.messageToAssoc || r.chooseReason || r.goodTeamFactor)) return false;
+    if (special === 'matched' && !r.matchedId) return false;
+    if (special === 'cup70' && !r.cupId) return false;
+    if (special === 'board_prep' && !(r.boardPrepInterest === 'สนใจมาก' || r.boardPrepInterest === 'สนใจ')) return false;
+    if (special === 'has_message' && !r.messageToAssoc) return false;
+
+    if (q) {
+      const hay = [
+        r.name, r.workplace, r.group, r.groupShort, r.experience,
+        r.oneChange, r.messageToAssoc, r.chooseReason, r.goodTeamFactor,
+        (r.priorities || []).join(' '), (r.settings || []).join(' '),
+        (r.barriers || []).join(' '), (r.valueDrivers || []).join(' '),
+        r.memberNo
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Update quick-willing button highlight
+  const quickBtn = document.getElementById('btn-survey-quick-willing');
+  if (quickBtn) {
+    if (willing === 'ยินดี') {
+      quickBtn.className = 'px-3.5 py-2 bg-emerald-500/30 text-white border border-emerald-300 font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm';
+    } else {
+      quickBtn.className = 'px-3.5 py-2 bg-white/10 hover:bg-white/20 text-violet-100 border border-violet-400/30 font-semibold rounded-xl text-xs transition flex items-center gap-1.5';
+    }
+  }
+
+  const sumEl = document.getElementById('survey-filter-summary');
+  if (sumEl) {
+    sumEl.innerText = `พบ ${AppState.filteredSurvey.length.toLocaleString()} รายการ จากทั้งหมด ${all.length.toLocaleString()} รายการ`;
+  }
+
+  AppState.surveyCurrentPage = 1;
+  renderSurveyPage();
+}
+
+function switchSurveyDisplayMode(mode) {
+  AppState.surveyDisplayMode = mode === 'table' ? 'table' : 'cards';
+  const btnCards = document.getElementById('btn-survey-mode-cards');
+  const btnTable = document.getElementById('btn-survey-mode-table');
+  const cardsBox = document.getElementById('survey-cards-container');
+  const tableBox = document.getElementById('survey-table-container');
+
+  if (AppState.surveyDisplayMode === 'cards') {
+    if (btnCards) btnCards.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 text-white shadow-sm transition flex items-center gap-1.5';
+    if (btnTable) btnTable.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
+    if (cardsBox) cardsBox.classList.remove('hidden');
+    if (tableBox) tableBox.classList.add('hidden');
+    AppState.surveyPageSize = 12;
+  } else {
+    if (btnTable) btnTable.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 text-white shadow-sm transition flex items-center gap-1.5';
+    if (btnCards) btnCards.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
+    if (tableBox) tableBox.classList.remove('hidden');
+    if (cardsBox) cardsBox.classList.add('hidden');
+    AppState.surveyPageSize = 25;
+  }
+  AppState.surveyCurrentPage = 1;
+  renderSurveyPage();
+}
+
+function toggleSurveyWillingQuickFilter() {
+  const el = document.getElementById('survey-filter-willing');
+  if (!el) return;
+  el.value = (el.value === 'ยินดี') ? '' : 'ยินดี';
+  filterMemberSurvey();
+}
+
+function openSurveyWillingContacts() {
+  switchView('survey');
+  const el = document.getElementById('survey-filter-willing');
+  if (el) el.value = 'ยินดี';
+  switchSurveyDisplayMode('table');
+  filterMemberSurvey();
+}
+
+function resetSurveyFilters() {
+  const ids = ['survey-search', 'survey-filter-group', 'survey-filter-score', 'survey-filter-willing', 'survey-filter-special'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  filterMemberSurvey();
+}
+
+function goToSurveyPage(page) {
+  const totalPages = Math.max(1, Math.ceil((AppState.filteredSurvey || []).length / AppState.surveyPageSize));
+  AppState.surveyCurrentPage = Math.min(Math.max(1, page), totalPages);
+  renderSurveyPage();
+}
+
+function renderSurveyPage() {
+  const list = AppState.filteredSurvey || [];
+  const pageSize = AppState.surveyPageSize || 12;
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  if (AppState.surveyCurrentPage > totalPages) AppState.surveyCurrentPage = totalPages;
+
+  const start = (AppState.surveyCurrentPage - 1) * pageSize;
+  const pageItems = list.slice(start, start + pageSize);
+
+  const scoreBadge = (sc) => {
+    if (!sc) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px]">ไม่ระบุ</span>';
+    const cls = sc <= 2 ? 'bg-rose-100 text-rose-700 border-rose-200' : (sc === 3 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200');
+    return `<span class="px-2 py-0.5 rounded-full border text-[10px] font-bold ${cls}">ยอมรับ ${sc}/5</span>`;
+  };
+
+  const willingBadge = (w) => {
+    if (w === 'ยินดี') return '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold"><i class="fa-solid fa-check mr-0.5"></i>ยินดีให้ติดต่อ</span>';
+    if (w === 'ยังไม่แน่ใจ') return '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">ยังไม่แน่ใจ</span>';
+    return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px]">ไม่สะดวก</span>';
+  };
+
+  if (AppState.surveyDisplayMode === 'cards') {
+    const cardsBox = document.getElementById('survey-cards-container');
+    if (cardsBox) {
+      if (pageItems.length === 0) {
+        cardsBox.innerHTML = `<div class="col-span-full bg-white rounded-2xl p-10 text-center text-slate-400 border border-slate-200"><i class="fa-solid fa-comments text-3xl mb-2 opacity-40"></i><p class="text-sm font-medium">ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา</p></div>`;
+      } else {
+        cardsBox.innerHTML = pageItems.map(r => {
+          const phoneDisp = formatSurveyPhoneDisplay(r);
+          const emailDisp = formatSurveyEmailDisplay(r);
+          const dateStr = (r.timestamp || '').substring(0, 10);
+          return `
+            <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition flex flex-col justify-between gap-3">
+              <div class="space-y-2.5">
+                <!-- Card Header -->
+                <div class="flex flex-wrap items-start justify-between gap-2 pb-2 border-b border-slate-100">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-mono text-[10px] font-bold">#${r.id}</span>
+                      <span class="font-bold text-slate-900 text-sm">${r.name ? escapeHtml(r.name) : '<span class="text-slate-400 italic font-normal">ผู้ตอบไม่ระบุชื่อ</span>'}</span>
+                      ${r.isDuplicate ? '<span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[9px]">ตอบซ้ำ</span>' : ''}
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span class="text-violet-700 font-semibold">${escapeHtml(r.groupShort)}</span>
+                      ${r.experience ? `<span>&bull; ${escapeHtml(r.experience)}</span>` : ''}
+                      ${r.workplace ? `<span>&bull; <i class="fa-solid fa-hospital text-slate-400 mr-0.5"></i>${escapeHtml(r.workplace)}</span>` : ''}
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                    ${scoreBadge(r.recognitionScore)}
+                    ${willingBadge(r.willingContact)}
+                  </div>
+                </div>
+
+                <!-- Main Qualitative Voice: One Change -->
+                ${r.oneChange ? `
+                  <div class="p-3 rounded-xl bg-violet-50/70 border border-violet-200/70 text-xs text-slate-800 leading-relaxed">
+                    <div class="text-[10px] font-bold text-violet-800 uppercase tracking-wide mb-1 flex items-center gap-1">
+                      <i class="fa-solid fa-wand-magic-sparkles"></i> สิ่งที่อยากเปลี่ยนแปลง 1 เรื่อง:
+                    </div>
+                    <p class="whitespace-pre-line">${escapeHtml(r.oneChange)}</p>
+                  </div>
+                ` : ''}
+
+                <!-- Additional Message to Association -->
+                ${r.messageToAssoc ? `
+                  <div class="p-3 rounded-xl bg-indigo-50/60 border border-indigo-200/70 text-xs text-slate-800 leading-relaxed">
+                    <div class="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-1 flex items-center gap-1">
+                      <i class="fa-solid fa-envelope-open-text"></i> ข้อความเพิ่มเติมถึงสมาคมฯ:
+                    </div>
+                    <p class="whitespace-pre-line">${escapeHtml(r.messageToAssoc)}</p>
+                  </div>
+                ` : ''}
+
+                <!-- Extra insights for GP / Other specialty subset -->
+                ${r.chooseReason ? `
+                  <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                    <strong class="text-slate-700">เลือกเส้นทางเดิมไหม (${escapeHtml(r.wouldChooseAgain || '-')}):</strong> ${escapeHtml(r.chooseReason)}
+                  </div>
+                ` : ''}
+                ${r.goodTeamFactor ? `
+                  <div class="text-[11px] text-slate-600 bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-200/70">
+                    <strong class="text-emerald-800">ปัจจัยทีมปฐมภูมิที่สำเร็จ:</strong> ${escapeHtml(r.goodTeamFactor)}
+                  </div>
+                ` : ''}
+
+                <!-- Priorities Tags -->
+                ${(r.priorities && r.priorities.length) ? `
+                  <div class="flex flex-wrap gap-1 pt-0.5">
+                    ${r.priorities.slice(0, 5).map(p => `<span class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-[10px]">${escapeHtml(p.length > 52 ? p.substring(0, 50) + '…' : p)}</span>`).join('')}
+                    ${r.priorities.length > 5 ? `<span class="px-2 py-0.5 rounded-lg bg-violet-100 text-violet-700 text-[10px] font-semibold">+${r.priorities.length - 5} ประเด็น</span>` : ''}
+                  </div>
+                ` : ''}
+              </div>
+
+              <!-- Card Footer: Contact + Profile / CUP 70 Cross-Links -->
+              <div class="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500">
+                  <span><i class="fa-regular fa-calendar mr-1"></i>${escapeHtml(dateStr)}</span>
+                  ${r.boardPrepInterest && (r.boardPrepInterest === 'สนใจมาก' || r.boardPrepInterest === 'สนใจ') ? `<span class="text-teal-700 font-semibold"><i class="fa-solid fa-graduation-cap mr-0.5"></i>${escapeHtml(r.boardPrepInterest)} เตรียมสอบ อว.</span>` : ''}
+                  ${(r.phone || r.email) ? `<span class="font-mono text-[10px] text-slate-600"><i class="fa-solid fa-phone mr-0.5 text-slate-400"></i>${escapeHtml(phoneDisp)} &bull; ${escapeHtml(emailDisp)}</span>` : ''}
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  ${r.cupId ? `
+                    <button type="button" onclick="openCupDetailModal('${escapeHtml(r.cupId)}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold text-[11px] transition flex items-center gap-1">
+                      <i class="fa-solid fa-house-medical"></i> CUP 70
+                    </button>
+                  ` : ''}
+                  ${r.matchedId ? `
+                    <button type="button" onclick="openMemberDetailModal('${escapeHtml(r.matchedId)}')" class="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-semibold text-[11px] transition flex items-center gap-1 shadow-2xs">
+                      <i class="fa-solid fa-user-doctor"></i> ดูโปรไฟล์
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  } else {
+    const tbody = document.getElementById('survey-table-tbody');
+    if (tbody) {
+      if (pageItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-10 text-center text-slate-400">ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา</td></tr>`;
+      } else {
+        tbody.innerHTML = pageItems.map(r => {
+          const phoneDisp = formatSurveyPhoneDisplay(r);
+          const emailDisp = formatSurveyEmailDisplay(r);
+          const voiceSummary = r.oneChange || r.messageToAssoc || r.chooseReason || '-';
+          return `
+            <tr class="hover:bg-violet-50/40 transition">
+              <td class="py-2.5 px-3 text-center font-mono text-[11px] text-slate-400">${r.id}</td>
+              <td class="py-2.5 px-3">
+                <div class="font-bold text-slate-900">${r.name ? escapeHtml(r.name) : '<span class="text-slate-400 italic font-normal">ไม่ระบุชื่อ</span>'}</div>
+                <div class="text-[11px] text-slate-500 truncate max-w-[200px]" title="${escapeHtml(r.workplace)}">${escapeHtml(r.workplace || '-')}</div>
+              </td>
+              <td class="py-2.5 px-3">
+                <div class="text-[11px] font-semibold text-violet-800">${escapeHtml(r.groupShort)}</div>
+                <div class="text-[10px] text-slate-400">${escapeHtml(r.experience || '-')} • ${escapeHtml((r.timestamp || '').substring(0, 10))}</div>
+              </td>
+              <td class="py-2.5 px-3 text-center">${scoreBadge(r.recognitionScore)}</td>
+              <td class="py-2.5 px-3">
+                <div class="text-[11px] text-slate-700 line-clamp-2 max-w-[340px]" title="${escapeHtml(voiceSummary)}">${escapeHtml(voiceSummary)}</div>
+              </td>
+              <td class="py-2.5 px-3 text-center">${willingBadge(r.willingContact)}</td>
+              <td class="py-2.5 px-3 font-mono text-[10px] text-slate-600">
+                <div>${escapeHtml(phoneDisp)}</div>
+                <div class="text-slate-400 truncate max-w-[160px]" title="${escapeHtml(emailDisp)}">${escapeHtml(emailDisp)}</div>
+              </td>
+              <td class="py-2.5 px-3 text-center">
+                <div class="flex items-center justify-center gap-1">
+                  ${r.matchedId ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(r.matchedId)}')" class="px-2 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold transition" title="เปิดโปรไฟล์แพทย์"><i class="fa-solid fa-user-doctor"></i></button>` : '<span class="text-slate-300">-</span>'}
+                  ${r.cupId ? `<button type="button" onclick="openCupDetailModal('${escapeHtml(r.cupId)}')" class="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold transition" title="เปิดข้อมูล CUP 70"><i class="fa-solid fa-house-medical"></i></button>` : ''}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  }
+
+  // Footer & pagination
+  const footerEl = document.getElementById('survey-footer-count');
+  if (footerEl) {
+    const showFrom = list.length ? start + 1 : 0;
+    const showTo = Math.min(start + pageSize, list.length);
+    footerEl.innerText = `แสดงรายการที่ ${showFrom}–${showTo} จากทั้งหมด ${list.length.toLocaleString()} รายการ (หน้า ${AppState.surveyCurrentPage}/${totalPages})`;
+  }
+
+  const pagEl = document.getElementById('survey-pagination');
+  if (pagEl) {
+    if (totalPages <= 1) {
+      pagEl.innerHTML = '';
+    } else {
+      let html = `<button type="button" onclick="goToSurveyPage(${AppState.surveyCurrentPage - 1})" ${AppState.surveyCurrentPage <= 1 ? 'disabled' : ''} class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 text-xs font-semibold">ก่อนหน้า</button>`;
+      const maxBtns = 5;
+      let pStart = Math.max(1, AppState.surveyCurrentPage - 2);
+      let pEnd = Math.min(totalPages, pStart + maxBtns - 1);
+      if (pEnd - pStart < maxBtns - 1) pStart = Math.max(1, pEnd - maxBtns + 1);
+      for (let p = pStart; p <= pEnd; p++) {
+        const active = p === AppState.surveyCurrentPage;
+        html += `<button type="button" onclick="goToSurveyPage(${p})" class="px-2.5 py-1 rounded-lg border text-xs font-bold ${active ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">${p}</button>`;
+      }
+      html += `<button type="button" onclick="goToSurveyPage(${AppState.surveyCurrentPage + 1})" ${AppState.surveyCurrentPage >= totalPages ? 'disabled' : ''} class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 text-xs font-semibold">ถัดไป</button>`;
+      pagEl.innerHTML = html;
+    }
+  }
+}
+
+function exportMemberSurveyCsv() {
+  const list = AppState.filteredSurvey && AppState.filteredSurvey.length ? AppState.filteredSurvey : (AppState.memberSurvey || []);
+  if (!list.length) {
+    showToast('ไม่มีข้อมูลผลสำรวจสำหรับส่งออก', 'warning');
+    return;
+  }
+  const headers = [
+    'ลำดับ', 'ประทับเวลา', 'กลุ่มผู้ตอบ', 'ประสบการณ์', 'บริบท/สถานที่ทำงาน',
+    'คะแนนการยอมรับ', 'สิ่งที่อยากเปลี่ยน 1 เรื่อง', 'ประเด็นสำคัญ 2-3 ปี',
+    'สนใจเตรียมสอบ อว.', 'สถานะสมาชิก', 'ข้อความถึงสมาคมฯ',
+    'ยินดีให้ติดต่อ', 'ชื่อ-นามสกุล', 'สถานที่ทำงาน', 'อีเมล', 'โทรศัพท์', 'Matched_ID', 'CUP70_ID'
+  ];
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = [headers.map(esc).join(',')];
+  list.forEach(r => {
+    rows.push([
+      r.id, r.timestamp, r.group, r.experience, (r.settings || []).join('; '),
+      r.recognitionScore ?? '', r.oneChange, (r.priorities || []).join('; '),
+      r.boardPrepInterest, r.memberStatus, r.messageToAssoc,
+      r.willingContact, r.name, r.workplace,
+      formatSurveyEmailDisplay(r), formatSurveyPhoneDisplay(r),
+      r.matchedId || '', r.cupId || ''
+    ].map(esc).join(','));
+  });
+  const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Our_Voice_Survey_2026_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`ส่งออกไฟล์ CSV ผลสำรวจ ${list.length} รายการสำเร็จ`, 'success');
 }
