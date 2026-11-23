@@ -64,6 +64,7 @@ const STORAGE_KEY_ZONE_DELEGATES = 'MEDICAL_DASHBOARD_ZONE_DELEGATES_V1';
 
 // Default GAS Endpoint (realtime Google Apps Script Web App API for Sheet 1PVM2q...)
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyBksJGl_Nzlu4pv2yY63EPRpq9zHWEt_Rwicc7j_9nFBZI1-1TiBRqCErA0lRKWYFa/exec';
+const ACTIVE_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1PVM2qdbidgsFVCZhgLW160PD3rcN39Vrac75OH-tYFU/edit?usp=drive_link';
 
 function getGasEndpoint() {
   return localStorage.getItem(STORAGE_KEY_GAS_URL) || DEFAULT_GAS_URL || '';
@@ -3884,12 +3885,18 @@ function renderCup70DoctorsPage() {
   const start = (cup70DoctorsPage - 1) * CUP70_PAGE_SIZE;
   const slice = list.slice(start, start + CUP70_PAGE_SIZE);
 
-  tbody.innerHTML = slice.map(({ cup, doc }, i) => `
+  tbody.innerHTML = slice.map(({ cup, doc }, i) => {
+    const docIdx = (cup.doctors || []).indexOf(doc);
+    const profileTargetId = doc.matchedId || (docIdx >= 0 ? `cupdoc_${cup.id}_${docIdx}` : '');
+    const isLinkedDb = Boolean(doc.matchedId);
+    return `
     <tr class="hover:bg-amber-50/30 transition">
       <td class="py-2.5 px-3 text-center text-slate-400 font-mono">${start + i + 1}</td>
       <td class="py-2.5 px-3 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 font-bold text-[10px]">เขต ${escapeHtml(cup.zone)}</span></td>
       <td class="py-2.5 px-4">
-        <div class="font-bold text-slate-900">${escapeHtml(doc.name)}</div>
+        ${profileTargetId
+          ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="font-bold text-slate-900 hover:text-sky-700 hover:underline text-left">${escapeHtml(doc.name)}</button>`
+          : `<div class="font-bold text-slate-900">${escapeHtml(doc.name)}</div>`}
         ${doc.specialty ? `<div class="text-[10px] text-slate-500">${escapeHtml(doc.specialty)}</div>` : ''}
       </td>
       <td class="py-2.5 px-3 text-center">${getCup70CertBadge(doc.cert)}</td>
@@ -3900,14 +3907,15 @@ function renderCup70DoctorsPage() {
         <div class="text-[10px] text-slate-500">อ.${escapeHtml(cup.district || '-')} จ.${escapeHtml(cup.province)}</div>
       </td>
       <td class="py-2.5 px-3 text-center">
-        ${doc.matchedId ? `
-          <button type="button" onclick="openMemberDetailModal('${escapeHtml(doc.matchedId)}')" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-semibold text-[10px] transition inline-flex items-center gap-1">
+        ${profileTargetId ? `
+          <button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="px-2.5 py-1 rounded-lg ${isLinkedDb ? 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'} border font-semibold text-[10px] transition inline-flex items-center gap-1">
             <i class="fa-solid fa-address-card"></i> โปรไฟล์
           </button>
         ` : '<span class="text-[10px] text-slate-400">CUP 70</span>'}
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   buildCup70Pagination('cup70-doctors-pagination', cup70DoctorsPage, list.length, 'changeCup70DoctorsPage');
 }
@@ -3984,9 +3992,10 @@ function openCupDetailModal(cupId) {
   const tbody = document.getElementById('cup-modal-units-tbody');
   if (tbody) {
     const docLookup = {};
-    (c.doctors || []).forEach(d => {
-      if (d.licenseNo) docLookup[d.licenseNo] = d.matchedId;
-      if (d.name) docLookup[d.name] = d.matchedId;
+    (c.doctors || []).forEach((d, dIdx) => {
+      const targetId = d.matchedId || `cupdoc_${c.id}_${dIdx}`;
+      if (d.licenseNo) docLookup[d.licenseNo] = targetId;
+      if (d.name) docLookup[d.name] = targetId;
     });
 
     tbody.innerHTML = (c.units || []).map((u, idx) => {
@@ -4133,12 +4142,95 @@ function getDisplayEmail(m, mType = 'sheet') {
 function openMemberDetailModal(id) {
   let m = null;
   let tfDoc = null;
+  let surveyRecDirect = null;
+  let isSyntheticExternal = false;
   
   const idStr = String(id).trim();
   const isTfId = idStr.startsWith('tf_');
+  const isSurveyId = idStr.startsWith('survey_');
+  const isCupDocId = idStr.startsWith('cupdoc_');
   const actualId = isTfId ? idStr.substring(3) : idStr;
 
-  if (isTfId) {
+  if (isSurveyId) {
+    const sId = idStr.substring(7);
+    surveyRecDirect = (AppState.memberSurvey || []).find(item => String(item.id) === sId) || null;
+    if (surveyRecDirect && surveyRecDirect.matchedId) {
+      return openMemberDetailModal(surveyRecDirect.matchedId);
+    }
+    if (surveyRecDirect) {
+      isSyntheticExternal = true;
+      const sName = surveyRecDirect.name || `ผู้ตอบแบบสำรวจ #${surveyRecDirect.id}`;
+      m = {
+        id: `survey_${surveyRecDirect.id}`,
+        fullNameTh: sName,
+        fullNameEn: '',
+        licenseNo: '',
+        fpNo: surveyRecDirect.memberNo || '',
+        certGroup: surveyRecDirect.groupShort || surveyRecDirect.group || 'ผู้ตอบแบบสำรวจ Our Voice 2026',
+        certYear: '',
+        medSchool: '',
+        trainingInstitute: surveyRecDirect.experience ? `ประสบการณ์ทำงาน ${surveyRecDirect.experience}` : '',
+        otherDegree: (surveyRecDirect.settings && surveyRecDirect.settings.length) ? surveyRecDirect.settings.join(', ') : '',
+        workplace: {
+          name: surveyRecDirect.workplace || '-',
+          type: (surveyRecDirect.settings && surveyRecDirect.settings[0]) || 'บริการปฐมภูมิ',
+          address: '',
+          tambon: '',
+          amphoe: '',
+          province: '',
+          zipcode: ''
+        },
+        lat: null,
+        lng: null,
+        mobilePhone: surveyRecDirect.phone || '',
+        email: surveyRecDirect.email || '',
+        photoUrl: '',
+        photoDriveId: '',
+        contactChannels: surveyRecDirect.willingContact ? `สถานะการติดต่อ (Survey): ${surveyRecDirect.willingContact}` : ''
+      };
+    }
+  } else if (isCupDocId) {
+    // Format: cupdoc_cup_12_3
+    const mCup = idStr.match(/^cupdoc_(cup_\d+)_(\d+)$/);
+    if (mCup) {
+      const cupObj = (AppState.cup70 || []).find(c => c.id === mCup[1]);
+      const cDoc = cupObj && cupObj.doctors ? cupObj.doctors[parseInt(mCup[2], 10)] : null;
+      if (cDoc && cDoc.matchedId) {
+        return openMemberDetailModal(cDoc.matchedId);
+      }
+      if (cupObj && cDoc) {
+        isSyntheticExternal = true;
+        m = {
+          id: idStr,
+          fullNameTh: cDoc.name || '-',
+          fullNameEn: '',
+          licenseNo: cDoc.licenseNo || '',
+          fpNo: '',
+          certGroup: cDoc.cert || 'แพทย์ปฐมภูมิ (CUP 70)',
+          certYear: '',
+          medSchool: '',
+          trainingInstitute: cDoc.specialty || '',
+          otherDegree: cDoc.unitName ? `หน่วยบริการ: ${cDoc.unitName}` : '',
+          workplace: {
+            name: cupObj.hospital || '-',
+            type: 'เครือข่าย CUP 70',
+            address: cDoc.unitName || '',
+            tambon: '',
+            amphoe: cupObj.district || '',
+            province: cupObj.province || '',
+            zipcode: ''
+          },
+          healthZone: cupObj.zone || '',
+          lat: cupObj.lat,
+          lng: cupObj.lng,
+          mobilePhone: '',
+          email: '',
+          photoUrl: '',
+          photoDriveId: ''
+        };
+      }
+    }
+  } else if (isTfId) {
     if (AppState.thaifammed) tfDoc = AppState.thaifammed.find(item => String(item.id) === actualId);
     if (tfDoc && tfDoc.matchedMemberId && AppState.members) {
       m = AppState.members.find(item => String(item.id) === String(tfDoc.matchedMemberId));
@@ -4417,24 +4509,27 @@ function openMemberDetailModal(id) {
     }
   }
 
-  // Member Voice Survey 2026 Cross-Link (Visible to Admin or Record Owner only for privacy)
+  // Member Voice Survey 2026 Cross-Link (Named respondents linked bidirectionally; anonymous rows never linked)
   const surveySection = document.getElementById('detail-survey-section');
   const surveyListEl = document.getElementById('detail-survey-list');
   if (surveySection && surveyListEl) {
-    const canSeeSurvey = typeof AuthManager !== 'undefined' && (
-      AuthManager.isAdmin() ||
-      (m && m.id && AuthManager.isMyRecord('sheet', m.id)) ||
-      (tfDoc && tfDoc.id && AuthManager.isMyRecord('thaifammed', tfDoc.id))
-    );
-    const surveyMatches = canSeeSurvey ? (AppState.memberSurvey || []).filter(s => {
-      if (!s.matchedId) return false;
-      if (m && m.id && String(s.matchedId) === String(m.id)) return true;
-      if (tfDoc && tfDoc.id && String(s.matchedId) === 'tf_' + tfDoc.id) return true;
-      return false;
-    }) : [];
+    const cleanProfileName = (m.fullNameTh || (tfDoc && tfDoc.name) || '')
+      .replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '')
+      .replace(/\s+/g, '');
+    const surveyMatches = (AppState.memberSurvey || []).filter(s => {
+      if (surveyRecDirect && s.id === surveyRecDirect.id) return true;
+      if (!s.name) return false; // Never link anonymous responses
+      if (s.matchedId) {
+        if (m && m.id && String(s.matchedId) === String(m.id)) return true;
+        if (tfDoc && tfDoc.id && String(s.matchedId) === 'tf_' + tfDoc.id) return true;
+      }
+      const sClean = s.name.replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง|นาย|นางสาว|นาง)\s*/, '').replace(/\s+/g, '');
+      return cleanProfileName.length >= 4 && sClean === cleanProfileName;
+    });
 
     if (surveyMatches.length > 0) {
       surveySection.classList.remove('hidden');
+      const jumpName = m.fullNameTh || (surveyMatches[0] && surveyMatches[0].name) || '';
       surveyListEl.innerHTML = surveyMatches.map(s => `
         <div class="bg-white/90 p-3 rounded-xl border border-violet-200 space-y-1.5">
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -4447,6 +4542,11 @@ function openMemberDetailModal(id) {
           ${s.oneChange ? `<div class="text-slate-700"><strong class="text-violet-900">สิ่งที่อยากเปลี่ยน 1 เรื่อง:</strong> ${escapeHtml(s.oneChange)}</div>` : ''}
           ${s.messageToAssoc ? `<div class="text-slate-700"><strong class="text-indigo-900">ข้อความถึงสมาคมฯ:</strong> ${escapeHtml(s.messageToAssoc)}</div>` : ''}
           ${(s.priorities && s.priorities.length) ? `<div class="flex flex-wrap gap-1 pt-0.5">${s.priorities.slice(0, 4).map(p => `<span class="px-1.5 py-0.5 rounded bg-violet-100/80 text-violet-900 text-[10px]">${escapeHtml(p)}</span>`).join('')}${s.priorities.length > 4 ? `<span class="text-[10px] text-slate-400">+${s.priorities.length - 4} ประเด็น</span>` : ''}</div>` : ''}
+          <div class="pt-1 flex justify-end">
+            <button type="button" onclick="closeModal('memberDetailModal'); openSurveyForDoctor('${escapeHtml(s.name || jumpName)}')" class="px-2.5 py-1 rounded-lg bg-violet-100 hover:bg-violet-200 text-violet-900 font-semibold text-[10px] transition inline-flex items-center gap-1">
+              <i class="fa-solid fa-comments"></i> ดูเต็มในหน้าผลสำรวจ
+            </button>
+          </div>
         </div>
       `).join('');
     } else {
@@ -4694,22 +4794,26 @@ function openMemberDetailModal(id) {
   // Edit / Update button from Profile Detail
   const editBtn = document.getElementById('btn-edit-from-detail');
   if (editBtn) {
-    editBtn.classList.remove('hidden');
-    const isTfOnly = tfDoc && (!tfDoc.matchedMemberId || !AppState.members.some(item => item.id == tfDoc.matchedMemberId));
-    if (isTfOnly) {
-      editBtn.innerHTML = `<i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูลลง Sheet`;
-      editBtn.className = `px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5`;
-      editBtn.onclick = () => {
-        closeModal('memberDetailModal');
-        openUpdateDoctorModal('thaifammed', tfDoc.id);
-      };
+    if (isSyntheticExternal) {
+      editBtn.classList.add('hidden');
     } else {
-      editBtn.innerHTML = `<i class="fa-solid fa-pen-to-square mr-1"></i> แก้ไขข้อมูล`;
-      editBtn.className = `px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5`;
-      editBtn.onclick = () => {
-        closeModal('memberDetailModal');
-        openEditMemberModal(m.id);
-      };
+      editBtn.classList.remove('hidden');
+      const isTfOnly = tfDoc && (!tfDoc.matchedMemberId || !AppState.members.some(item => item.id == tfDoc.matchedMemberId));
+      if (isTfOnly) {
+        editBtn.innerHTML = `<i class="fa-solid fa-user-pen mr-1"></i> อัปเดตข้อมูลลง Sheet`;
+        editBtn.className = `px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5`;
+        editBtn.onclick = () => {
+          closeModal('memberDetailModal');
+          openUpdateDoctorModal('thaifammed', tfDoc.id);
+        };
+      } else {
+        editBtn.innerHTML = `<i class="fa-solid fa-pen-to-square mr-1"></i> แก้ไขข้อมูล`;
+        editBtn.className = `px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5`;
+        editBtn.onclick = () => {
+          closeModal('memberDetailModal');
+          openEditMemberModal(m.id);
+        };
+      }
     }
   }
 
@@ -7850,7 +7954,7 @@ const AuthManager = {
       return;
     }
 
-    const targetId = this.currentUser.sheetId || (this.currentUser.type === 'sheet' ? this.currentUser.id : null);
+    const targetId = this.currentUser.sheetId || (this.currentUser.type === 'sheet' ? this.currentUser.id : (this.currentUser.id ? `tf_${this.currentUser.id}` : null));
     if (targetId) {
       openMemberDetailModal(targetId);
     } else {
@@ -8790,6 +8894,16 @@ function openSurveyWillingContacts() {
   filterMemberSurvey();
 }
 
+function openSurveyForDoctor(query) {
+  switchView('survey');
+  const ids = ['survey-filter-group', 'survey-filter-score', 'survey-filter-willing', 'survey-filter-special'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const searchEl = document.getElementById('survey-search');
+  if (searchEl) searchEl.value = (query || '').replace(/^(นพ\.|พญ\.|นายแพทย์|แพทย์หญิง)\s*/, '').trim();
+  switchSurveyDisplayMode('cards');
+  filterMemberSurvey();
+}
+
 function resetSurveyFilters() {
   const ids = ['survey-search', 'survey-filter-group', 'survey-filter-score', 'survey-filter-willing', 'survey-filter-special'];
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -8833,6 +8947,8 @@ function renderSurveyPage() {
           const phoneDisp = formatSurveyPhoneDisplay(r);
           const emailDisp = formatSurveyEmailDisplay(r);
           const dateStr = (r.timestamp || '').substring(0, 10);
+          const profileTargetId = r.matchedId || (r.name ? `survey_${r.id}` : '');
+          const isMatchedDb = Boolean(r.matchedId);
           return `
             <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition flex flex-col justify-between gap-3">
               <div class="space-y-2.5">
@@ -8841,7 +8957,10 @@ function renderSurveyPage() {
                   <div class="min-w-0">
                     <div class="flex items-center gap-1.5 flex-wrap">
                       <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-mono text-[10px] font-bold">#${r.id}</span>
-                      <span class="font-bold text-slate-900 text-sm">${r.name ? escapeHtml(r.name) : '<span class="text-slate-400 italic font-normal">ผู้ตอบไม่ระบุชื่อ</span>'}</span>
+                      ${profileTargetId
+                        ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="font-bold text-slate-900 hover:text-violet-700 hover:underline text-sm text-left">${escapeHtml(r.name)}</button>`
+                        : `<span class="text-slate-400 italic font-normal text-sm">ผู้ตอบไม่ระบุชื่อ</span>`}
+                      ${isMatchedDb ? '<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-semibold">เชื่อม DB</span>' : ''}
                       ${r.isDuplicate ? '<span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[9px]">ตอบซ้ำ</span>' : ''}
                     </div>
                     <div class="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -8910,8 +9029,8 @@ function renderSurveyPage() {
                       <i class="fa-solid fa-house-medical"></i> CUP 70
                     </button>
                   ` : ''}
-                  ${r.matchedId ? `
-                    <button type="button" onclick="openMemberDetailModal('${escapeHtml(r.matchedId)}')" class="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-semibold text-[11px] transition flex items-center gap-1 shadow-2xs">
+                  ${profileTargetId ? `
+                    <button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="px-2.5 py-1 rounded-lg ${isMatchedDb ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-2xs' : 'bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200'} font-semibold text-[11px] transition flex items-center gap-1">
                       <i class="fa-solid fa-user-doctor"></i> ดูโปรไฟล์
                     </button>
                   ` : ''}
@@ -8932,11 +9051,17 @@ function renderSurveyPage() {
           const phoneDisp = formatSurveyPhoneDisplay(r);
           const emailDisp = formatSurveyEmailDisplay(r);
           const voiceSummary = r.oneChange || r.messageToAssoc || r.chooseReason || '-';
+          const profileTargetId = r.matchedId || (r.name ? `survey_${r.id}` : '');
+          const isMatchedDb = Boolean(r.matchedId);
           return `
             <tr class="hover:bg-violet-50/40 transition">
               <td class="py-2.5 px-3 text-center font-mono text-[11px] text-slate-400">${r.id}</td>
               <td class="py-2.5 px-3">
-                <div class="font-bold text-slate-900">${r.name ? escapeHtml(r.name) : '<span class="text-slate-400 italic font-normal">ไม่ระบุชื่อ</span>'}</div>
+                <div class="font-bold text-slate-900">
+                  ${profileTargetId
+                    ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="hover:text-violet-700 hover:underline text-left">${escapeHtml(r.name)}</button>`
+                    : '<span class="text-slate-400 italic font-normal">ไม่ระบุชื่อ</span>'}
+                </div>
                 <div class="text-[11px] text-slate-500 truncate max-w-[200px]" title="${escapeHtml(r.workplace)}">${escapeHtml(r.workplace || '-')}</div>
               </td>
               <td class="py-2.5 px-3">
@@ -8954,7 +9079,7 @@ function renderSurveyPage() {
               </td>
               <td class="py-2.5 px-3 text-center">
                 <div class="flex items-center justify-center gap-1">
-                  ${r.matchedId ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(r.matchedId)}')" class="px-2 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold transition" title="เปิดโปรไฟล์แพทย์"><i class="fa-solid fa-user-doctor"></i></button>` : '<span class="text-slate-300">-</span>'}
+                  ${profileTargetId ? `<button type="button" onclick="openMemberDetailModal('${escapeHtml(profileTargetId)}')" class="px-2 py-1 rounded-lg ${isMatchedDb ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-100 hover:bg-violet-200 text-violet-800'} text-[10px] font-bold transition" title="เปิดโปรไฟล์แพทย์"><i class="fa-solid fa-user-doctor"></i></button>` : '<span class="text-slate-300">-</span>'}
                   ${r.cupId ? `<button type="button" onclick="openCupDetailModal('${escapeHtml(r.cupId)}')" class="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold transition" title="เปิดข้อมูล CUP 70"><i class="fa-solid fa-house-medical"></i></button>` : ''}
                 </div>
               </td>
